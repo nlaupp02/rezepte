@@ -35,12 +35,15 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+html { -webkit-text-size-adjust: 100%; background: var(--bg); overscroll-behavior: none; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 17px/1.45 var(--font); -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  /* Wie eine echte App: kein Markieren von Text (keine Lupe), kein Nachfedern beim Wischen, kein Doppeltipp-Zoom */
+  overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
 }
+input, textarea, select { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button, label[for] { cursor: pointer; }
 img { max-width: 100%; display: block; }
@@ -57,7 +60,7 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
 .topbar {
   position: sticky; top: 0; z-index: 5;
   display: flex; align-items: center; gap: 2px;
-  margin: 0 -16px; padding: calc(2px + env(safe-area-inset-top)) 6px 2px;
+  margin: 0 -16px; padding: calc(8px + env(safe-area-inset-top)) 6px 2px;
   background: rgba(255, 255, 255, .9);
   -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
 }
@@ -71,7 +74,7 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
 .back .ic { width: 24px; height: 24px; stroke-width: 2.4; margin-right: -1px; }
 .tbtn.bold { font-weight: 600; }
 .tbtn[disabled] { opacity: .4; }
-.home-head { display: flex; justify-content: flex-end; gap: 2px; margin-right: -10px; padding-top: calc(4px + env(safe-area-inset-top)); min-height: calc(48px + env(safe-area-inset-top)); }
+.home-head { display: flex; justify-content: flex-end; gap: 2px; margin-right: -10px; padding-top: calc(14px + env(safe-area-inset-top)); min-height: calc(58px + env(safe-area-inset-top)); }
 .brand { font-size: 34px; line-height: 1.15; font-weight: 700; margin: 0 0 10px; }
 
 /* Buttons */
@@ -92,7 +95,8 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
   width: 44px; height: 44px; border: 0; border-radius: 22px; background: none;
   display: inline-grid; place-items: center; color: var(--accent);
 }
-.icon-btn .ic { width: 24px; height: 24px; }
+.icon-btn .ic { width: 25px; height: 25px; stroke-width: 2.1; shape-rendering: geometricPrecision; }
+.home-head .icon-btn { color: #8A5A0B; }
 .icon-btn.on { color: var(--heart); }
 
 .fab {
@@ -336,9 +340,10 @@ button.row:active { opacity: .6; }
 .sheet {
   position: absolute; left: 0; right: 0; bottom: 0; max-width: 680px; margin: 0 auto;
   background: var(--group); border-radius: 14px 14px 0 0; padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
-  display: grid; gap: 14px; max-height: 90%; overflow-y: auto;
+  display: grid; gap: 14px; max-height: 90%; overflow-y: auto; overscroll-behavior: contain;
 }
-.grip { width: 36px; height: 5px; border-radius: 3px; background: #D6D1C9; margin: 0 auto; }
+.grip { width: 36px; height: 5px; border-radius: 3px; background: #C9C3B9; margin: 0 auto; }
+.sheet { touch-action: none; will-change: transform; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; }
 .sheet h2 { font-size: 20px; padding-left: 2px; }
 .sheet .tbtn { margin-right: -10px; }
@@ -385,7 +390,6 @@ button.row:active { opacity: .6; }
 <div id="app" class="app"></div>
 <input class="vh" id="quick-pick" type="file" accept="image/*" multiple data-file="quick" aria-label="Rezeptfoto auswählen">
 <input class="vh" id="cam-pick" type="file" accept="image/*" capture="environment" data-file="quick" aria-label="Foto aufnehmen">
-<input class="vh" id="pdf-pick" type="file" accept="application/pdf,.pdf" data-file="pdf" aria-label="PDF auswählen">
 <div id="layer"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -418,7 +422,7 @@ const ICONS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-  user: '<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.6-4 3.7-6.5 7.5-6.5s6.9 2.5 7.5 6.5"/>',
   logout: '<path d="M14 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H14"/><path d="M10 12h10M16.5 8.5L20 12l-3.5 3.5"/>',
   people: '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17 19a5.5 5.5 0 0 0-2-4.2"/>',
   pot: '<path d="M5 11.5h14V16a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M5 13.5H3M19 13.5h2"/><path d="M3.5 11.5h17"/><path d="M6.5 11.5c0-1.9 2.5-3.2 5.5-3.2s5.5 1.3 5.5 3.2"/><path d="M10.4 6.2h3.2M12 6.2v2"/>',
@@ -427,7 +431,7 @@ const ICONS = {
   doc: '<path d="M7 3.5h7l4 4v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z"/><path d="M14 3.5v4h4"/><path d="M9 12.5h6M9 16h6"/>',
   share: '<path d="M12 3.5v11"/><path d="M8.2 7.2L12 3.4l3.8 3.8"/><path d="M8 10.5H6.5A1.5 1.5 0 0 0 5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12a1.5 1.5 0 0 0-1.5-1.5H16"/>',
   star: '<path d="M12 3.8l2.5 5.1 5.6.8-4.05 3.95.95 5.6L12 16.6l-5 2.65.95-5.6L3.9 9.7l5.6-.8z"/>',
-  sort: '<path d="M7.5 4.5v15M4 16l3.5 3.5L11 16M16.5 19.5v-15M13 8l3.5-3.5L20 8"/>'
+  sort: '<path d="M8 4v16M4.5 16.5L8 20l3.5-3.5M16 20V4M12.5 7.5L16 4l3.5 3.5"/>'
 };
 const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 
@@ -462,7 +466,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V20";
+const APP_VERSION = "V21";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -580,7 +584,7 @@ function subscribe() {
 }
 
 /* Claude über den Worker */
-async function workerPost(path, body, signal, timeoutMs) {
+async function workerPost(path, body, signal, timeoutMs, asBlob) {
   if (!authUser) throw { code: "permission", message: "nicht angemeldet" };
   let tok;
   try { tok = await authUser.getIdToken(); } catch (e) { throw { code: "auth_worker", message: String(e.message || e) }; }
@@ -599,13 +603,14 @@ async function workerPost(path, body, signal, timeoutMs) {
     throw { code: navigator.onLine === false ? "offline" : "server_unreachable", message: String(e.message || e) };
   } finally { clearTimeout(timer); if (signal) signal.removeEventListener("abort", onAbort); }
   let data = null;
-  try { data = await res.json(); } catch (e) { data = null; }
+  if (!(res.ok && asBlob)) { try { data = await res.json(); } catch (e) { data = null; } }
+  if (res.ok && asBlob) { workerPost.retried = false; return await res.blob(); }
   if (!res.ok) {
     const err = mapClaudeErr(res.status, data);
     if (err.code === "not_verified" && !workerPost.retried) {
       workerPost.retried = true;
       try { await authUser.reload(); await authUser.getIdToken(true); } catch (e) { /* egal */ }
-      return await workerPost(path, body, signal, timeoutMs);
+      return await workerPost(path, body, signal, timeoutMs, asBlob);
     }
     throw err;
   }
@@ -617,6 +622,7 @@ function mapClaudeErr(status, data) {
   const msg = String((er && typeof er === "object" ? er.message || er.type : (data && data.message) || er) || "");
   if (er === "not_allowed") return { code: "not_allowed", message: msg };
   if (er === "not_verified") return { code: "not_verified", message: msg };
+  if (er === "instagram_blocked") return { code: "insta_blocked", message: msg };
   if (er === "auth" || status === 401) return { code: "auth_worker", message: msg };
   if (er === "no_key") return { code: "no_key", message: msg };
   if (/credit balance|billing/i.test(msg)) return { code: "no_credit", message: msg };
@@ -639,7 +645,6 @@ function makeClaude() {
     for (const b of (opts.images ? Array.from(opts.images) : [])) {
       content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: String(await blobToDataUrl(b)).split(",")[1] } });
     }
-    if (opts.pdf) content.unshift({ type: "document", source: { type: "base64", media_type: "application/pdf", data: opts.pdf } });
     content.push({ type: "text", text: prompt });
     // Modell und max_tokens müssen ganz vorne stehen (der Worker prüft das)
     const body = JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 6000, messages: [{ role: "user", content }] });
@@ -652,6 +657,11 @@ function makeClaude() {
 }
 async function fetchPage(url, signal) {
   return await workerPost("/page", JSON.stringify({ url }), signal, 30000);
+}
+// Vorschaubild über den eigenen Server laden und verkleinern (Instagram-Bildlinks laufen nach ein paar Tagen ab)
+async function fetchImage(url, signal) {
+  const blob = await workerPost("/img", JSON.stringify({ url }), signal, 25000, true);
+  return await toJpeg(blob, 1568, 0.86);
 }
 
 let lastBanner = null, lastDetailSig = "";
@@ -797,10 +807,10 @@ function openAccount() {
       <div class="group">
         <div class="cell col"><small>Angemeldet als</small><span class="v">${esc(mail)}</span></div>
         ${authUser && authUser.email && !authUser.emailVerified ? `<button class="cell" data-action="verify-mail"><span>E-Mail bestätigen</span><span class="v">Link senden ›</span></button>` : ""}
-        <div class="cell ver-box"><span>Version</span><span class="v">${APP_VERSION}</span></div>
       </div>
       ${authUser && authUser.email && !authUser.emailVerified ? `<p class="note">Zum Einlesen von Rezepten muss die E-Mail bestätigt sein. Bei Google-Konten ist sie das schon.</p>` : ""}
       <div class="group"><button class="cell danger" data-action="logout">Abmelden</button></div>
+      <p class="rc-note ver-box" style="margin:0">Version ${APP_VERSION}</p>
     </div>`;
   layer.classList.add("open");
 }
@@ -1021,6 +1031,43 @@ function toast(msg) {
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2800);
 }
 function closeLayer() { layer.classList.remove("open"); layer.innerHTML = ""; }
+/* Fenster (Sheets) mit dem Finger nach unten wegwischen, wie in iOS */
+let sheetDrag = null, suppressClick = false;
+layer.addEventListener("pointerdown", e => {
+  const sh = e.target.closest(".sheet");
+  if (!sh || (e.pointerType === "mouse" && e.button !== 0)) return;
+  sheetDrag = { sh, id: e.pointerId, y0: e.clientY, t0: performance.now(), dy: 0, moved: false };
+});
+layer.addEventListener("pointermove", e => {
+  const d = sheetDrag;
+  if (!d || e.pointerId !== d.id) return;
+  d.dy = Math.max(0, e.clientY - d.y0);
+  if (!d.moved && d.dy > 6) { d.moved = true; try { d.sh.setPointerCapture(d.id); } catch (x) { /* egal */ } d.sh.style.transition = "none"; }
+  if (d.moved) {
+    d.sh.style.transform = `translateY(${d.dy}px)`;
+    const sc = layer.querySelector(".scrim"); if (sc) sc.style.opacity = String(Math.max(0.2, 1 - d.dy / 500));
+  }
+});
+function endSheetDrag(e) {
+  const d = sheetDrag;
+  if (!d || e.pointerId !== d.id) return;
+  sheetDrag = null;
+  if (!d.moved) return;
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 80);
+  const v = d.dy / Math.max(1, performance.now() - d.t0);
+  const sc = layer.querySelector(".scrim");
+  if (d.dy > 90 || (v > 0.5 && d.dy > 30)) {
+    d.sh.style.transition = "transform .2s ease-in"; d.sh.style.transform = "translateY(105%)";
+    if (sc) { sc.style.transition = "opacity .2s"; sc.style.opacity = "0"; }
+    setTimeout(closeLayer, 190);
+  } else {
+    d.sh.style.transition = "transform .22s cubic-bezier(.2,.8,.2,1)"; d.sh.style.transform = "";
+    if (sc) { sc.style.transition = "opacity .2s"; sc.style.opacity = ""; }
+  }
+}
+layer.addEventListener("pointerup", endSheetDrag);
+layer.addEventListener("pointercancel", endSheetDrag);
+document.addEventListener("click", e => { if (suppressClick) { e.preventDefault(); e.stopPropagation(); } }, true);
 function confirmDialog({ title, text, yes, danger }) {
   return new Promise(res => {
     layer.innerHTML = `<div class="scrim" data-action="modal-no"></div>
@@ -1039,8 +1086,8 @@ function confirmDialog({ title, text, yes, danger }) {
 const ADD_OPTIONS = [
   { mode: "camera", icon: "camera", t: "Foto aufnehmen", pick: "cam-pick" },
   { mode: "photo", icon: "image", t: "Fotos oder Screenshots", pick: "quick-pick" },
+  { mode: "insta", icon: "reel", t: "Instagram-Reel" },
   { mode: "link", icon: "link", t: "Link oder Text einfügen" },
-  { mode: "pdf", icon: "doc", t: "PDF auswählen", pick: "pdf-pick" },
   { mode: "manual", icon: "pen", t: "Selbst eintippen" }
 ];
 const addOptions = () => ADD_OPTIONS.map(o => o.pick
@@ -1453,21 +1500,24 @@ function startImport(mode) {
 function renderImport() {
   const imp = state.imp;
   if (!imp) { go("list"); return; }
+  const ig = imp.mode === "insta";
   app.innerHTML = `
     <div class="topbar">
       <button class="tbtn" data-action="back">Abbrechen</button>
-      <h2 class="bar-title">Link oder Text</h2>
+      <h2 class="bar-title">${ig ? "Instagram-Reel" : "Link oder Text"}</h2>
       <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
     </div>
     <main class="stack">
-      <p class="lead">Füg einen Link zu einem Rezept ein, zum Beispiel von Chefkoch, oder den Rezepttext aus WhatsApp, E-Mail oder Notizen.</p>
+      <p class="lead">${ig
+        ? "Tipp im Reel auf <b>Teilen</b> und dann auf <b>Link kopieren</b>. Füg den Link hier ein. Gelesen werden die Beschreibung und das Vorschaubild."
+        : "Füg einen Link ein, zum Beispiel von Chefkoch, oder den Rezepttext aus WhatsApp, E-Mail oder Notizen."}</p>
       <div class="field">
-        <div class="sec-head"><label for="imp-link">Link oder Text</label><button class="btn small quiet" data-action="paste-link" style="margin-right:-13px">${icon("paste")}Einfügen</button></div>
-        <textarea id="imp-link" rows="5" autocomplete="off" placeholder="https://… oder den ganzen Rezepttext">${esc(imp.link)}</textarea>
+        <div class="sec-head"><label for="imp-link">${ig ? "Link zum Reel" : "Link oder Text"}</label><button class="btn small quiet" data-action="paste-link" style="margin-right:-13px">${icon("paste")}Einfügen</button></div>
+        <textarea id="imp-link" rows="${ig ? 2 : 5}" autocomplete="off" autocapitalize="off" placeholder="${ig ? "https://www.instagram.com/reel/…" : "https://… oder den ganzen Rezepttext"}">${esc(imp.link)}</textarea>
       </div>
       <div id="imp-status" aria-live="polite"></div>
       <button class="btn primary block" id="recognize" data-action="recognize">Rezept holen</button>
-      <p class="note">Instagram-Links klappen meist nicht. Kopier dort lieber die Beschreibung als Text oder mach Screenshots.</p>
+      <p class="note">${ig ? "Steht das Rezept nur im Video und nicht in der Beschreibung, mach lieber Screenshots davon." : "Für Instagram gibt es einen eigenen Punkt „Instagram-Reel“."}</p>
     </main>`;
   const ta = $("#imp-link"); if (ta) autosize(ta);
 }
@@ -1480,16 +1530,13 @@ function buildPrompt(imp, n) {
   const t = imp.text.trim();
   let material;
   if (imp.mode === "insta") {
-    material = `Das Material stammt aus einem Instagram-Reel oder -Post` +
-      (n ? `: ${n} Screenshot(s) (Bild 1 bis ${n}) aus dem Video und/oder der Beschreibung` : "") +
-      (t ? (n ? ", dazu" : ":") + " die kopierte Beschreibung (unten)" : "") +
-      `. Text-Einblendungen im Video gehören auch zum Rezept.`;
+    material = `Das Material stammt aus einem Instagram-Reel oder -Beitrag: die Beschreibung (unten)` +
+      (n ? ` und das Vorschaubild des Videos (Bild 1). Text-Einblendungen im Bild gehören auch zum Rezept` : "") +
+      `. Steht in der Beschreibung (und im Bild) kein Rezept mit Zutaten, setz "isRecipe" auf false und schreib in "problem", dass das Rezept wohl nur im Video gezeigt wird. Als "source" nimmst du den Kanal, z. B. "@kanalname".`;
   } else if (imp.mode === "photo") {
     material = `Das Material sind ${n} Foto(s) (Bild 1 bis ${n}) eines Rezepts, z. B. aus einem Kochbuch, einer Zeitschrift, von einem Zettel oder handschriftlich. Mehrere Bilder gehören zum selben Rezept (z. B. mehrere Seiten oder Vorder- und Rückseite).`;
   } else if (imp.page) {
     material = `Das Material ist der Inhalt einer Rezept-Webseite (Link und Text unten).`;
-  } else if (imp.mode === "pdf") {
-    material = `Das Material ist ein PDF-Dokument mit einem Rezept, z. B. eine eingescannte Kochbuchseite oder ein ausgedrucktes Rezept.`;
   } else {
     material = `Das Material ist ein eingefügter Text, z. B. aus WhatsApp, einer E-Mail oder einer Instagram-Beschreibung` + (n ? `, und ${n} Bild(er)` : "") + `.`;
   }
@@ -1570,6 +1617,8 @@ function aiErrorText(e) {
     not_allowed: ["Dieses Konto ist nicht freigeschaltet", "Die E-Mail-Adresse muss im Worker bei ALLOWED_EMAILS stehen."],
     not_verified: ["E-Mail noch nicht bestätigt", "Melde dich mit Google an, oder bestätige deine E-Mail unter dem Personen-Symbol und lade die App danach neu."],
     server_unreachable: ["Der Server antwortet nicht", "Versuch es in einer Minute nochmal."],
+    insta_blocked: ["Instagram hat das Reel nicht herausgegeben", "Manchmal sperrt Instagram kurz. Tipp gleich auf „Nochmal“, oder mach Screenshots von der Beschreibung und vom Rezept im Video."],
+    insta_video: ["Rezept steht nur im Video", "In der Beschreibung steht kein Rezept. Mach Screenshots von den Stellen im Video, wo Zutaten und Schritte zu sehen sind."],
     auth_worker: ["Anmeldung beim Server hat nicht geklappt", "Melde dich ab und wieder an."],
     no_key: ["Der Claude-Schlüssel fehlt", "In Cloudflare beim Worker das Secret ANTHROPIC_API_KEY eintragen."],
     page_failed: ["Die Seite ließ sich nicht öffnen", (e && e.message) || "Prüf den Link oder mach einen Screenshot vom Rezept."],
@@ -1585,7 +1634,7 @@ function aiErrorText(e) {
     quota_exceeded: ["Speichern ging nicht", dbErrorText(e)],
     too_big: ["Speichern ging nicht", dbErrorText(e)]
   }[c] || ["Lesen hat nicht geklappt", "Tipp auf „Nochmal“."];
-  const detail = e && e.message && !["no_recipe", "rate_limited", "offline", "cancelled", "timeout", "page_failed", "not_verified", "server_unreachable"].includes(c)
+  const detail = e && e.message && !["no_recipe", "rate_limited", "offline", "cancelled", "timeout", "page_failed", "not_verified", "server_unreachable", "insta_blocked", "insta_video"].includes(c)
     ? " (Fehler: " + String(e.message).slice(0, 160) + ")" : "";
   return [msg[0], msg[1] + detail];
 }
@@ -1643,7 +1692,7 @@ async function jobStore(op, arg) {
 }
 function jobRecord(job) {
   const src = job.src;
-  return { id: job.id, uid: job.uid, t0: job.t0, src: { mode: src.mode, text: src.text || "", link: src.link || "", images: (src.images || []).map(i => i.blob), pdf: src.pdf || null } };
+  return { id: job.id, uid: job.uid, t0: job.t0, src: { mode: src.mode, text: src.text || "", link: src.link || "", images: (src.images || []).map(i => i.blob) } };
 }
 async function resumeJobs() {
   const myUid = uid;
@@ -1692,29 +1741,41 @@ async function runJob(job) {
   try {
     // Schon gelesen, nur das Speichern hatte gehakt: nicht nochmal lesen (kostet Guthaben)
     if (job.conv) { await done(job.conv); return; }
-    let src = job.src, pageImage = "";
+    let src = job.src, pageImage = "", thumb = null, igUser = "";
     if (src.mode === "link") {
       let pg;
       try { pg = await fetchPage(src.link, job.ctl.signal); }
-      catch (e) { throw (e && e.code === "upstream_error") ? { code: "page_failed", message: String(e.message || "").replace(/^\d{3}\s*/, "") } : e; }
+      catch (e) {
+        const isIg = /(^|\.)instagram\.com$|instagr\.am$/i.test((() => { try { return new URL(src.link).hostname; } catch (x) { return ""; } })());
+        if (isIg && e && (e.code === "upstream_error" || e.code === "insta_blocked")) throw { code: "insta_blocked", message: String(e.message || "") };
+        throw (e && e.code === "upstream_error") ? { code: "page_failed", message: String(e.message || "").replace(/^\d{3}\s*/, "") } : e;
+      }
       const m = (pg && pg.meta) || {};
       pageImage = m["og:image"] || "";
-      const head = [m["og:site_name"] && "Website: " + m["og:site_name"], m["og:title"] && "Titel: " + m["og:title"], m["og:description"] && "Beschreibung: " + m["og:description"]].filter(Boolean).join("\n");
-      const body = pg && pg.kind === "recipe" ? "Strukturierte Rezeptdaten der Seite (schema.org/Recipe):\n" + pg.data : (pg && pg.data) || "";
-      src = { mode: "text", page: true, text: `Link: ${src.link}\n${head}\n\n${body}`, link: src.link, images: [] };
+      // Vorschaubild gleich mitholen und in der App speichern
+      if (pageImage) { try { thumb = await fetchImage(pageImage, job.ctl.signal); } catch (e) { if (e && e.code === "cancelled") throw e; thumb = null; } }
+      if (pg && pg.kind === "instagram") {
+        igUser = m.user || "";
+        src = { mode: "insta", text: `Link: ${src.link}\n${igUser ? "Kanal: " + igUser + "\n" : ""}\n${pg.data || ""}`, link: src.link, images: thumb ? [{ blob: thumb }] : [] };
+      } else {
+        const head = [m["og:site_name"] && "Website: " + m["og:site_name"], m["og:title"] && "Titel: " + m["og:title"], m["og:description"] && "Beschreibung: " + m["og:description"]].filter(Boolean).join("\n");
+        const body = pg && pg.kind === "recipe" ? "Strukturierte Rezeptdaten der Seite (schema.org/Recipe):\n" + pg.data : (pg && pg.data) || "";
+        src = { mode: "text", page: true, text: `Link: ${src.link}\n${head}\n\n${body}`, link: src.link, images: [] };
+      }
     }
     const imgs = (src.images || []).map(i => i.blob);
     const opts = { signal: job.ctl.signal };
     if (imgs.length) opts.images = imgs;
-    if (src.pdf) opts.pdf = src.pdf.data;
     const res = await sample.json(buildPrompt(src, imgs.length), opts);
-    const insta = /instagram\.com/i.test(job.src.link || "") && job.src.mode === "link";
-    const noRec = insta ? "Instagram zeigt Rezepte nur angemeldet. Mach lieber Screenshots vom Reel und der Beschreibung." : "";
-    if (!res || typeof res !== "object" || res.isRecipe === false) throw { code: "no_recipe", message: noRec || str(res && res.problem) };
+    const insta = src.mode === "insta";
+    const noRec = e0 => insta ? { code: "insta_video", message: "" } : { code: "no_recipe", message: e0 };
+    if (!res || typeof res !== "object" || res.isRecipe === false) throw noRec(str(res && res.problem));
     const conv = resultToEdit(res, src);
-    if (!linesOf(conv.data.ingredientsText).length && !linesOf(conv.data.stepsText).length) throw { code: "no_recipe", message: noRec || str(res.problem) };
+    if (!linesOf(conv.data.ingredientsText).length && !linesOf(conv.data.stepsText).length) throw noRec(str(res.problem));
+    if (insta && igUser && (!conv.data.source || /^instagram$/i.test(conv.data.source))) conv.data.source = igUser;
     if (job.src.mode === "link" && !conv.data.source) { try { conv.data.source = new URL(job.src.link).hostname.replace(/^www\./, ""); } catch (e) { /* egal */ } }
-    if (!conv.coverBlob && pageImage) conv.coverUrl = pageImage;
+    if (!conv.coverBlob && thumb) conv.coverBlob = thumb;
+    if (!conv.coverBlob && pageImage && !insta) conv.coverUrl = pageImage;
     job.conv = conv;
     await done(conv);
   } catch (e) {
@@ -1727,7 +1788,7 @@ async function runJob(job) {
 }
 function jobCard(j) {
   const im = (j.src.images || [])[0];
-  const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder({ link: "link", text: "text", pdf: "doc" }[j.src.mode] || "pot");
+  const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder({ link: "link", text: "text" }[j.src.mode] || "pot");
   if (j.status === "error") {
     return `<li><div class="row job err">
       <span class="thumb-sm">${pic}</span>
@@ -1741,7 +1802,6 @@ function jobCard(j) {
   if (j.status === "prep") meta = "Bilder werden vorbereitet …";
   if (j.src.mode === "link") { try { meta = new URL(j.src.link).hostname.replace(/^www\./, ""); } catch (e) { meta = "Link"; } }
   if (j.src.mode === "text") meta = "Eingefügter Text";
-  if (j.src.mode === "pdf") meta = (j.src.pdf && j.src.pdf.name) || "PDF";
   return `<li><div class="row job">
     <span class="thumb-sm">${pic}<span class="job-spin"><span class="spinner"></span></span></span>
     <span class="row-b"><span class="row-t">${esc(j.title || "Rezept wird eingelesen …")}</span>
@@ -1756,7 +1816,8 @@ async function recognize() {
   const raw = imp.link.trim();
   const m = raw.match(/https?:\/\/[^\s.]+\.\S+/);
   const rest = m ? raw.replace(m[0], "").trim() : raw;
-  if (!raw) { showError("Füg zuerst einen Link oder Text ein.", ""); return; }
+  if (!raw) { showError(imp.mode === "insta" ? "Füg zuerst den Link zum Reel ein." : "Füg zuerst einen Link oder Text ein.", imp.mode === "insta" ? "Im Reel: Teilen → Link kopieren." : ""); return; }
+  if (imp.mode === "insta" && !m) { showError("Das ist kein Link.", "Im Reel: Teilen → Link kopieren, dann hier auf „Einfügen“ tippen."); return; }
   if (m && rest.length < 100 && !/\n/.test(rest)) startJob({ mode: "link", text: "", link: m[0], images: [] });
   else if (raw.length < 40) { showError("Das ist zu wenig für ein Rezept.", "Füg den ganzen Rezepttext oder einen Link ein."); return; }
   else startJob({ mode: "text", text: raw.slice(0, 20000), link: m ? m[0] : "", images: [] });
@@ -1908,7 +1969,9 @@ const actions = {
     try { t = (await navigator.clipboard.readText()) || ""; } catch (e) { t = ""; }
     const f = $("#imp-link");
     if (!t.trim() || !f || !state.imp) { toast("Nichts kopiert. Halte lange ins Feld und tipp auf „Einfügen“."); if (f) f.focus(); return; }
-    f.value = t.trim(); state.imp.link = t.trim(); autosize(f);
+    const lm = state.imp.mode === "insta" && t.match(/https?:\/\/\S+/);
+    const v = lm ? lm[0] : t.trim();
+    f.value = v; state.imp.link = v; autosize(f);
   },
   save: () => saveRecipe(),
   "remove-cover": () => {
@@ -1965,19 +2028,6 @@ document.addEventListener("change", async e => {
     if (!images.length) { removeJob(job); return; }
     if (job.dead) { images.forEach(i => URL.revokeObjectURL(i.url)); return; }
     startJob({ mode: "photo", text: "", link: "", images }, job);
-    return;
-  }
-  if (t.dataset.file === "pdf") {
-    const f = files && files[0];
-    t.value = "";
-    if (!f) return;
-    closeLayer();
-    if (f.size > 5 * 1024 * 1024) { toast("Das PDF ist zu groß (höchstens 5 MB). Mach lieber Screenshots der Seiten."); return; }
-    let data = "";
-    try { data = String(await blobToDataUrl(f)).split(",")[1] || ""; } catch (err) { data = ""; }
-    if (!data) { toast("Das PDF ließ sich nicht öffnen."); return; }
-    startJob({ mode: "pdf", text: "", link: "", images: [], pdf: { name: f.name || "PDF", data } });
-    if (state.view !== "list") go("list"); else renderListBody();
     return;
   }
   if (t.dataset.file === "cover" && files && files[0] && state.edit) {
