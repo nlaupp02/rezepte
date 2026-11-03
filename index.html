@@ -556,6 +556,7 @@ function makeSample(model) {
 function mapAiErr(e) {
   const msg = String((e && (e.message || e.code)) || "");
   if (!navigator.onLine || /Failed to fetch|NetworkError|network/i.test(msg)) return { code: "offline", message: msg };
+  if (/app.?check/i.test(msg)) return { code: "appcheck", message: msg };
   if (/429|quota|RESOURCE_EXHAUSTED|rate.?limit/i.test(msg)) return { code: "rate_limited", message: msg };
   if (/403|PERMISSION_DENIED|SERVICE_DISABLED|not been used|has not been enabled|api-not-enabled|disabled/i.test(msg)) return { code: "ai_off", message: msg };
   if (/SAFETY|blocked|PROHIBITED/i.test(msg)) return { code: "refused", message: msg };
@@ -1374,6 +1375,7 @@ async function recognize() {
       invalid_json: ["Die Antwort kam unvollständig an", "Tipp nochmal auf „Rezept erkennen“."],
       empty_completion: ["Keine Antwort erhalten", "Tipp nochmal auf „Rezept erkennen“."],
       ai_off: ["Fotos lesen ist noch nicht eingeschaltet", "In Firebase unter „AI Logic“ die Gemini Developer API aktivieren."],
+      appcheck: ["App Check blockiert das Lesen", "In Firebase unter App Check → APIs bei „Firebase AI Logic“ die Erzwingung aufheben."],
       offline: ["Keine Internetverbindung", "Zum Lesen der Fotos brauchst du Internet. Versuch es gleich nochmal."]
     }[c] || ["Verbindung unterbrochen", "Tipp nochmal auf „Rezept erkennen“."];
     showError(msg[0], msg[1]);
