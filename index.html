@@ -444,11 +444,11 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V14";
+const APP_VERSION = "V15";
 const APP_DATE = "03.11.2026";
 const AI_MODEL = "gemini-3.5-flash-lite"; // Gemini: nur, wenn WORKER_URL leer ist
 // Claude über den eigenen Cloudflare-Worker. Leer lassen = kostenlos mit Gemini.
-const WORKER_URL = "";
+const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
 const CLAUDE_MODEL = "claude-sonnet-5-5";
 const useClaude = () => !!WORKER_URL;
 const USE_STREAM = false; // einfache Übertragung: robuster bei Virenscannern und Browserschutz
