@@ -351,7 +351,6 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: bala
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin-top: -6px; }
 .login-links .btn { padding: 8px 4px; font-size: 15px; }
-.grecaptcha-badge { visibility: hidden !important; }
 .card.job .cover img { filter: saturate(.6) brightness(1.05); }
 .job-spin { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(251, 246, 236, .55); }
 .job-spin .spinner { width: 30px; height: 30px; }
@@ -444,41 +443,25 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V15";
+const APP_VERSION = "V16";
 const APP_DATE = "03.11.2026";
-const AI_MODEL = "gemini-3.5-flash-lite"; // Gemini: nur, wenn WORKER_URL leer ist
-// Claude über den eigenen Cloudflare-Worker. Leer lassen = kostenlos mit Gemini.
+// Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
 const CLAUDE_MODEL = "claude-sonnet-5-5";
-const useClaude = () => !!WORKER_URL;
-const USE_STREAM = false; // einfache Übertragung: robuster bei Virenscannern und Browserschutz
-const APPCHECK_KEY = "6Ld3iQ4uAAAAACRCeaUsl3DDGz26vWcZuLD4kS8A"; // reCAPTCHA Enterprise (Website-Schlüssel, nicht geheim)
+const useClaude = () => true;
 let fb = null, authUser = null, authKnown = false, unsub = null, loadTimer = 0;
 
 const initPromise = (async () => {
   try {
-    const [A, U, F, AI, AC] = await Promise.all([import(FB_URL("app")), import(FB_URL("auth")), import(FB_URL("firestore")), import(FB_URL("ai")),
-      import(FB_URL("app-check")).catch(e => { console.warn("App Check lädt nicht", e); return null; })]);
+    const [A, U, F] = await Promise.all([import(FB_URL("app")), import(FB_URL("auth")), import(FB_URL("firestore"))]);
     const app = A.initializeApp(FB_CFG);
-    // App Check zuerst: Firebase AI Logic verlangt seit November 2026 ein gültiges App-Check-Token
-    let appCheck = null;
-    if (AC && !useClaude()) {
-      try { appCheck = AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); }
-      catch (e) { console.warn("App Check", e); }
-    }
     const auth = U.getAuth(app);
     auth.languageCode = "de";
     let fsdb;
     try { fsdb = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) }); }
     catch (e) { fsdb = F.getFirestore(app); }
-    let model = null;
-    try {
-      const ai = AI.getAI(app, { backend: new AI.GoogleAIBackend() });
-      const low = (AI.ThinkingLevel && AI.ThinkingLevel.LOW) || "LOW";
-      model = AI.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { responseMimeType: "application/json", thinkingConfig: { thinkingLevel: low } } });
-    } catch (e) { console.warn("AI Logic nicht verfügbar", e); }
-    fb = { U, F, auth, db: fsdb, AC, appCheck };
-    sample = useClaude() ? makeClaude() : (model ? makeSample(model) : null);
+    fb = { U, F, auth, db: fsdb };
+    sample = makeClaude();
     sampleLimits = { maxPromptBytes: 200000, images: { maxCount: 6 } };
     initDone = true;
     U.onAuthStateChanged(auth, onAuth);
@@ -563,58 +546,6 @@ function subscribe() {
   });
 }
 
-function makeSample(model) {
-  const s = async () => { throw { code: "invalid_request" }; };
-  s.limits = async () => sampleLimits;
-  s.json = async (prompt, opts = {}) => {
-    const signal = opts.signal;
-    const parts = [{ text: prompt }];
-    for (const b of (opts.images ? Array.from(opts.images) : [])) {
-      parts.push({ inlineData: { mimeType: "image/jpeg", data: String(await blobToDataUrl(b)).split(",")[1] } });
-    }
-    if (signal && signal.aborted) throw { code: "cancelled" };
-    const stop = new Promise((_, rej) => { if (signal) signal.addEventListener("abort", () => rej({ code: "cancelled" }), { once: true }); });
-    const after = (ms, err) => new Promise((_, rej) => setTimeout(() => rej(err), ms));
-    // 1. Sicherheitsprüfung (App Check / reCAPTCHA) – hängt sie, sofort sagen statt endlos zu laden
-    if (fb.AC && fb.appCheck) {
-      try { await Promise.race([fb.AC.getToken(fb.appCheck, false), stop, after(15000, { code: "appcheck_timeout" })]); }
-      catch (e) {
-        if (e && (e.code === "cancelled" || e.code === "appcheck_timeout")) throw e;
-        console.warn("App Check Token", e);
-        throw { code: "appcheck", message: String((e && e.message) || e) };
-      }
-    }
-    { const el = $("#busy-detail"); if (el) el.textContent = "Sicherheitsprüfung ok, Gemini liest das Foto …"; }
-    // 2. Gemini fragen, mit Zwischenstand, damit man sieht, dass etwas passiert
-    const run = async () => {
-      if (USE_STREAM && typeof model.generateContentStream === "function") {
-        const res = await model.generateContentStream(parts);
-        let t = "";
-        for await (const chunk of res.stream) {
-          let piece = "";
-          try { piece = chunk.text(); } catch (e) { piece = ""; }
-          if (piece) { t += piece; if (opts.onText) { try { opts.onText({ text: t, delta: piece }); } catch (e) { /* egal */ } } }
-          if (signal && signal.aborted) break;
-        }
-        if (t) return t;
-        { const el = $("#busy-detail"); if (el) el.textContent = "Antwort kommt …"; }
-        return (await res.response).text();
-      }
-      return (await model.generateContent(parts)).response.text();
-    };
-    let text;
-    try { text = await Promise.race([run(), stop, after(90000, { code: "timeout" })]); }
-    catch (e) { if (e && (e.code === "cancelled" || e.code === "timeout")) throw e; console.warn("Gemini", e); throw mapAiErr(e); }
-    if (signal && signal.aborted) throw { code: "cancelled" };
-    try { return JSON.parse(text); }
-    catch (e) {
-      const m = String(text || "").match(/\{[\s\S]*\}/);
-      if (m) { try { return JSON.parse(m[0]); } catch (e2) { /* unten */ } }
-      throw { code: "invalid_json", text };
-    }
-  };
-  return s;
-}
 /* Claude über den Worker */
 async function workerPost(path, body, signal, timeoutMs) {
   if (!authUser) throw { code: "permission", message: "nicht angemeldet" };
@@ -678,18 +609,6 @@ function makeClaude() {
 }
 async function fetchPage(url, signal) {
   return await workerPost("/page", JSON.stringify({ url }), signal, 30000);
-}
-
-function mapAiErr(e) {
-  const msg = String((e && (e.message || e.code)) || "");
-  if (!navigator.onLine || /Failed to fetch|NetworkError|network/i.test(msg)) return { code: "offline", message: msg };
-  if (/genai config not found/i.test(msg)) return { code: "ai_setup", message: msg };
-  if (/app.?check|deactivated|inactive/i.test(msg)) return { code: "appcheck", message: msg };
-  if (/429|quota|RESOURCE_EXHAUSTED|rate.?limit/i.test(msg)) return { code: "rate_limited", message: msg };
-  if (/403|PERMISSION_DENIED|SERVICE_DISABLED|not been used|has not been enabled|api-not-enabled|disabled/i.test(msg)) return { code: "ai_off", message: msg };
-  if (/SAFETY|blocked|PROHIBITED/i.test(msg)) return { code: "refused", message: msg };
-  if (/too large|payload|413/i.test(msg)) return { code: "image_rejected", message: msg };
-  return { code: "upstream_error", message: msg };
 }
 
 let lastBanner = null;
@@ -813,7 +732,6 @@ function renderLogin() {
           : `<button class="btn quiet" data-action="lg-mode" data-m="in">Zurück zur Anmeldung</button>`}
       </div>
       <p class="rc-note">Version ${APP_VERSION} · Stand ${APP_DATE}</p>
-      <p class="rc-note">Diese App ist durch reCAPTCHA geschützt. Es gelten die <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung</a> und die <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Nutzungsbedingungen</a> von Google.</p>
     </main>`;
 }
 function renderBoot() {
@@ -830,7 +748,6 @@ function openAccount() {
       <div class="grip"></div><h2 id="a-t">Dein Konto</h2>
       <p class="muted">Angemeldet als <b>${esc(mail)}</b>. Deine Rezepte werden automatisch online gespeichert.</p>
       <div class="ver-box"><span>Version</span><b>${APP_VERSION}</b><span class="ver-date">Stand ${APP_DATE}</span></div>
-      <p class="rc-note">Geschützt durch reCAPTCHA. Es gelten die <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung</a> und die <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Nutzungsbedingungen</a> von Google.</p>
       <button class="btn block" data-action="logout">${icon("logout")}Abmelden</button>
     </div>`;
   layer.classList.add("open");
@@ -1506,18 +1423,14 @@ function aiErrorText(e) {
     image_rejected: ["Ein Bild ließ sich nicht lesen", "Nimm ein anderes Foto."],
     refused: ["Das Foto wurde abgelehnt", "Versuch ein anderes Foto."],
     invalid_json: ["Die Antwort kam unvollständig an", "Tipp auf „Nochmal“."],
-    ai_off: ["Fotos lesen ist noch nicht eingeschaltet", "In Firebase unter „AI Logic“ die Gemini Developer API aktivieren."],
-    appcheck: ["App Check blockiert das Lesen", "In Firebase unter App Check prüfen, ob die Web-App „Rezepte“ registriert ist."],
-    appcheck_timeout: ["Sicherheitsprüfung hängt", "Werbeblocker oder Brave-Schutz für diese Seite ausschalten und neu laden."],
     timeout: ["Das Lesen hat zu lange gedauert", "Tipp auf „Nochmal“."],
-    ai_setup: ["Fotos lesen wird noch eingerichtet", "Versuch es in ein paar Minuten nochmal."],
     offline: ["Keine Internetverbindung", "Tipp auf „Nochmal“, sobald du wieder online bist."],
     permission: ["Speichern ging nicht", dbErrorText(e)],
     unavailable: ["Speichern ging nicht", dbErrorText(e)],
     quota_exceeded: ["Speichern ging nicht", dbErrorText(e)],
     too_big: ["Speichern ging nicht", dbErrorText(e)]
   }[c] || ["Lesen hat nicht geklappt", "Tipp auf „Nochmal“."];
-  const detail = e && e.message && !["no_recipe", "rate_limited", "offline", "cancelled", "timeout", "appcheck_timeout"].includes(c)
+  const detail = e && e.message && !["no_recipe", "rate_limited", "offline", "cancelled", "timeout"].includes(c)
     ? " (Fehler: " + String(e.message).slice(0, 160) + ")" : "";
   return [msg[0], msg[1] + detail];
 }
