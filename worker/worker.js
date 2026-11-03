@@ -122,7 +122,7 @@ function attr(tag, name) {
   return m ? (m[1] != null ? m[1] : m[2]) : null;
 }
 function readMeta(html) {
-  const want = ["og:title", "og:description", "og:image", "og:site_name", "description"];
+  const want = ["og:title", "og:description", "og:image", "og:site_name", "description", "twitter:image"];
   const meta = {};
   const re = /<meta\s[^>]*>/gi;
   const head = html.slice(0, 400000);
@@ -163,7 +163,13 @@ async function instagram(code, original, cors) {
     fetchHtml(`https://www.instagram.com/p/${code}/embed/captioned/`, UA_DESKTOP),
     fetchHtml(`https://www.instagram.com/p/${code}/`, UA_PREVIEW)
   ]);
-  let caption = "", user = "", image = "";
+  let caption = "", user = "";
+  // Alle Vorschaubilder sammeln, die in den beiden Seiten stehen; die App lässt Claude eins ohne Play-Knopf wählen
+  const imgs = [];
+  const addImg = u => {
+    u = decodeEntities(String(u || "")).replace(/\\u0026/g, "&").replace(/\\\//g, "/").trim();
+    if (/^https:\/\//.test(u) && u.length < 2000 && !imgs.includes(u)) imgs.push(u);
+  };
   if (emb.status === "fulfilled") {
     const h = emb.value;
     const cap = h.match(/<div class="Caption"[^>]*>([\s\S]*?)<div class="CaptionComments"/i) || h.match(/<div class="Caption"[^>]*>([\s\S]*?)<\/div>/i);
@@ -177,7 +183,11 @@ async function instagram(code, original, cors) {
       if (j) { try { caption = JSON.parse('"' + j[1] + '"'); } catch (e) { /* egal */ } }
     }
     const im = h.match(/<img[^>]+class="EmbeddedMediaImage"[^>]*>/i);
-    if (im) { const src = attr(im[0], "src"); if (src) image = decodeEntities(src); }
+    if (im) addImg(attr(im[0], "src"));
+    for (const k of ["display_url", "thumbnail_src"]) {
+      const j = h.match(new RegExp('"' + k + '":"((?:[^"\\\\]|\\\\.)*)"'));
+      if (j) addImg(j[1]);
+    }
     if (!user) { const u2 = h.match(/class="UsernameText"[^>]*>([^<]+)</i); if (u2) user = decodeEntities(u2[1]).trim(); }
   }
   let desc = "", title = "";
@@ -185,7 +195,7 @@ async function instagram(code, original, cors) {
     const meta = readMeta(pre.value);
     desc = meta["og:description"] || meta["description"] || "";
     title = meta["og:title"] || "";
-    if (!image && meta["og:image"]) image = meta["og:image"];
+    addImg(meta["og:image"]); addImg(meta["twitter:image"]);
     if (!user) { const u3 = (title + " \n " + desc).match(/(?:^|- |\n )@?([\w.]{2,30}) (?:on|auf|am|bei) /i); if (u3) user = u3[1]; }
   }
   // Volle Beschreibung aus dem Einbett-Fenster; die Vorschau-Beschreibung nur, wenn die fehlt oder viel länger ist
@@ -194,7 +204,10 @@ async function instagram(code, original, cors) {
     const why = [emb, pre].map(r => r.status === "rejected" ? String(r.reason && r.reason.message || r.reason) : "").filter(Boolean).join(" / ");
     return json({ error: "instagram_blocked", message: why || "Keine Beschreibung gefunden." }, 502, cors);
   }
-  const meta = { "og:site_name": "Instagram", "og:title": title || "Instagram", "og:image": /^https:\/\//.test(image) ? image : "" };
+  // Die Vorschau für Suchmaschinen (lookaside/crawler) zeigt bei Videos oft einen Play-Knopf: nach hinten
+  const crawler = u => /lookaside\.|\/crawler\/|\/seo\//i.test(u) ? 1 : 0;
+  imgs.sort((a, b) => crawler(a) - crawler(b));
+  const meta = { "og:site_name": "Instagram", "og:title": title || "Instagram", "og:image": imgs[0] || "", images: imgs.slice(0, 3) };
   if (user) meta.user = "@" + user.replace(/^@/, "");
   return json({ kind: "instagram", url: original, meta, data: text }, 200, cors);
 }

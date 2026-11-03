@@ -61,8 +61,7 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
   position: sticky; top: 0; z-index: 5;
   display: flex; align-items: center; gap: 2px;
   margin: 0 -16px; padding: calc(8px + env(safe-area-inset-top)) 6px 2px;
-  background: rgba(255, 255, 255, .9);
-  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  background: var(--bg);
 }
 .bar-title { font-size: 17px; font-weight: 600; flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grow { flex: 1; }
@@ -74,8 +73,30 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
 .back .ic { width: 24px; height: 24px; stroke-width: 2.4; margin-right: -1px; }
 .tbtn.bold { font-weight: 600; }
 .tbtn[disabled] { opacity: .4; }
-.home-head { display: flex; justify-content: flex-end; gap: 2px; margin-right: -10px; padding-top: calc(14px + env(safe-area-inset-top)); min-height: calc(58px + env(safe-area-inset-top)); }
-.brand { font-size: 34px; line-height: 1.15; font-weight: 700; margin: 0 0 10px; }
+.home-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: calc(34px + env(safe-area-inset-top)); margin: 0 -10px 10px 0; }
+.head-btns { display: flex; gap: 2px; }
+.brand { font-size: 34px; line-height: 1.15; font-weight: 700; margin: 0; }
+/* Fester weißer Streifen unter der Uhr: iOS zeichnet dort sonst die Inhalte weich (unscharf) */
+.install { display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 14px; border-radius: 14px; background: var(--accent-soft); margin: 0 0 12px; }
+.install > div { flex: 1; min-width: 0; }
+.install b { display: block; font-size: 16px; line-height: 1.3; }
+.install .d { display: block; font-size: 14px; color: var(--muted); line-height: 1.3; }
+.install .ic-main { width: 28px; height: 28px; color: var(--accent); }
+.install .x { width: 36px; height: 36px; color: var(--muted); }
+.install .x .ic { width: 18px; height: 18px; }
+.inst-steps { list-style: none; counter-reset: s; margin: 0; padding: 0; background: var(--bg); border-radius: 12px; }
+.inst-steps li { counter-increment: s; position: relative; padding: 13px 16px 13px 52px; font-size: 16px; line-height: 1.4; }
+.inst-steps li + li { border-top: 1px solid var(--line); }
+.inst-steps li::before { content: counter(s); position: absolute; left: 14px; top: 12px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 700; font-size: 14px; }
+.inst-steps small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.key { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 24px; padding: 0 5px; border-radius: 6px; background: var(--fill); color: var(--accent); font-weight: 700; vertical-align: -5px; }
+.key .ic { width: 16px; height: 16px; }
+.statusfill { position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: var(--bg); z-index: 15; pointer-events: none; }
+/* Ist ein Fenster offen, wird der Streifen unter der Uhr mit abgedunkelt (Farbe setzt das Skript) */
+html.dim .statusfill { z-index: 25; transition: background-color .2s ease-out; }
+html.dim.drag .statusfill { transition: none; }
+/* Tastatur: schiebt iOS die Seite hoch, bleibt die Kopfleiste trotzdem oben stehen */
+.topbar, .statusfill { transform: translateY(var(--vvo, 0px)); }
 
 /* Buttons */
 .btn {
@@ -141,7 +162,7 @@ button.row:active { opacity: .6; }
 .ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 45%, var(--accent-soft)); }
 .ph .ic { width: 32px; height: 32px; stroke-width: 1.5; }
 .row-b { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.row-t { font-size: 17px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row-t { font-size: 17px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .row-m { display: flex; align-items: center; gap: 5px; font-size: 15px; line-height: 1.3; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-m .ic { width: 13px; height: 13px; color: var(--heart); }
 .row-m span { overflow: hidden; text-overflow: ellipsis; }
@@ -387,6 +408,7 @@ button.row:active { opacity: .6; }
 </style>
 </head>
 <body>
+<div class="statusfill" aria-hidden="true"></div>
 <div id="app" class="app"></div>
 <input class="vh" id="quick-pick" type="file" accept="image/*" multiple data-file="quick" aria-label="Rezeptfoto auswählen">
 <input class="vh" id="cam-pick" type="file" accept="image/*" capture="environment" data-file="quick" aria-label="Foto aufnehmen">
@@ -431,7 +453,8 @@ const ICONS = {
   doc: '<path d="M7 3.5h7l4 4v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z"/><path d="M14 3.5v4h4"/><path d="M9 12.5h6M9 16h6"/>',
   share: '<path d="M12 3.5v11"/><path d="M8.2 7.2L12 3.4l3.8 3.8"/><path d="M8 10.5H6.5A1.5 1.5 0 0 0 5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12a1.5 1.5 0 0 0-1.5-1.5H16"/>',
   star: '<path d="M12 3.8l2.5 5.1 5.6.8-4.05 3.95.95 5.6L12 16.6l-5 2.65.95-5.6L3.9 9.7l5.6-.8z"/>',
-  sort: '<path d="M8 4v16M4.5 16.5L8 20l3.5-3.5M16 20V4M12.5 7.5L16 4l3.5 3.5"/>'
+  sort: '<path d="M8 4v16M4.5 16.5L8 20l3.5-3.5M16 20V4M12.5 7.5L16 4l3.5 3.5"/>',
+  addsq: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/>'
 };
 const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 
@@ -466,12 +489,38 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V21";
+const APP_VERSION = "22";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
 const CLAUDE_MODEL = "claude-sonnet-5-5";
 const useClaude = () => true;
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const installHidden = () => { try { return localStorage.getItem("rezepte-install-hidden") === "1"; } catch (e) { return false; } };
+const showInstall = () => isIOS() && !isStandalone() && !installHidden() && !state.installClosed;
+function installBanner() {
+  if (!showInstall()) return "";
+  return `<div class="install">${icon("addsq", "ic-main")}<div><b>Als App aufs iPhone holen</b><span class="d">Dann startet Rezepte wie eine echte App.</span></div>
+    <button class="btn small primary" data-action="install">So geht's</button>
+    <button class="icon-btn x" data-action="install-close" aria-label="Hinweis schließen">${icon("x")}</button></div>`;
+}
+function openInstall() {
+  const k = t => `<span class="key">${t}</span>`;
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="in-t">
+      <div class="grip"></div>
+      <div class="sheet-head"><h2 id="in-t">Als App installieren</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
+      <ol class="inst-steps">
+        <li>Unten in Safari auf ${k(icon("share"))} <b>Teilen</b> tippen.<small>Nicht zu sehen? Erst auf ${k("•••")} tippen, dann auf Teilen.</small></li>
+        <li>Nach unten wischen oder auf <b>Mehr anzeigen</b> tippen.</li>
+        <li>${k(icon("addsq"))} <b>Zum Home-Bildschirm</b> tippen.</li>
+        <li>Oben rechts auf <b>Hinzufügen</b> tippen.</li>
+        <li>Die App vom Home-Bildschirm öffnen und dort <b>einmal anmelden</b>.<small>Die App hat einen eigenen Speicher, darum musst du dich dort neu anmelden.</small></li>
+      </ol>
+      <button class="btn quiet block" data-action="install-never">Hinweis nicht mehr zeigen</button>
+    </div>`;
+  layer.classList.add("open");
+}
 const isStandalone = () => !!(navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches));
 let fb = null, authUser = null, authKnown = false, unsub = null, loadTimer = 0;
 
@@ -770,6 +819,7 @@ function renderLogin() {
       <img class="login-logo" src="icon-192.png?v=2" alt="">
       <h1 class="brand">Rezepte</h1>
       <p class="lead">Deine Rezepte, auf allen Geräten gespeichert.</p>
+      ${installBanner()}
       <button class="btn block gbtn" data-action="login-google">${GOOGLE_G}Mit Google anmelden</button>
       ${isStandalone() ? `<p class="note" style="margin-top:-6px;text-align:center">Klappt Google hier nicht, nimm E-Mail und Passwort.</p>` : ""}
       <div class="or"><span>oder mit E-Mail</span></div>
@@ -1032,6 +1082,45 @@ function toast(msg) {
 }
 function closeLayer() { layer.classList.remove("open"); layer.innerHTML = ""; }
 /* Fenster (Sheets) mit dem Finger nach unten wegwischen, wie in iOS */
+/* Streifen unter der Uhr (und Safari-Leiste oben) mit abdunkeln, solange ein Fenster mit Abdunklung offen ist */
+const statusFill = document.querySelector(".statusfill"), themeMeta = document.querySelector('meta[name="theme-color"]');
+function setDim(o) {
+  const root = document.documentElement;
+  if (o == null) {
+    root.classList.remove("dim", "drag");
+    if (statusFill) statusFill.style.backgroundColor = "";
+    if (themeMeta) themeMeta.content = "#FFFFFF";
+    return;
+  }
+  root.classList.add("dim");
+  const v = Math.round(255 * (1 - 0.35 * o)); // gleiche Farbe wie Weiß unter der Abdunklung (35 % Schwarz)
+  if (statusFill) statusFill.style.backgroundColor = `rgb(${v}, ${v}, ${v})`;
+  if (themeMeta) themeMeta.content = o >= 1 ? "#A6A6A6" : "#FFFFFF";
+}
+new MutationObserver(() => {
+  const on = layer.classList.contains("open") && !!layer.querySelector(".scrim");
+  const was = document.documentElement.classList.contains("dim");
+  if (on && !was) setDim(1); else if (!on && was) setDim(null);
+}).observe(layer, { attributes: true, attributeFilter: ["class"], childList: true });
+
+/* Tastatur auf dem iPhone: schiebt iOS die ganze Ansicht hoch, rückt die Kopfleiste mit nach, damit sie oben sichtbar bleibt */
+if (window.visualViewport) {
+  const vv = window.visualViewport, root = document.documentElement;
+  let raf = 0, last = 0;
+  const editing = () => { const a = document.activeElement; return !!(a && a.matches && a.matches("textarea, select, input:not([type=file]):not([type=checkbox]):not([type=radio])")); };
+  const upd = () => {
+    raf = 0;
+    const o = editing() && Math.abs(vv.scale - 1) < 0.02 ? Math.max(0, Math.round(vv.offsetTop)) : 0;
+    if (o === last) return;
+    last = o;
+    if (o) root.style.setProperty("--vvo", o + "px"); else root.style.removeProperty("--vvo");
+  };
+  const sch = () => { if (!raf) raf = requestAnimationFrame(upd); };
+  vv.addEventListener("resize", sch); vv.addEventListener("scroll", sch);
+  document.addEventListener("focusin", sch);
+  document.addEventListener("focusout", () => setTimeout(sch, 60));
+}
+
 let sheetDrag = null, suppressClick = false;
 layer.addEventListener("pointerdown", e => {
   const sh = e.target.closest(".sheet");
@@ -1045,7 +1134,9 @@ layer.addEventListener("pointermove", e => {
   if (!d.moved && d.dy > 6) { d.moved = true; try { d.sh.setPointerCapture(d.id); } catch (x) { /* egal */ } d.sh.style.transition = "none"; }
   if (d.moved) {
     d.sh.style.transform = `translateY(${d.dy}px)`;
-    const sc = layer.querySelector(".scrim"); if (sc) sc.style.opacity = String(Math.max(0.2, 1 - d.dy / 500));
+    const op = Math.max(0.2, 1 - d.dy / 500);
+    const sc = layer.querySelector(".scrim"); if (sc) sc.style.opacity = String(op);
+    document.documentElement.classList.add("drag"); setDim(op);
   }
 });
 function endSheetDrag(e) {
@@ -1056,13 +1147,16 @@ function endSheetDrag(e) {
   suppressClick = true; setTimeout(() => { suppressClick = false; }, 80);
   const v = d.dy / Math.max(1, performance.now() - d.t0);
   const sc = layer.querySelector(".scrim");
+  document.documentElement.classList.remove("drag");
   if (d.dy > 90 || (v > 0.5 && d.dy > 30)) {
     d.sh.style.transition = "transform .2s ease-in"; d.sh.style.transform = "translateY(105%)";
     if (sc) { sc.style.transition = "opacity .2s"; sc.style.opacity = "0"; }
+    setDim(0);
     setTimeout(closeLayer, 190);
   } else {
     d.sh.style.transition = "transform .22s cubic-bezier(.2,.8,.2,1)"; d.sh.style.transform = "";
     if (sc) { sc.style.transition = "opacity .2s"; sc.style.opacity = ""; }
+    setDim(1);
   }
 }
 layer.addEventListener("pointerup", endSheetDrag);
@@ -1151,10 +1245,13 @@ function renderList() {
   lastBanner = bannerKey();
   app.innerHTML = `
     <header class="home-head">
-      <button class="icon-btn" data-action="sort" aria-label="Sortieren" style="margin-right:auto;margin-left:-10px">${icon("sort")}</button>
-      <button class="icon-btn" data-action="account" aria-label="Konto">${icon("user")}</button>
+      <h1 class="brand">Rezepte</h1>
+      <span class="head-btns">
+        <button class="icon-btn" data-action="sort" aria-label="Sortieren">${icon("sort")}</button>
+        <button class="icon-btn" data-action="account" aria-label="Konto">${icon("user")}</button>
+      </span>
     </header>
-    <h1 class="brand">Rezepte</h1>
+    ${installBanner()}
     <div class="stack" style="padding:0 0 10px;gap:12px">${banner()}</div>
     <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="Suchen" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
     <div id="chips" class="chips"></div>
@@ -1251,6 +1348,7 @@ function openDetail(id) {
 function renderDetail() {
   const r = current();
   if (!r) { app.innerHTML = ""; return; }
+  autoNutrition(r);
   lastDetailSig = detailSig(r);
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
   if (base && state.servings == null) state.servings = base;
@@ -1326,18 +1424,30 @@ function starsHtml(r) {
   return `<div class="stars" role="group" aria-label="Bewertung">${[1, 2, 3, 4, 5].map(i =>
     `<button class="${i <= v ? "on" : ""}" data-action="rate" data-v="${i}" aria-label="${i} von 5 Sternen" aria-pressed="${i <= v}">${icon("star", i <= v ? "filled" : "")}</button>`).join("")}</div>`;
 }
+const nutriComplete = n => !!(n && n.kcal && n.sugar != null && n.salt != null);
 function nutritionHtml(r) {
   const n = cleanNutrition(r.nutrition), busy = state.nutriBusy === r.id;
   const per = Number(r.servings) > 0 ? "pro Person" : "für das ganze Rezept";
-  const btn = `<button class="btn small quiet" data-action="nutri" style="margin-right:-13px" ${busy ? "disabled" : ""}>${busy ? "Wird geschätzt …" : n ? "Neu schätzen" : "Schätzen"}</button>`;
-  if (!n) return `<section class="sec"><div class="sec-head"><h2>Nährwerte</h2>${btn}</div><p class="note">Noch keine Nährwerte. Claude kann sie aus den Zutaten schätzen.</p></section>`;
+  if (!n) {
+    if (!(r.ingredients || []).length) return "";
+    return `<section class="sec"><h2>Nährwerte</h2><p class="note">${busy ? `<span class="spinner" style="display:inline-block;width:14px;height:14px;border-width:2px;vertical-align:-2px;margin-right:6px"></span>Werden aus den Zutaten geschätzt …`
+      : `Ließen sich gerade nicht schätzen. <button class="btn small quiet" data-action="nutri" style="margin-left:-8px">Nochmal</button>`}</p></section>`;
+  }
   const g = x => String(x).replace(".", ",");
   const rows = [["Brennwert", n.kcal, " kcal", ""], ["Fett", n.fat, " g", ""], ["davon gesättigte Fettsäuren", n.satFat, " g", "sub"],
     ["Kohlenhydrate", n.carbs, " g", ""], ["davon Zucker", n.sugar, " g", "sub"], ["Ballaststoffe", n.fiber, " g", ""], ["Eiweiß", n.protein, " g", ""], ["Salz", n.salt, " g", ""]]
     .filter(r => r[1] != null).map(([l, v, u, c]) => `<div class="${c}"><dt>${l}</dt><dd>ca. ${g(v)}${u}</dd></div>`).join("");
-  return `<section class="sec"><div class="sec-head"><h2>Nährwerte</h2>${btn}</div>
+  return `<section class="sec"><h2>Nährwerte</h2>
     <dl class="nutri">${rows}</dl>
-    <p class="note">${per[0].toUpperCase() + per.slice(1)}, geschätzt.</p></section>`;
+    <p class="note">${per[0].toUpperCase() + per.slice(1)}, geschätzt.${busy ? " Wird gerade ergänzt …" : ""}</p></section>`;
+}
+// Fehlen Nährwerte (alte Rezepte) oder wurden Zutaten geändert: einmal von selbst schätzen
+const nutriTried = new Set();
+function autoNutrition(r) {
+  if (!r || !col || state.nutriBusy || nutriTried.has(r.id)) return;
+  if (!(r.ingredients || []).length || nutriComplete(cleanNutrition(r.nutrition))) return;
+  nutriTried.add(r.id);
+  setTimeout(() => { if (state.view === "detail" && state.currentId === r.id) actions.nutri(); }, 300);
 }
 function recipeText(r) {
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
@@ -1475,6 +1585,9 @@ async function saveRecipe() {
     };
     const id = ed.id || newId();
     const existing = ed.id ? state.recipes.find(r => r.id === ed.id) : null;
+    if (existing && (JSON.stringify(existing.ingredients || []) !== JSON.stringify(doc.ingredients) || (existing.servings || null) !== doc.servings)) {
+      doc.nutrition = null; nutriTried.delete(id);
+    }
     if (!existing) Object.assign(doc, { link: d.link.trim(), favorite: false, createdAt: now, rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null });
     await withRetry(() => col.doc(id).set(doc, true));
     const i = state.recipes.findIndex(r => r.id === id);
@@ -1507,17 +1620,16 @@ function renderImport() {
       <h2 class="bar-title">${ig ? "Instagram-Reel" : "Link oder Text"}</h2>
       <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
     </div>
-    <main class="stack">
-      <p class="lead">${ig
-        ? "Tipp im Reel auf <b>Teilen</b> und dann auf <b>Link kopieren</b>. Füg den Link hier ein. Gelesen werden die Beschreibung und das Vorschaubild."
-        : "Füg einen Link ein, zum Beispiel von Chefkoch, oder den Rezepttext aus WhatsApp, E-Mail oder Notizen."}</p>
+    <main class="stack imp">
       <div class="field">
         <div class="sec-head"><label for="imp-link">${ig ? "Link zum Reel" : "Link oder Text"}</label><button class="btn small quiet" data-action="paste-link" style="margin-right:-13px">${icon("paste")}Einfügen</button></div>
         <textarea id="imp-link" rows="${ig ? 2 : 5}" autocomplete="off" autocapitalize="off" placeholder="${ig ? "https://www.instagram.com/reel/…" : "https://… oder den ganzen Rezepttext"}">${esc(imp.link)}</textarea>
       </div>
       <div id="imp-status" aria-live="polite"></div>
       <button class="btn primary block" id="recognize" data-action="recognize">Rezept holen</button>
-      <p class="note">${ig ? "Steht das Rezept nur im Video und nicht in der Beschreibung, mach lieber Screenshots davon." : "Für Instagram gibt es einen eigenen Punkt „Instagram-Reel“."}</p>
+      <p class="note">${ig
+        ? "Tipp im Reel auf <b>Teilen</b> und dann auf <b>Link kopieren</b>. Gelesen werden die Beschreibung und das Vorschaubild. Steht das Rezept nur im Video, mach lieber Screenshots davon."
+        : "Ein Link, zum Beispiel von Chefkoch, oder der Rezepttext aus WhatsApp, E-Mail oder Notizen. Für Instagram gibt es einen eigenen Punkt „Instagram-Reel“."}</p>
     </main>`;
   const ta = $("#imp-link"); if (ta) autosize(ta);
 }
@@ -1531,7 +1643,7 @@ function buildPrompt(imp, n) {
   let material;
   if (imp.mode === "insta") {
     material = `Das Material stammt aus einem Instagram-Reel oder -Beitrag: die Beschreibung (unten)` +
-      (n ? ` und das Vorschaubild des Videos (Bild 1). Text-Einblendungen im Bild gehören auch zum Rezept` : "") +
+      (n ? ` und ${n > 1 ? `Vorschaubilder des Videos (Bild 1 bis ${n})` : "das Vorschaubild des Videos (Bild 1)"}. Text-Einblendungen im Bild gehören auch zum Rezept. Als "coverImage" nimm ein Bild, auf dem kein Play-Knopf (Dreieck im Kreis) und kein anderes Symbol eingeblendet ist, wenn es so eins gibt; sonst das Bild, das das Gericht am besten zeigt` : "") +
       `. Steht in der Beschreibung (und im Bild) kein Rezept mit Zutaten, setz "isRecipe" auf false und schreib in "problem", dass das Rezept wohl nur im Video gezeigt wird. Als "source" nimmst du den Kanal, z. B. "@kanalname".`;
   } else if (imp.mode === "photo") {
     material = `Das Material sind ${n} Foto(s) (Bild 1 bis ${n}) eines Rezepts, z. B. aus einem Kochbuch, einer Zeitschrift, von einem Zettel oder handschriftlich. Mehrere Bilder gehören zum selben Rezept (z. B. mehrere Seiten oder Vorder- und Rückseite).`;
@@ -1545,7 +1657,7 @@ function buildPrompt(imp, n) {
 Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern:
 - "isRecipe": true oder false
 - "problem": leer, oder kurz auf Deutsch, warum kein Rezept erkennbar ist (z. B. unscharf, abgeschnitten, nur ein Video-Standbild ohne Text)
-- "title": kurzer, klarer Rezeptname auf Deutsch
+- "title": kurzer, klarer Rezeptname auf Deutsch wie in einem Kochbuch, höchstens etwa 4 Wörter bzw. 35 Zeichen. Nur das Gericht selbst, ohne Werbewörter wie „High-Protein“, „einfach“, „lecker“, „schnell“, „gesund“ oder „aus dem Ofen“, ohne Hashtags und Emojis. Beispiel: „Schoko-Bananen-Brownie“ statt „Schoko-Bananen-Haferflocken-Brownie aus dem Ofen“, „Chipotle-Hähnchen Mac and Cheese“ statt „High-Protein Honey-Chipotle-Hähnchen Mac 'n' Cheese Meal Prep“.
 - "category": genau eins von: ${CATEGORIES.join(", ")}
 - "servings": für wie viele Personen bzw. Portionen das Rezept ist, als Zahl, oder null
 - "prepTime": Vorbereitungszeit wie "15 Min." oder "1 Std. 10 Min.", sonst ""
@@ -1752,11 +1864,15 @@ async function runJob(job) {
       }
       const m = (pg && pg.meta) || {};
       pageImage = m["og:image"] || "";
-      // Vorschaubild gleich mitholen und in der App speichern
-      if (pageImage) { try { thumb = await fetchImage(pageImage, job.ctl.signal); } catch (e) { if (e && e.code === "cancelled") throw e; thumb = null; } }
-      if (pg && pg.kind === "instagram") {
+      // Vorschaubild(er) gleich mitholen und in der App speichern. Bei Instagram bis zu zwei, Claude nimmt eins ohne Play-Knopf.
+      const isInsta = pg && pg.kind === "instagram";
+      const cand = [...new Set([pageImage, ...(isInsta && Array.isArray(m.images) ? m.images : [])].filter(u => /^https:\/\//.test(String(u || ""))))].slice(0, isInsta ? 2 : 1);
+      const got = await Promise.all(cand.map(u => fetchImage(u, job.ctl.signal).catch(e => { if (e && e.code === "cancelled") throw e; return null; })));
+      const thumbs = got.filter(Boolean);
+      thumb = thumbs[0] || null;
+      if (isInsta) {
         igUser = m.user || "";
-        src = { mode: "insta", text: `Link: ${src.link}\n${igUser ? "Kanal: " + igUser + "\n" : ""}\n${pg.data || ""}`, link: src.link, images: thumb ? [{ blob: thumb }] : [] };
+        src = { mode: "insta", text: `Link: ${src.link}\n${igUser ? "Kanal: " + igUser + "\n" : ""}\n${pg.data || ""}`, link: src.link, images: thumbs.map(blob => ({ blob })) };
       } else {
         const head = [m["og:site_name"] && "Website: " + m["og:site_name"], m["og:title"] && "Titel: " + m["og:title"], m["og:description"] && "Beschreibung: " + m["og:description"]].filter(Boolean).join("\n");
         const body = pg && pg.kind === "recipe" ? "Strukturierte Rezeptdaten der Seite (schema.org/Recipe):\n" + pg.data : (pg && pg.data) || "";
@@ -1829,6 +1945,9 @@ async function recognize() {
 const actions = {
   "open-add": () => openSheet(),
   sort: () => openSort(),
+  install: () => openInstall(),
+  "install-close": () => { state.installClosed = true; render(); },
+  "install-never": () => { try { localStorage.setItem("rezepte-install-hidden", "1"); } catch (e) { /* egal */ } closeLayer(); render(); },
   "set-sort": el => {
     state.sort = el.dataset.s;
     try { localStorage.setItem("rezepte-sort", state.sort); } catch (e) { /* egal */ }
@@ -1852,17 +1971,16 @@ const actions = {
     const r = current(); if (!r || !col || state.nutriBusy) return;
     await initPromise;
     if (!sample) { toast("Schätzen geht gerade nicht. Lade die App neu."); return; }
-    state.nutriBusy = r.id; renderDetail();
+    const myUid = uid;
+    state.nutriBusy = r.id; nutriTried.add(r.id); renderDetail();
     try {
       const n = await estimateNutrition(r);
       if (!n) throw { code: "no_recipe", message: "" };
+      if (uid !== myUid) return;
       await withRetry(() => col.doc(r.id).update({ nutrition: n }));
       patchLocal(r.id, { nutrition: n });
-    } catch (e) {
-      const [t, d] = aiErrorText(e);
-      toast(e && e.code === "no_recipe" ? "Nährwerte ließen sich nicht schätzen." : t + ". " + d);
-    }
-    state.nutriBusy = null;
+    } catch (e) { console.warn("Nährwerte", e); }
+    finally { state.nutriBusy = null; }
     if (state.view === "detail") renderDetail();
   },
   "login-google": () => loginGoogle(),
