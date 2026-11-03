@@ -99,10 +99,10 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
   position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   z-index: 6; display: inline-flex; align-items: center; gap: 8px;
   padding: 14px 22px; border-radius: 999px;
-  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 17px; white-space: nowrap;
+  border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 17px; white-space: nowrap;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .12), 0 8px 22px rgba(0, 0, 0, .1);
 }
-.fab .ic { width: 22px; height: 22px; }
+.fab .ic { width: 22px; height: 22px; stroke-width: 2.4; }
 .fab:active { opacity: .85; }
 
 /* Search + chips */
@@ -117,13 +117,14 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
 .chips:empty { display: none; }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
-  flex: none; padding: 6px 14px; border-radius: 999px; border: 0;
+  flex: none; padding: 7px 15px; border-radius: 999px; border: 0;
   background: var(--fill); font-size: 15px; font-weight: 500; color: var(--ink);
 }
 .chip.on { background: var(--ink); color: #fff; }
 
 /* Recipe list */
 .list { list-style: none; margin: 8px 0 0; padding: 0; }
+.list > li { content-visibility: auto; contain-intrinsic-size: auto 84px; }
 .row {
   position: relative; width: 100%; display: flex; align-items: center; gap: 14px;
   padding: 10px 0; border: 0; background: none; text-align: left; color: inherit;
@@ -272,7 +273,7 @@ button.row:active { opacity: .6; }
 .info { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: -8px 0 0; font-size: 16px; }
 .info dt { color: var(--muted); }
 .info dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.info a { color: var(--accent); text-decoration: none; }
+.info a { color: var(--accent); text-decoration: none; display: inline-block; padding: 6px 0; margin: -6px 0; }
 .src { margin: 0; font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
 .src a { color: var(--accent); text-decoration: none; }
 .sec { display: grid; gap: 6px; }
@@ -283,7 +284,7 @@ button.row:active { opacity: .6; }
 .scaler button:active { background: var(--bg); }
 .scaler span { padding: 0 6px; font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .seg { display: inline-flex; background: var(--fill); border-radius: 9px; padding: 2px; }
-.seg button { border: 0; background: none; border-radius: 7px; padding: 5px 12px; font-weight: 500; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.seg button { border: 0; background: none; border-radius: 7px; padding: 7px 13px; font-weight: 500; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .seg button.on { background: var(--bg); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 .ings { list-style: none; margin: 0; padding: 0; }
 .ing {
@@ -316,11 +317,14 @@ button.row:active { opacity: .6; }
 .stars button.on { color: var(--star); }
 .row-m .rt { display: inline-flex; align-items: center; gap: 2px; color: var(--ink); margin-right: 2px; }
 .row-m .rt .ic { color: var(--star); }
-.nutri { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-@media (min-width: 520px) { .nutri { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.nutri div { background: var(--group); border-radius: 12px; padding: 10px 12px; display: grid; gap: 1px; }
-.nutri b { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.nutri span { font-size: 13px; color: var(--muted); }
+.nutri { margin: 0; background: var(--group); border-radius: 12px; padding: 4px 14px; }
+.nutri div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: 16px; }
+.nutri div + div { border-top: 1px solid var(--line); }
+.nutri dt { min-width: 0; }
+.nutri dd { margin: 0; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nutri div:first-child dd { font-weight: 700; }
+.nutri .sub dt { color: var(--muted); padding-left: 14px; }
+.nutri .sub dd { font-weight: 500; color: var(--muted); }
 .opt .chev.on { color: var(--accent); width: 20px; height: 20px; stroke-width: 2.6; }
 .muted { color: var(--muted); margin: 0; }
 
@@ -379,6 +383,7 @@ button.row:active { opacity: .6; }
 <body>
 <div id="app" class="app"></div>
 <input class="vh" id="quick-pick" type="file" accept="image/*" multiple data-file="quick" aria-label="Rezeptfoto auswählen">
+<input class="vh" id="cam-pick" type="file" accept="image/*" capture="environment" data-file="quick" aria-label="Foto aufnehmen">
 <input class="vh" id="pdf-pick" type="file" accept="application/pdf,.pdf" data-file="pdf" aria-label="PDF auswählen">
 <div id="layer"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -456,7 +461,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V18";
+const APP_VERSION = "V19";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -489,6 +494,11 @@ function onAuth(u) {
   authKnown = true;
   authUser = u || null;
   if (unsub) { unsub(); unsub = null; }
+  if (!authUser || (prev && prev !== authUser.uid)) {
+    // Kontowechsel: laufende Lese-Aufträge gehören zum alten Konto
+    state.jobs.forEach(j => { j.dead = true; if (j.ctl) j.ctl.abort(); });
+    state.jobs = [];
+  }
   if (!authUser) {
     col = null; uid = null; state.recipes = []; state.loaded = false; state.storage = "pending";
     state.edit = null; state.imp = null; state.view = "login"; render(); return;
@@ -781,8 +791,23 @@ function coverSrc(cover) {
   if (!cover) return null;
   if (cover.assetId) return "/_blob/" + encodeURIComponent(cover.assetId);
   if (typeof cover.url === "string" && /^https:\/\//.test(cover.url)) return cover.url;
-  if (typeof cover.dataUrl === "string" && cover.dataUrl.startsWith("data:image/")) return cover.dataUrl;
+  if (typeof cover.dataUrl === "string" && cover.dataUrl.startsWith("data:image/")) return blobUrl(cover.dataUrl);
   return null;
+}
+/* Fotos einmal in eine kurze Blob-Adresse umwandeln: die Liste baut sich dann ohne riesige Texte auf */
+const blobCache = new Map();
+function blobUrl(d) {
+  const k = d.length + ":" + d.slice(-40);
+  let u = blobCache.get(k);
+  if (u) return u;
+  try {
+    const i = d.indexOf(","), bin = atob(d.slice(i + 1)), a = new Uint8Array(bin.length);
+    for (let j = 0; j < bin.length; j++) a[j] = bin.charCodeAt(j);
+    u = URL.createObjectURL(new Blob([a], { type: d.slice(5, d.indexOf(";")) || "image/jpeg" }));
+  } catch (e) { u = d; }
+  if (blobCache.size > 600) { const [k0, u0] = blobCache.entries().next().value; blobCache.delete(k0); if (u0.startsWith("blob:")) URL.revokeObjectURL(u0); }
+  blobCache.set(k, u);
+  return u;
 }
 const placeholder = (ic = "pot") => `<div class="ph">${icon(ic)}</div>`;
 function coverHtml(r) {
@@ -822,6 +847,7 @@ const NUM = "(?:\\d+(?:[.,]\\d+)?\\s*[½¼¾⅓⅔⅛]|\\d+\\s+\\d+\\/\\d+|\\d+\
 const QTY_RE = new RegExp("^(" + NUM + ")(?:(\\s*[-–]\\s*)(" + NUM + "))?");
 function toNum(s) {
   s = s.trim(); let m;
+  if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ""));
   if ((m = s.match(/^(\d+)\s*([½¼¾⅓⅔⅛])$/))) return +m[1] + FRAC[m[2]];
   if ((m = s.match(/^(\d+)\s+(\d+)\/(\d+)$/))) return +m[1] + m[2] / m[3];
   if ((m = s.match(/^(\d+)\/(\d+)$/))) return m[1] / m[2];
@@ -843,15 +869,83 @@ function fmtNum(n) {
   }
   return String(Math.round(n * 10) / 10).replace(".", ",");
 }
+/* Mengen genau umrechnen: Gramm/ml rund, Packungen in Gramm, Eier ganz, Löffel in ¼-Schritten */
+const QTY2_RE = new RegExp("^((?:ca\\.|circa|etwa|ungefähr)\\s*)?(" + NUM + ")(?:\\s*[-–]\\s*(" + NUM + "))?");
+const UNIT_RE = /^\s*(kg|g|mg|ml|l|cl|dl|EL|TL|Tassen?|Pck\.?|Pkg\.?|Päckchen|Packung(?:en)?|Dosen?|Becher|Gläser|Glas|Beutel|Tüten?|Flaschen?|Netze?|Bund|Stück|Stk\.?|Scheiben?|Zehen?|Stangen?|Blätter|Blatt|Kugeln?)(?=[\s.,;:)]|$)/i;
+const NO_SCALE = /^\s*(prise|prisen|msp\.?|messerspitzen?|schuss|spritzer|etwas|nach\s+geschmack|n\.\s*b\.)(?=[\s.,]|$)/i;
+const METRIC = { g: ["g", 1], kg: ["g", 1000], mg: ["mg", 1], ml: ["ml", 1], l: ["ml", 1000], cl: ["ml", 10], dl: ["ml", 100] };
+const PACK = /^(pck\.?|pkg\.?|päckchen|packung(en)?|dosen?|becher|gläser|glas|beutel|tüten?|flaschen?|netze?)$/i;
+const EGG = /^\s*(eier|ei|eigelb|eiweiß|eiklar)(?=[\s.,;:)]|$)/i;
+const WORDS = [["Ei", "Eier"], ["Zwiebel", "Zwiebeln"], ["Knoblauchzehe", "Knoblauchzehen"], ["Zehe", "Zehen"], ["Tomate", "Tomaten"],
+  ["Karotte", "Karotten"], ["Möhre", "Möhren"], ["Kartoffel", "Kartoffeln"], ["Zitrone", "Zitronen"], ["Limette", "Limetten"], ["Orange", "Orangen"],
+  ["Paprikaschote", "Paprikaschoten"], ["Chilischote", "Chilischoten"], ["Schalotte", "Schalotten"], ["Frühlingszwiebel", "Frühlingszwiebeln"], ["Gurke", "Gurken"],
+  ["Banane", "Bananen"], ["Birne", "Birnen"], ["Apfel", "Äpfel"], ["Avocado", "Avocados"], ["Scheibe", "Scheiben"], ["Dose", "Dosen"], ["Packung", "Packungen"],
+  ["Tasse", "Tassen"], ["Flasche", "Flaschen"], ["Tüte", "Tüten"], ["Stange", "Stangen"], ["Kugel", "Kugeln"], ["Blatt", "Blätter"], ["Lorbeerblatt", "Lorbeerblätter"],
+  ["Glas", "Gläser"], ["Netz", "Netze"], ["Hähnchenbrustfilet", "Hähnchenbrustfilets"], ["Wurst", "Würste"], ["Würstchen", "Würstchen"]];
+const SING = Object.fromEntries(WORDS.map(([a, b]) => [b, a])), PLUR = Object.fromEntries(WORDS);
+function numWord(text, n) {
+  return text.replace(/^(\s*)([A-Za-zÄÖÜäöüß]+)/, (all, sp, w) => sp + ((n > 1 ? PLUR[w] : SING[w]) || w));
+}
+const dec = (v, d) => String(Math.round(v * 10 ** d) / 10 ** d).replace(".", ",");
+function fmtFrac(v, steps) { // Brüche wie in der Küche
+  const whole = Math.floor(v), f = v - whole;
+  let best = 0, bd = 9;
+  for (const x of steps) { const d = Math.abs(f - x); if (d < bd) { bd = d; best = x; } }
+  if (best === 1) return String(whole + 1);
+  const sym = { 0.25: "¼", 0.5: "½", 0.75: "¾" }[best] || (Math.abs(best - 1 / 3) < 1e-6 ? "⅓" : Math.abs(best - 2 / 3) < 1e-6 ? "⅔" : "");
+  return (whole || !sym ? String(whole) : "") + sym || "0";
+}
+const QUARTERS = [0, .25, 1 / 3, .5, 2 / 3, .75, 1], HALVES = [0, .5, 1];
+function fmtMetric(vBase, base) { // vBase in g oder ml
+  if (base !== "mg" && vBase >= 1000) return [dec(vBase / 1000, 2), base === "g" ? "kg" : "l"];
+  const r = vBase < 10 ? Math.round(vBase * 2) / 2 : vBase < 20 ? Math.round(vBase) : Math.round(vBase / 5) * 5;
+  return [dec(r || 0.5, 1), base];
+}
+function fmtCount(v, egg) {
+  if (egg) return String(Math.max(1, Math.round(v)));
+  if (v > 3) return String(Math.round(v));
+  if (v < 1) return fmtFrac(Math.max(v, .25), QUARTERS);
+  return fmtFrac(v, HALVES);
+}
 function splitQty(line, factor) {
-  const m = line.match(QTY_RE);
+  const m = line.match(QTY2_RE);
   if (!m) return { qty: "", rest: line };
-  let qty = m[0];
-  if (factor !== 1 && !/^\s*(prise|msp|messerspitze|schuss|spritzer|etwas)\b/i.test(line.slice(m[0].length))) {
-    const a = fmtNum(toNum(m[1]) * factor);
-    qty = m[3] ? a + "–" + fmtNum(toNum(m[3]) * factor) : a;
+  const pre = m[1] || "", after = line.slice(m[0].length);
+  if (factor === 1 || NO_SCALE.test(after)) return { qty: m[0], rest: after };
+  const lo = toNum(m[2]) * factor, hi = m[3] ? toNum(m[3]) * factor : null;
+  const um = after.match(UNIT_RE);
+  const unit = um ? um[1] : "", rest = um ? after.slice(um[0].length) : after;
+  const mu = METRIC[unit.toLowerCase()] || (unit === "L" ? METRIC.l : null);
+  if (mu) { // Gramm / Milliliter, eine Packungsangabe in Klammern rechnet mit
+    const r2 = rest.replace(/\((\s*(?:ca\.\s*)?)(\d+(?:[.,]\d+)?|[½¼¾⅓⅔])\s+(Pck\.?|Pkg\.?|Päckchen|Packung(?:en)?|Dosen?|Becher|Gläser|Glas|Beutel|Tüten?|Flaschen?|Netze?|Kugeln?|Stück|Bund|Stangen?)\s*\)/i,
+      (all, p2, n, u) => { const v = toNum(n) * factor; return "(" + p2 + fmtFrac(Math.max(v, .25), QUARTERS) + " " + numWord(" " + u, v).trim() + ")"; });
+    const [hv, hu] = hi != null ? fmtMetric(hi * mu[1], mu[0]) : [null, null];
+    const [lv, lu] = fmtMetric(lo * mu[1], mu[0]);
+    if (hi != null) { const u = hu, lvv = u !== lu ? (u === "kg" || u === "l" ? dec(lo * mu[1] / 1000, 2) : lv) : lv; return { qty: pre + lvv + "–" + hv, rest: " " + u + r2 }; }
+    return { qty: pre + lv, rest: " " + lu + r2 };
   }
-  return { qty, rest: line.slice(m[0].length) };
+  if (PACK.test(unit)) { // Packung / Dose / Becher: mit Grammangabe genau in Gramm
+    const g = rest.match(/\(\s*(?:à|a|je|ca\.?)?\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\s*\)/i);
+    const whole = Math.abs(lo - Math.round(lo)) < 0.01 && hi == null;
+    if (g && !whole) {
+      const mu2 = METRIC[g[2].toLowerCase()];
+      const [v, u] = fmtMetric(lo * parseFloat(g[1].replace(",", ".")) * mu2[1], mu2[0]);
+      const name = rest.replace(g[0], "").replace(/\s{2,}/g, " ").trim();
+      const packW = numWord(" " + unit, lo).trim();
+      return { qty: pre + v, rest: ` ${u} ${name} (${fmtFrac(lo, QUARTERS)} ${packW})` };
+    }
+    const q = hi != null ? fmtFrac(lo, QUARTERS) + "–" + fmtFrac(hi, QUARTERS) : fmtFrac(Math.max(lo, .25), QUARTERS);
+    return { qty: pre + q, rest: numWord(" " + unit, hi != null ? hi : lo) + rest };
+  }
+  if (/^(el|tl|tassen?)$/i.test(unit)) { // Löffel und Tassen
+    const q = hi != null ? fmtFrac(lo, QUARTERS) + "–" + fmtFrac(hi, QUARTERS) : fmtFrac(Math.max(lo, .25), QUARTERS);
+    return { qty: pre + q, rest: (unit ? numWord(" " + unit, hi != null ? hi : lo) : "") + rest };
+  }
+  // Stück (Eier ganz, sonst ½-Schritte)
+  const egg = !unit && EGG.test(rest);
+  const q = hi != null ? fmtCount(lo, egg) + "–" + fmtCount(hi, egg) : fmtCount(lo, egg);
+  const n = toNum(q.split("–").pop());
+  return { qty: pre + q, rest: unit ? numWord(" " + unit, n) + rest : numWord(rest, n) };
 }
 
 /* ---------- Images ---------- */
@@ -915,7 +1009,8 @@ function confirmDialog({ title, text, yes, danger }) {
   });
 }
 const ADD_OPTIONS = [
-  { mode: "photo", icon: "camera", t: "Foto oder Screenshot", pick: "quick-pick" },
+  { mode: "camera", icon: "camera", t: "Foto aufnehmen", pick: "cam-pick" },
+  { mode: "photo", icon: "image", t: "Fotos oder Screenshots", pick: "quick-pick" },
   { mode: "link", icon: "link", t: "Link oder Text einfügen" },
   { mode: "pdf", icon: "doc", t: "PDF auswählen", pick: "pdf-pick" },
   { mode: "manual", icon: "pen", t: "Selbst eintippen" }
@@ -980,7 +1075,6 @@ function renderList() {
   app.innerHTML = `
     <header class="home-head">
       <button class="icon-btn" data-action="sort" aria-label="Sortieren" style="margin-right:auto;margin-left:-10px">${icon("sort")}</button>
-      ${useClaude() ? `<button class="icon-btn" data-action="open-add" aria-label="Rezept hinzufügen">${icon("plus")}</button>` : ""}
       <button class="icon-btn" data-action="account" aria-label="Konto">${icon("user")}</button>
     </header>
     <h1 class="brand">Rezepte</h1>
@@ -988,7 +1082,7 @@ function renderList() {
     <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="Suchen" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
     <div id="chips" class="chips"></div>
     <div id="grid"></div>
-    <label class="fab" id="fab" for="quick-pick">${icon("camera")}<span>Rezept fotografieren</span></label>`;
+    <button class="fab" id="fab" data-action="open-add">${icon("plus")}<span>Neues Rezept</span></button>`;
   renderListBody();
 }
 const SORTS = [["added", "Zuletzt hinzugefügt"], ["viewed", "Zuletzt angesehen"], ["az", "Name A–Z"], ["rating", "Beste Bewertung"]];
@@ -1095,10 +1189,10 @@ function renderDetail() {
   if (r.cookTime) info.push(["Kochzeit", esc(r.cookTime)]);
 
   const scaler = base
-    ? `<div class="scaler" role="group" aria-label="Portionen anpassen">
-         <button data-action="serv" data-d="-1" aria-label="Weniger Portionen">−</button>
-         <span>${fmtNum(state.servings)} ${state.servings === 1 ? "Portion" : "Portionen"}</span>
-         <button data-action="serv" data-d="1" aria-label="Mehr Portionen">+</button>
+    ? `<div class="scaler" role="group" aria-label="Personen anpassen">
+         <button data-action="serv" data-d="-1" aria-label="Weniger Personen">−</button>
+         <span>${fmtNum(state.servings)} ${state.servings === 1 ? "Person" : "Personen"}</span>
+         <button data-action="serv" data-d="1" aria-label="Mehr Personen">+</button>
        </div>`
     : `<div class="seg" role="group" aria-label="Menge anpassen">${[.5, 1, 2, 3].map(f =>
         `<button class="${state.factor === f ? "on" : ""}" data-action="factor" data-f="${f}">${f === .5 ? "½" : f}×</button>`).join("")}</div>`;
@@ -1156,19 +1250,22 @@ function starsHtml(r) {
 }
 function nutritionHtml(r) {
   const n = cleanNutrition(r.nutrition), busy = state.nutriBusy === r.id;
-  const per = Number(r.servings) > 0 ? "pro Portion" : "für das ganze Rezept";
+  const per = Number(r.servings) > 0 ? "pro Person" : "für das ganze Rezept";
   const btn = `<button class="btn small quiet" data-action="nutri" style="margin-right:-13px" ${busy ? "disabled" : ""}>${busy ? "Wird geschätzt …" : n ? "Neu schätzen" : "Schätzen"}</button>`;
   if (!n) return `<section class="sec"><div class="sec-head"><h2>Nährwerte</h2>${btn}</div><p class="note">Noch keine Nährwerte. Claude kann sie aus den Zutaten schätzen.</p></section>`;
-  const cell = (val, unit, label) => val == null ? "" : `<div><b>ca. ${fmtNum(val)}${unit}</b><span>${label}</span></div>`;
+  const g = x => String(x).replace(".", ",");
+  const rows = [["Brennwert", n.kcal, " kcal", ""], ["Fett", n.fat, " g", ""], ["davon gesättigte Fettsäuren", n.satFat, " g", "sub"],
+    ["Kohlenhydrate", n.carbs, " g", ""], ["davon Zucker", n.sugar, " g", "sub"], ["Ballaststoffe", n.fiber, " g", ""], ["Eiweiß", n.protein, " g", ""], ["Salz", n.salt, " g", ""]]
+    .filter(r => r[1] != null).map(([l, v, u, c]) => `<div class="${c}"><dt>${l}</dt><dd>ca. ${g(v)}${u}</dd></div>`).join("");
   return `<section class="sec"><div class="sec-head"><h2>Nährwerte</h2>${btn}</div>
-    <div class="nutri">${cell(n.kcal, "", "kcal")}${cell(n.protein, " g", "Eiweiß")}${cell(n.carbs, " g", "Kohlenhydrate")}${cell(n.fat, " g", "Fett")}</div>
+    <dl class="nutri">${rows}</dl>
     <p class="note">${per[0].toUpperCase() + per.slice(1)}, geschätzt.</p></section>`;
 }
 function recipeText(r) {
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
   const factor = base && state.currentId === r.id && state.servings ? state.servings / base : (state.currentId === r.id ? state.factor : 1);
   const out = [r.title || "Rezept"];
-  const facts = [base ? fmtNum(base * factor) + " Portionen" : "", r.prepTime ? "Vorbereitung " + r.prepTime : "", r.cookTime ? "Kochzeit " + r.cookTime : ""].filter(Boolean);
+  const facts = [base ? fmtNum(base * factor) + (base * factor === 1 ? " Person" : " Personen") : "", r.prepTime ? "Vorbereitung " + r.prepTime : "", r.cookTime ? "Kochzeit " + r.cookTime : ""].filter(Boolean);
   if (facts.length) out.push(facts.join(" · "));
   const ings = (r.ingredients || []).map(l => isHead(l) ? "\n" + headText(l) + ":" : "• " + (s => s.qty + s.rest)(splitQty(l, factor)));
   if (ings.length) out.push("", "Zutaten", ...ings);
@@ -1181,8 +1278,8 @@ function recipeText(r) {
 }
 async function estimateNutrition(r) {
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
-  const prompt = `Schätze die Nährwerte für dieses Rezept ${base ? `pro Portion (das Rezept ergibt ${fmtNum(base)} Portionen)` : "für das ganze Rezept"}.
-Antworte nur mit JSON: {"kcal": Zahl, "protein": Zahl, "carbs": Zahl, "fat": Zahl} (Eiweiß, Kohlenhydrate und Fett in Gramm, gerundet).
+  const prompt = `Schätze die Nährwerte für dieses Rezept ${base ? `pro Person (das Rezept ist für ${fmtNum(base)} Personen)` : "für das ganze Rezept"}.
+Antworte nur mit JSON: {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm; Salz auf 0,1 g, sonst ganze Zahlen).
 
 Rezept: ${r.title || ""}
 Zutaten:
@@ -1255,7 +1352,7 @@ function renderEdit() {
       ${fieldHtml("title", "Titel", "text", { ph: "z. B. Linsen-Dal mit Kokosmilch", attrs: 'autocomplete="off"' })}
       <div class="row2">
         ${fieldHtml("category", "Kategorie", "select")}
-        ${fieldHtml("servings", "Portionen", "text", { ph: "4", attrs: 'inputmode="decimal"' })}
+        ${fieldHtml("servings", "Personen", "text", { ph: "4", attrs: 'inputmode="decimal"' })}
       </div>
       <div class="row2">
         ${fieldHtml("prepTime", "Vorbereitung", "text", { ph: "15 Min." })}
@@ -1465,16 +1562,16 @@ Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern
 - "title": kurzer, klarer Rezeptname auf Deutsch
 - "category": genau eins von: ${CATEGORIES.join(", ")}
 - "emoji": ein passendes Essens-Emoji
-- "servings": Anzahl Portionen als Zahl, oder null
+- "servings": für wie viele Personen bzw. Portionen das Rezept ist, als Zahl, oder null
 - "prepTime": Vorbereitungszeit wie "15 Min." oder "1 Std. 10 Min.", sonst ""
 - "cookTime": Koch- bzw. Backzeit im selben Format, sonst ""
-- "ingredients": Liste von Strings, eine Zutat pro Eintrag, Menge zuerst, z. B. "200 g Mehl", "2 EL Olivenöl", "1 Prise Salz". Zwischenüberschriften als eigener Eintrag mit "# " davor, z. B. "# Für die Soße".
+- "ingredients": Liste von Strings, eine Zutat pro Eintrag, Menge zuerst, z. B. "200 g Mehl", "2 EL Olivenöl", "1 Prise Salz". Schreib Mengen möglichst genau in g oder ml. Packungen, Dosen, Becher, Gläser und Tüten rechnest du in g oder ml um und schreibst die Packung in Klammern dahinter, z. B. "500 g Gnocchi (1 Packung)", "400 g gehackte Tomaten (1 Dose)", "200 g Sahne (1 Becher)"; ist das Gewicht nicht angegeben, nimm die übliche Packungsgröße in Deutschland mit „ca.“. Stückzutaten bleiben Stück, z. B. "2 Eier", "1 Zwiebel", "3 Knoblauchzehen". Gewürze in EL, TL oder Prise. Zwischenüberschriften als eigener Eintrag mit "# " davor, z. B. "# Für die Soße".
 - "steps": Liste von Strings, ein Arbeitsschritt pro Eintrag, ohne Nummerierung
 - "notes": Tipps oder Hinweise aus dem Rezept, sonst ""
 - "source": Buchtitel, Website oder Instagram-Kanal (z. B. "@kanalname"), falls erkennbar, sonst ""
 - "coverImage": Nummer des Bildes (ab 1), das das fertige Gericht gut zeigt, sonst null
 - "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
-- "nutrition": Nährwerte pro Portion als Objekt {"kcal": Zahl, "protein": Zahl, "carbs": Zahl, "fat": Zahl} (Eiweiß, Kohlenhydrate und Fett in Gramm, gerundet). Stehen Nährwerte im Material, nimm diese; sonst schätze sie aus Zutaten und Mengen. Ist "servings" null, gilt der Wert für das ganze Rezept. null, wenn nichts Sinnvolles geht.
+- "nutrition": Nährwerte pro Person bzw. Portion als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm; Salz auf 0,1 g, sonst ganze Zahlen). Stehen Nährwerte im Material, nimm diese; sonst schätze sie aus Zutaten und Mengen. Ist "servings" null, gilt der Wert für das ganze Rezept. null, wenn nichts Sinnvolles geht.
 
 Regeln:
 - Lies auch Handschrift sorgfältig, selbst wenn sie unordentlich, schräg, verblasst oder durchgestrichen ist, und auch alte deutsche Schrift (Sütterlin, Kurrent). Nutze den Zusammenhang des Rezepts, um schwer lesbare Wörter und Mengen zu entziffern.
@@ -1484,7 +1581,7 @@ Regeln:
 - Rechne amerikanische und alte Maße in metrische um (cups in g oder ml, oz und lb in g, °F in °C, tbsp in EL, tsp in TL, Pfund = 500 g, Tasse ca. 200 ml, Glas ca. 200 ml) und runde sinnvoll. Ist eine Umrechnung nur geschätzt, schreib „ca.“ davor. Gasherd-Stufen rechnest du in °C um.
 - Ungarische Maße: dkg = 10 g (25 dkg = 250 g), dl = 100 ml, ek / evőkanál = EL, kk / kávéskanál = TL, mokkáskanál = ca. ½ TL, bögre = ca. 250 ml, csipet = 1 Prise, egy kevés = etwas.
 - Serbische Maße: kašika / кашика = EL, kašičica / кашичица = TL, šolja / шоља = ca. 200 ml, čaša / чаша = ca. 200 ml, prstohvat / прстохват = 1 Prise, dl = 100 ml, kesica / кесица = 1 Päckchen (z. B. Backpulver oder Vanillezucker).
-- Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen (nur die Nährwerte darfst du schätzen). Unleserliche Stellen markierst du mit [?].
+- Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen. Schätzen darfst du nur die Nährwerte und das Gewicht von Packungen, dann mit „ca.“. Unleserliche Stellen markierst du mit [?].
 - Fehlen die Zubereitungsschritte, lass "steps" leer und schreib in "notes", dass die Zubereitung nur im Video gezeigt wird oder fehlt.
 - Lass Hashtags, Werbung, „Link in Bio“, Rabattcodes, Emojis und Danksagungen weg.
 - Stehen mehrere Rezepte im Material, nimm das Hauptrezept und erwähne die anderen kurz in "notes".` +
@@ -1522,8 +1619,9 @@ function resultToEdit(res, imp) {
 }
 function cleanNutrition(n) {
   if (!n || typeof n !== "object") return null;
-  const v = k => { const x = Math.round(Number(n[k])); return isFinite(x) && x >= 0 && x < 50000 ? x : null; };
-  const out = { kcal: v("kcal"), protein: v("protein"), carbs: v("carbs"), fat: v("fat") };
+  const v = (k, d = 0) => { const x = Number(n[k]); if (n[k] == null || !isFinite(x) || x < 0 || x >= 50000) return null; const f = 10 ** d; return Math.round(x * f) / f; };
+  const out = { kcal: v("kcal"), fat: v("fat"), satFat: v("satFat"), carbs: v("carbs"), sugar: v("sugar"), fiber: v("fiber"), protein: v("protein"), salt: v("salt", 1) };
+  Object.keys(out).forEach(k => { if (out[k] == null) delete out[k]; });
   return out.kcal ? out : null;
 }
 function aiErrorText(e) {
@@ -1579,7 +1677,7 @@ async function saveData(d, coverBlob, coverUrl) {
 function refreshJobs() { if (state.view === "list") renderListBody(); }
 function removeJob(job) { state.jobs = state.jobs.filter(j => j !== job); refreshJobs(); }
 function startJob(src) {
-  const job = { id: "j" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), src, status: "busy", title: "", error: [], t0: Date.now(), ctl: null };
+  const job = { id: "j" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), src, status: "busy", title: "", error: [], t0: Date.now(), ctl: null, uid };
   state.jobs.unshift(job);
   runJob(job);
   return job;
@@ -1621,6 +1719,7 @@ async function runJob(job) {
     if (!res || typeof res !== "object" || res.isRecipe === false) throw { code: "no_recipe", message: noRec || str(res && res.problem) };
     const conv = resultToEdit(res, src);
     if (!linesOf(conv.data.ingredientsText).length && !linesOf(conv.data.stepsText).length) throw { code: "no_recipe", message: noRec || str(res.problem) };
+    if (job.dead || job.uid !== uid) return;
     if (job.src.mode === "link" && !conv.data.source) { try { conv.data.source = new URL(job.src.link).hostname.replace(/^www\./, ""); } catch (e) { /* egal */ } }
     await saveData(conv.data, conv.coverBlob, pageImage);
     removeJob(job);
@@ -1811,7 +1910,7 @@ const actions = {
       const { qty, rest } = splitQty(l, factor);
       return "• " + qty + rest;
     });
-    const head = r.title + (base ? ` (${fmtNum(state.servings)} Portionen)` : "");
+    const head = r.title + (base ? ` (${fmtNum(state.servings)} ${state.servings === 1 ? "Person" : "Personen"})` : "");
     try { await navigator.clipboard.writeText(head + "\n" + lines.join("\n").trim()); toast("Zutaten kopiert"); }
     catch (e) { toast("Kopieren wird hier nicht unterstützt."); }
   },
@@ -1863,9 +1962,10 @@ document.addEventListener("keydown", e => {
     if (modalResolve) { modalResolve(false); modalResolve = null; }
   }
 });
+let searchT = 0;
 document.addEventListener("input", e => {
   const t = e.target;
-  if (t.id === "q") { state.query = t.value; renderListBody(); return; }
+  if (t.id === "q") { state.query = t.value; clearTimeout(searchT); searchT = setTimeout(renderListBody, state.recipes.length > 60 ? 120 : 0); return; }
   if (t.id === "imp-text" && state.imp) { state.imp.text = t.value; autosize(t); return; }
   if (t.id === "imp-link" && state.imp) { state.imp.link = t.value; autosize(t); return; }
   if (t.dataset && t.dataset.k && state.edit) {
