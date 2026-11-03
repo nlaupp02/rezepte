@@ -352,6 +352,9 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: bala
 .login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin-top: -6px; }
 .login-links .btn { padding: 8px 4px; font-size: 15px; }
 .grecaptcha-badge { visibility: hidden !important; }
+.ver-box { display: flex; align-items: baseline; gap: 8px; padding: 11px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 15px; }
+.ver-box b { font-size: 17px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.ver-box .ver-date { margin-left: auto; color: var(--muted); font-size: 14px; }
 .rc-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 6px 0 0; }
 .rc-note a { color: var(--muted); }
 .login .btn.primary { min-height: 50px; }
@@ -431,6 +434,9 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
   storageBucket: "rezepte-d507e.firebasestorage.app", messagingSenderId: "394980977272", appId: "1:394980977272:web:ee94227b67d7866ba3db8d" };
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
+// Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
+const APP_VERSION = "V13";
+const APP_DATE = "03.11.2026";
 const AI_MODEL = "gemini-3.8-flash";
 const USE_STREAM = false; // einfache Übertragung: robuster bei Virenscannern und Browserschutz
 const APPCHECK_KEY = "6Ld3iQ4uAAAAACRCeaUsl3DDGz26vWcZuLD4kS8A"; // reCAPTCHA Enterprise (Website-Schlüssel, nicht geheim)
@@ -728,6 +734,7 @@ function renderLogin() {
              <button class="btn quiet" data-action="lg-mode" data-m="reset">Passwort vergessen?</button>`
           : `<button class="btn quiet" data-action="lg-mode" data-m="in">Zurück zur Anmeldung</button>`}
       </div>
+      <p class="rc-note">Version ${APP_VERSION} · Stand ${APP_DATE}</p>
       <p class="rc-note">Diese App ist durch reCAPTCHA geschützt. Es gelten die <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung</a> und die <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Nutzungsbedingungen</a> von Google.</p>
     </main>`;
 }
@@ -744,6 +751,7 @@ function openAccount() {
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="a-t">
       <div class="grip"></div><h2 id="a-t">Dein Konto</h2>
       <p class="muted">Angemeldet als <b>${esc(mail)}</b>. Deine Rezepte werden automatisch online gespeichert.</p>
+      <div class="ver-box"><span>Version</span><b>${APP_VERSION}</b><span class="ver-date">Stand ${APP_DATE}</span></div>
       <p class="rc-note">Geschützt durch reCAPTCHA. Es gelten die <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung</a> und die <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Nutzungsbedingungen</a> von Google.</p>
       <button class="btn block" data-action="logout">${icon("logout")}Abmelden</button>
     </div>`;
