@@ -432,6 +432,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 const AI_MODEL = "gemini-3.8-flash";
+const USE_STREAM = false; // einfache Übertragung: robuster bei Virenscannern und Browserschutz
 const APPCHECK_KEY = "6Ld3iQ4uAAAAACRCeaUsl3DDGz26vWcZuLD4kS8A"; // reCAPTCHA Enterprise (Website-Schlüssel, nicht geheim)
 let fb = null, authUser = null, authKnown = false, unsub = null, loadTimer = 0;
 
@@ -454,7 +455,8 @@ const initPromise = (async () => {
     let model = null;
     try {
       const ai = AI.getAI(app, { backend: new AI.GoogleAIBackend() });
-      model = AI.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { responseMimeType: "application/json" } });
+      const low = (AI.ThinkingLevel && AI.ThinkingLevel.LOW) || "LOW";
+      model = AI.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { responseMimeType: "application/json", thinkingConfig: { thinkingLevel: low } } });
     } catch (e) { console.warn("AI Logic nicht verfügbar", e); }
     fb = { U, F, auth, db: fsdb, AC, appCheck };
     sample = model ? makeSample(model) : null;
@@ -563,9 +565,10 @@ function makeSample(model) {
         throw { code: "appcheck", message: String((e && e.message) || e) };
       }
     }
+    { const el = $("#busy-detail"); if (el) el.textContent = "Sicherheitsprüfung ok, Gemini liest das Foto …"; }
     // 2. Gemini fragen, mit Zwischenstand, damit man sieht, dass etwas passiert
     const run = async () => {
-      if (typeof model.generateContentStream === "function") {
+      if (USE_STREAM && typeof model.generateContentStream === "function") {
         const res = await model.generateContentStream(parts);
         let t = "";
         for await (const chunk of res.stream) {
@@ -575,12 +578,13 @@ function makeSample(model) {
           if (signal && signal.aborted) break;
         }
         if (t) return t;
+        { const el = $("#busy-detail"); if (el) el.textContent = "Antwort kommt …"; }
         return (await res.response).text();
       }
       return (await model.generateContent(parts)).response.text();
     };
     let text;
-    try { text = await Promise.race([run(), stop, after(120000, { code: "timeout" })]); }
+    try { text = await Promise.race([run(), stop, after(90000, { code: "timeout" })]); }
     catch (e) { if (e && (e.code === "cancelled" || e.code === "timeout")) throw e; console.warn("Gemini", e); throw mapAiErr(e); }
     if (signal && signal.aborted) throw { code: "cancelled" };
     try { return JSON.parse(text); }
