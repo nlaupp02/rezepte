@@ -27,6 +27,7 @@
   --accent-ink: #FFFFFF;
   --accent-soft: #F6EEDF;
   --heart: #E0483E;
+  --star: #C98A12;
   --danger: #C4322A;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color-scheme: light;
@@ -309,6 +310,18 @@ button.row:active { opacity: .6; }
 .step.done { color: var(--muted); }
 .step.done .no { color: var(--faint); }
 .notes { margin: 0; white-space: pre-wrap; }
+.stars { display: flex; margin: 0 0 0 -5px; }
+.stars button { width: 34px; height: 34px; border: 0; background: none; padding: 0; display: grid; place-items: center; color: var(--faint); }
+.stars .ic { width: 24px; height: 24px; stroke-width: 1.6; }
+.stars button.on { color: var(--star); }
+.row-m .rt { display: inline-flex; align-items: center; gap: 2px; color: var(--ink); margin-right: 2px; }
+.row-m .rt .ic { color: var(--star); }
+.nutri { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 520px) { .nutri { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.nutri div { background: var(--group); border-radius: 12px; padding: 10px 12px; display: grid; gap: 1px; }
+.nutri b { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nutri span { font-size: 13px; color: var(--muted); }
+.opt .chev.on { color: var(--accent); width: 20px; height: 20px; stroke-width: 2.6; }
 .muted { color: var(--muted); margin: 0; }
 
 /* Layer: sheet, modal */
@@ -366,6 +379,7 @@ button.row:active { opacity: .6; }
 <body>
 <div id="app" class="app"></div>
 <input class="vh" id="quick-pick" type="file" accept="image/*" multiple data-file="quick" aria-label="Rezeptfoto auswählen">
+<input class="vh" id="pdf-pick" type="file" accept="application/pdf,.pdf" data-file="pdf" aria-label="PDF auswählen">
 <div id="layer"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -403,7 +417,11 @@ const ICONS = {
   people: '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17 19a5.5 5.5 0 0 0-2-4.2"/>',
   pot: '<path d="M5 11.5h14V16a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M5 13.5H3M19 13.5h2"/><path d="M3.5 11.5h17"/><path d="M6.5 11.5c0-1.9 2.5-3.2 5.5-3.2s5.5 1.3 5.5 3.2"/><path d="M10.4 6.2h3.2M12 6.2v2"/>',
   chev: '<path d="M9.5 5.5L16 12l-6.5 6.5"/>',
-  paste: '<rect x="6" y="5" width="12" height="15.5" rx="2"/><path d="M9.5 5V3.8h5V5"/><path d="M9 11h6M9 14.5h4"/>'
+  paste: '<rect x="6" y="5" width="12" height="15.5" rx="2"/><path d="M9.5 5V3.8h5V5"/><path d="M9 11h6M9 14.5h4"/>',
+  doc: '<path d="M7 3.5h7l4 4v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z"/><path d="M14 3.5v4h4"/><path d="M9 12.5h6M9 16h6"/>',
+  share: '<path d="M12 3.5v11"/><path d="M8.2 7.2L12 3.4l3.8 3.8"/><path d="M8 10.5H6.5A1.5 1.5 0 0 0 5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12a1.5 1.5 0 0 0-1.5-1.5H16"/>',
+  star: '<path d="M12 3.8l2.5 5.1 5.6.8-4.05 3.95.95 5.6L12 16.6l-5 2.65.95-5.6L3.9 9.7l5.6-.8z"/>',
+  sort: '<path d="M7.5 4.5v15M4 16l3.5 3.5L11 16M16.5 19.5v-15M13 8l3.5-3.5L20 8"/>'
 };
 const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 
@@ -425,7 +443,9 @@ const state = {
   edit: null,
   imp: null,
   jobs: [],
-  listScroll: 0
+  listScroll: 0,
+  sort: (() => { try { return localStorage.getItem("rezepte-sort") || "added"; } catch (e) { return "added"; } })(),
+  nutriBusy: null
 };
 let db = null, assets = null, sample = null, sampleLimits = null, uid = null, col = null, initDone = false;
 let modalResolve = null;
@@ -436,7 +456,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V17";
+const APP_VERSION = "V18";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -590,6 +610,7 @@ function makeClaude() {
     for (const b of (opts.images ? Array.from(opts.images) : [])) {
       content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: String(await blobToDataUrl(b)).split(",")[1] } });
     }
+    if (opts.pdf) content.unshift({ type: "document", source: { type: "base64", media_type: "application/pdf", data: opts.pdf } });
     content.push({ type: "text", text: prompt });
     // Modell und max_tokens müssen ganz vorne stehen (der Worker prüft das)
     const body = JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 4096, messages: [{ role: "user", content }] });
@@ -894,12 +915,13 @@ function confirmDialog({ title, text, yes, danger }) {
   });
 }
 const ADD_OPTIONS = [
-  { mode: "photo", icon: "camera", t: "Foto oder Screenshot" },
-  { mode: "link", icon: "link", t: "Link einfügen" },
+  { mode: "photo", icon: "camera", t: "Foto oder Screenshot", pick: "quick-pick" },
+  { mode: "link", icon: "link", t: "Link oder Text einfügen" },
+  { mode: "pdf", icon: "doc", t: "PDF auswählen", pick: "pdf-pick" },
   { mode: "manual", icon: "pen", t: "Selbst eintippen" }
 ];
-const addOptions = () => ADD_OPTIONS.filter(o => o.mode !== "link" || useClaude()).map(o => o.mode === "photo"
-  ? `<label class="opt" for="quick-pick">${icon(o.icon)}<span>${o.t}</span>${icon("chev", "chev")}</label>`
+const addOptions = () => ADD_OPTIONS.map(o => o.pick
+  ? `<label class="opt" for="${o.pick}">${icon(o.icon)}<span>${o.t}</span>${icon("chev", "chev")}</label>`
   : `<button class="opt" data-action="start" data-mode="${o.mode}">${icon(o.icon)}<span>${o.t}</span>${icon("chev", "chev")}</button>`
 ).join("");
 function openSheet() {
@@ -919,7 +941,23 @@ function go(view) {
   state.view = view;
   render();
   window.scrollTo(0, view === "list" ? state.listScroll : 0);
+  keepAwake(view === "detail");
 }
+/* Beim Kochen: Bildschirm bleibt an, solange ein Rezept offen ist */
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && navigator.wakeLock && document.visibilityState === "visible") {
+      const w = await navigator.wakeLock.request("screen");
+      if (state.view !== "detail") { w.release().catch(() => {}); return; }
+      wakeLock = w;
+      w.addEventListener("release", () => { if (wakeLock === w) wakeLock = null; });
+    } else if (!on && wakeLock) {
+      const w = wakeLock; wakeLock = null; await w.release();
+    }
+  } catch (e) { /* nicht unterstützt oder abgelehnt */ }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.view === "detail") keepAwake(true); });
 function render() {
   if (state.view === "login") { renderLogin(); return; }
   if (state.view === "boot" || !authKnown) { renderBoot(); return; }
@@ -941,6 +979,7 @@ function renderList() {
   lastBanner = bannerKey();
   app.innerHTML = `
     <header class="home-head">
+      <button class="icon-btn" data-action="sort" aria-label="Sortieren" style="margin-right:auto;margin-left:-10px">${icon("sort")}</button>
       ${useClaude() ? `<button class="icon-btn" data-action="open-add" aria-label="Rezept hinzufügen">${icon("plus")}</button>` : ""}
       <button class="icon-btn" data-action="account" aria-label="Konto">${icon("user")}</button>
     </header>
@@ -952,9 +991,29 @@ function renderList() {
     <label class="fab" id="fab" for="quick-pick">${icon("camera")}<span>Rezept fotografieren</span></label>`;
   renderListBody();
 }
+const SORTS = [["added", "Zuletzt hinzugefügt"], ["viewed", "Zuletzt angesehen"], ["az", "Name A–Z"], ["rating", "Beste Bewertung"]];
+function sorted(list) {
+  const by = state.sort, t = r => String(r.title || "");
+  const cmp = {
+    added: (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
+    viewed: (a, b) => (b.viewedAt || 0) - (a.viewedAt || 0) || (b.createdAt || 0) - (a.createdAt || 0),
+    az: (a, b) => t(a).localeCompare(t(b), "de", { sensitivity: "base" }),
+    rating: (a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0) || t(a).localeCompare(t(b), "de", { sensitivity: "base" })
+  }[by] || null;
+  return cmp ? list.slice().sort(cmp) : list;
+}
+function openSort() {
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="so-t">
+      <div class="grip"></div>
+      <div class="sheet-head"><h2 id="so-t">Sortieren</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
+      <div class="options">${SORTS.map(([k, l]) => `<button class="opt" data-action="set-sort" data-s="${k}" aria-pressed="${state.sort === k}"><span>${l}</span>${state.sort === k ? icon("check", "chev on") : ""}</button>`).join("")}</div>
+    </div>`;
+  layer.classList.add("open");
+}
 function filtered() {
   const q = norm(state.query).trim();
-  return state.recipes.filter(r => {
+  return sorted(state.recipes).filter(r => {
     if (state.filter === "fav" && !r.favorite) return false;
     if (state.filter.startsWith("cat:") && r.category !== state.filter.slice(4)) return false;
     if (!q) return true;
@@ -970,7 +1029,7 @@ function card(r) {
   return `<li><button class="row" data-action="open-recipe" data-id="${esc(r.id)}">
     <span class="thumb-sm">${coverHtml(r)}</span>
     <span class="row-b"><span class="row-t">${esc(r.title || "Ohne Titel")}</span>
-      <span class="row-m">${r.favorite ? icon("heart", "filled") : ""}<span>${esc(meta || " ")}</span></span></span>
+      <span class="row-m">${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}<span>${esc(meta || " ")}</span></span></span>
     ${icon("chev", "chev")}
   </button></li>`;
 }
@@ -1009,6 +1068,11 @@ function renderListBody() {
 /* ---------- Detail view ---------- */
 function openDetail(id) {
   state.currentId = id;
+  const r = state.recipes.find(x => x.id === id);
+  if (r && col) {
+    r.viewedAt = Date.now();
+    col.doc(id).update({ viewedAt: r.viewedAt }).catch(() => {});
+  }
   state.servings = null; state.factor = 1;
   state.checked = new Set(); state.doneSteps = new Set();
   go("detail");
@@ -1061,12 +1125,13 @@ function renderDetail() {
     <div class="topbar">
       <button class="back" data-action="back">${icon("back")}Rezepte</button>
       <span class="grow"></span>
+      <button class="icon-btn" data-action="share" aria-label="Teilen">${icon("share")}</button>
       <button class="icon-btn ${r.favorite ? "on" : ""}" data-action="fav" aria-pressed="${!!r.favorite}" aria-label="${r.favorite ? "Aus Favoriten entfernen" : "Zu Favoriten"}">${icon("heart", r.favorite ? "filled" : "")}</button>
       <button class="tbtn" data-action="edit">Bearbeiten</button>
     </div>
     <article class="detail">
       ${hasCover ? `<div class="hero">${coverHtml(r)}</div>` : ""}
-      <h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>
+      <div class="d-head"><h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>${starsHtml(r)}</div>
       ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
       <section class="sec">
         <div class="sec-head"><h2>Zutaten</h2>${ings.length ? scaler : ""}</div>
@@ -1079,14 +1144,57 @@ function renderDetail() {
         ${steps.length ? `<ol class="steps">${stepHtml}</ol>` : `<p class="muted">Noch keine Schritte eingetragen.</p>`}
       </section>
       ${r.notes ? `<section class="sec"><h2>Notizen</h2><p class="notes">${esc(r.notes)}</p></section>` : ""}
+      ${nutritionHtml(r)}
       <button class="btn danger quiet block" data-action="delete">Rezept löschen</button>
     </article>`;
+}
+
+function starsHtml(r) {
+  const v = Number(r.rating) || 0;
+  return `<div class="stars" role="group" aria-label="Bewertung">${[1, 2, 3, 4, 5].map(i =>
+    `<button class="${i <= v ? "on" : ""}" data-action="rate" data-v="${i}" aria-label="${i} von 5 Sternen" aria-pressed="${i <= v}">${icon("star", i <= v ? "filled" : "")}</button>`).join("")}</div>`;
+}
+function nutritionHtml(r) {
+  const n = cleanNutrition(r.nutrition), busy = state.nutriBusy === r.id;
+  const per = Number(r.servings) > 0 ? "pro Portion" : "für das ganze Rezept";
+  const btn = `<button class="btn small quiet" data-action="nutri" style="margin-right:-13px" ${busy ? "disabled" : ""}>${busy ? "Wird geschätzt …" : n ? "Neu schätzen" : "Schätzen"}</button>`;
+  if (!n) return `<section class="sec"><div class="sec-head"><h2>Nährwerte</h2>${btn}</div><p class="note">Noch keine Nährwerte. Claude kann sie aus den Zutaten schätzen.</p></section>`;
+  const cell = (val, unit, label) => val == null ? "" : `<div><b>ca. ${fmtNum(val)}${unit}</b><span>${label}</span></div>`;
+  return `<section class="sec"><div class="sec-head"><h2>Nährwerte</h2>${btn}</div>
+    <div class="nutri">${cell(n.kcal, "", "kcal")}${cell(n.protein, " g", "Eiweiß")}${cell(n.carbs, " g", "Kohlenhydrate")}${cell(n.fat, " g", "Fett")}</div>
+    <p class="note">${per[0].toUpperCase() + per.slice(1)}, geschätzt.</p></section>`;
+}
+function recipeText(r) {
+  const base = Number(r.servings) > 0 ? Number(r.servings) : null;
+  const factor = base && state.currentId === r.id && state.servings ? state.servings / base : (state.currentId === r.id ? state.factor : 1);
+  const out = [r.title || "Rezept"];
+  const facts = [base ? fmtNum(base * factor) + " Portionen" : "", r.prepTime ? "Vorbereitung " + r.prepTime : "", r.cookTime ? "Kochzeit " + r.cookTime : ""].filter(Boolean);
+  if (facts.length) out.push(facts.join(" · "));
+  const ings = (r.ingredients || []).map(l => isHead(l) ? "\n" + headText(l) + ":" : "• " + (s => s.qty + s.rest)(splitQty(l, factor)));
+  if (ings.length) out.push("", "Zutaten", ...ings);
+  let n = 0;
+  const steps = (r.steps || []).map(st => /^#/.test(st) ? "\n" + headText(st) + ":" : (++n) + ". " + st);
+  if (steps.length) out.push("", "Zubereitung", ...steps);
+  if (r.notes) out.push("", "Notizen", r.notes);
+  if (r.source || r.link) out.push("", ["Quelle: " + (r.source || ""), r.link || ""].filter(x => x && x !== "Quelle: ").join("\n"));
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+async function estimateNutrition(r) {
+  const base = Number(r.servings) > 0 ? Number(r.servings) : null;
+  const prompt = `Schätze die Nährwerte für dieses Rezept ${base ? `pro Portion (das Rezept ergibt ${fmtNum(base)} Portionen)` : "für das ganze Rezept"}.
+Antworte nur mit JSON: {"kcal": Zahl, "protein": Zahl, "carbs": Zahl, "fat": Zahl} (Eiweiß, Kohlenhydrate und Fett in Gramm, gerundet).
+
+Rezept: ${r.title || ""}
+Zutaten:
+${(r.ingredients || []).map(l => "- " + l).join("\n")}`;
+  return cleanNutrition(await sample.json(prompt, { cache: false }));
 }
 
 /* ---------- Editor ---------- */
 function blankData() {
   return { title: "", category: "Hauptgericht", emoji: "", servings: "", prepTime: "", cookTime: "",
-    ingredientsText: "", stepsText: "", notes: "", source: "", link: "", favorite: false, cover: null, createdAt: null };
+    ingredientsText: "", stepsText: "", notes: "", source: "", link: "", favorite: false, cover: null, createdAt: null,
+    rating: 0, nutrition: null, viewedAt: null };
 }
 function toEditData(r) {
   return {
@@ -1094,7 +1202,8 @@ function toEditData(r) {
     servings: r.servings ? String(r.servings) : "", prepTime: r.prepTime || "", cookTime: r.cookTime || "",
     ingredientsText: (r.ingredients || []).join("\n"), stepsText: (r.steps || []).join("\n"),
     notes: r.notes || "", source: r.source || "", link: r.link || "", favorite: !!r.favorite,
-    cover: r.cover ? Object.assign({}, r.cover) : null, createdAt: r.createdAt || null
+    cover: r.cover ? Object.assign({}, r.cover) : null, createdAt: r.createdAt || null,
+    rating: Number(r.rating) || 0, nutrition: cleanNutrition(r.nutrition), viewedAt: r.viewedAt || null
   };
 }
 function openEditor(opts) {
@@ -1195,7 +1304,8 @@ async function saveRecipe() {
       prepTime: d.prepTime.trim(), cookTime: d.cookTime.trim(),
       ingredients: linesOf(d.ingredientsText), steps: linesOf(d.stepsText).map(s => s.replace(/^\d+[.)]\s*/, "")),
       notes: d.notes.trim(), source: d.source.trim(), link: d.link.trim(),
-      favorite: !!d.favorite, cover, createdAt: d.createdAt || now, updatedAt: now
+      favorite: !!d.favorite, cover, createdAt: d.createdAt || now, updatedAt: now,
+      rating: Number(d.rating) || 0, nutrition: cleanNutrition(d.nutrition), viewedAt: d.viewedAt || null
     };
     const id = ed.id || newId();
     await withRetry(() => col.doc(id).set(doc));
@@ -1269,20 +1379,20 @@ function renderLinkImport() {
   app.innerHTML = `
     <div class="topbar">
       <button class="tbtn" data-action="back">Abbrechen</button>
-      <h2 class="bar-title">Link einfügen</h2>
+      <h2 class="bar-title">Link oder Text</h2>
       <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
     </div>
     <main class="stack">
-      <p class="lead">Füg den Link zu einem Rezept ein, zum Beispiel von Chefkoch oder einem Kochblog.</p>
-      <div class="field"><label for="imp-link">Link</label>
-        <div class="paste-row">
-          <input id="imp-link" type="url" inputmode="url" autocomplete="off" autocapitalize="off" placeholder="https://…" value="${esc(imp.link)}">
-          <button class="btn small" data-action="paste-link">${icon("paste")}Einfügen</button>
-        </div></div>
+      <p class="lead">Füg einen Link zu einem Rezept ein, zum Beispiel von Chefkoch, oder den Rezepttext aus WhatsApp, E-Mail oder Notizen.</p>
+      <div class="field">
+        <div class="sec-head"><label for="imp-link">Link oder Text</label><button class="btn small quiet" data-action="paste-link" style="margin-right:-13px">${icon("paste")}Einfügen</button></div>
+        <textarea id="imp-link" rows="5" autocomplete="off" placeholder="https://… oder den ganzen Rezepttext">${esc(imp.link)}</textarea>
+      </div>
       <div id="imp-status" aria-live="polite"></div>
       <button class="btn primary block" id="recognize" data-action="recognize">Rezept holen</button>
-      <p class="note">Instagram-Links klappen meist nicht. Mach dort lieber Screenshots vom Rezept.</p>
+      <p class="note">Instagram-Links klappen meist nicht. Kopier dort lieber die Beschreibung als Text oder mach Screenshots.</p>
     </main>`;
+  const ta = $("#imp-link"); if (ta) autosize(ta);
 }
 function renderThumbs() {
   const el = $("#thumbs"), imp = state.imp;
@@ -1340,8 +1450,12 @@ function buildPrompt(imp, n) {
       `. Text-Einblendungen im Video gehören auch zum Rezept.`;
   } else if (imp.mode === "photo") {
     material = `Das Material sind ${n} Foto(s) (Bild 1 bis ${n}) eines Rezepts, z. B. aus einem Kochbuch, einer Zeitschrift, von einem Zettel oder handschriftlich. Mehrere Bilder gehören zum selben Rezept (z. B. mehrere Seiten oder Vorder- und Rückseite).`;
+  } else if (imp.page) {
+    material = `Das Material ist der Inhalt einer Rezept-Webseite (Link und Text unten).`;
+  } else if (imp.mode === "pdf") {
+    material = `Das Material ist ein PDF-Dokument mit einem Rezept, z. B. eine eingescannte Kochbuchseite oder ein ausgedrucktes Rezept.`;
   } else {
-    material = `Das Material ist ein eingefügter Text` + (n ? ` und ${n} Bild(er)` : "") + `.`;
+    material = `Das Material ist ein eingefügter Text, z. B. aus WhatsApp, einer E-Mail oder einer Instagram-Beschreibung` + (n ? `, und ${n} Bild(er)` : "") + `.`;
   }
   return `Du hilfst einer Kochbuch-App, Rezepte zu speichern. ${material}
 
@@ -1360,6 +1474,7 @@ Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern
 - "source": Buchtitel, Website oder Instagram-Kanal (z. B. "@kanalname"), falls erkennbar, sonst ""
 - "coverImage": Nummer des Bildes (ab 1), das das fertige Gericht gut zeigt, sonst null
 - "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
+- "nutrition": Nährwerte pro Portion als Objekt {"kcal": Zahl, "protein": Zahl, "carbs": Zahl, "fat": Zahl} (Eiweiß, Kohlenhydrate und Fett in Gramm, gerundet). Stehen Nährwerte im Material, nimm diese; sonst schätze sie aus Zutaten und Mengen. Ist "servings" null, gilt der Wert für das ganze Rezept. null, wenn nichts Sinnvolles geht.
 
 Regeln:
 - Lies auch Handschrift sorgfältig, selbst wenn sie unordentlich, schräg, verblasst oder durchgestrichen ist, und auch alte deutsche Schrift (Sütterlin, Kurrent). Nutze den Zusammenhang des Rezepts, um schwer lesbare Wörter und Mengen zu entziffern.
@@ -1369,7 +1484,7 @@ Regeln:
 - Rechne amerikanische und alte Maße in metrische um (cups in g oder ml, oz und lb in g, °F in °C, tbsp in EL, tsp in TL, Pfund = 500 g, Tasse ca. 200 ml, Glas ca. 200 ml) und runde sinnvoll. Ist eine Umrechnung nur geschätzt, schreib „ca.“ davor. Gasherd-Stufen rechnest du in °C um.
 - Ungarische Maße: dkg = 10 g (25 dkg = 250 g), dl = 100 ml, ek / evőkanál = EL, kk / kávéskanál = TL, mokkáskanál = ca. ½ TL, bögre = ca. 250 ml, csipet = 1 Prise, egy kevés = etwas.
 - Serbische Maße: kašika / кашика = EL, kašičica / кашичица = TL, šolja / шоља = ca. 200 ml, čaša / чаша = ca. 200 ml, prstohvat / прстохват = 1 Prise, dl = 100 ml, kesica / кесица = 1 Päckchen (z. B. Backpulver oder Vanillezucker).
-- Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen. Unleserliche Stellen markierst du mit [?].
+- Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen (nur die Nährwerte darfst du schätzen). Unleserliche Stellen markierst du mit [?].
 - Fehlen die Zubereitungsschritte, lass "steps" leer und schreib in "notes", dass die Zubereitung nur im Video gezeigt wird oder fehlt.
 - Lass Hashtags, Werbung, „Link in Bio“, Rabattcodes, Emojis und Danksagungen weg.
 - Stehen mehrere Rezepte im Material, nimm das Hauptrezept und erwähne die anderen kurz in "notes".` +
@@ -1399,10 +1514,17 @@ function resultToEdit(res, imp) {
   if (lang && !/^deutsch/i.test(lang)) d.notes = (d.notes ? d.notes + "\n\n" : "") + "Übersetzt, Originalsprache: " + lang + ".";
   d.source = str(res.source) || (imp.mode === "insta" ? "Instagram" : "");
   d.link = imp.link.trim();
+  d.nutrition = cleanNutrition(res.nutrition);
   let ci = Number(res.coverImage);
   ci = Number.isInteger(ci) && ci >= 1 && ci <= imp.images.length ? ci - 1 : -1;
   const pick = ci >= 0 ? imp.images[ci] : null;
   return { data: d, coverBlob: pick ? pick.blob : null, coverUrl: pick ? pick.url : null };
+}
+function cleanNutrition(n) {
+  if (!n || typeof n !== "object") return null;
+  const v = k => { const x = Math.round(Number(n[k])); return isFinite(x) && x >= 0 && x < 50000 ? x : null; };
+  const out = { kcal: v("kcal"), protein: v("protein"), carbs: v("carbs"), fat: v("fat") };
+  return out.kcal ? out : null;
 }
 function aiErrorText(e) {
   const c = e && e.code;
@@ -1444,7 +1566,8 @@ async function saveData(d, coverBlob, coverUrl) {
     prepTime: d.prepTime.trim(), cookTime: d.cookTime.trim(),
     ingredients: linesOf(d.ingredientsText), steps: linesOf(d.stepsText).map(s => s.replace(/^\d+[.)]\s*/, "")),
     notes: d.notes.trim(), source: d.source.trim(), link: d.link.trim(),
-    favorite: false, cover, createdAt: now, updatedAt: now
+    favorite: false, cover, createdAt: now, updatedAt: now,
+    rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null
   };
   const id = newId();
   await withRetry(() => col.doc(id).set(doc));
@@ -1475,7 +1598,7 @@ async function runJob(job) {
       pageImage = m["og:image"] || "";
       const head = [m["og:site_name"] && "Website: " + m["og:site_name"], m["og:title"] && "Titel: " + m["og:title"], m["og:description"] && "Beschreibung: " + m["og:description"]].filter(Boolean).join("\n");
       const body = pg && pg.kind === "recipe" ? "Strukturierte Rezeptdaten der Seite (schema.org/Recipe):\n" + pg.data : (pg && pg.data) || "";
-      src = { mode: "text", text: `Link: ${src.link}\n${head}\n\n${body}`, link: src.link, images: [] };
+      src = { mode: "text", page: true, text: `Link: ${src.link}\n${head}\n\n${body}`, link: src.link, images: [] };
     } catch (e) {
       if (e && e.code === "cancelled") { removeJob(job); return; }
       job.status = "error"; job.error = aiErrorText(e && e.code === "upstream_error" ? { code: "page_failed", message: "" } : e); refreshJobs(); return;
@@ -1490,6 +1613,7 @@ async function runJob(job) {
     }
   };
   if (imgs.length) opts.images = imgs;
+  if (src.pdf) opts.pdf = src.pdf.data;
   try {
     const res = await sample.json(buildPrompt(src, imgs.length), opts);
     const insta = /instagram\.com/i.test(job.src.link || "") && job.src.mode === "link";
@@ -1510,7 +1634,7 @@ async function runJob(job) {
 }
 function jobCard(j) {
   const im = j.src.images[0];
-  const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder(j.src.mode === "link" ? "link" : "pot");
+  const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder({ link: "link", text: "text", pdf: "doc" }[j.src.mode] || "pot");
   if (j.status === "error") {
     return `<li><div class="row job err">
       <span class="thumb-sm">${pic}</span>
@@ -1521,6 +1645,8 @@ function jobCard(j) {
   }
   let meta = j.src.images.length === 1 ? "1 Foto" : j.src.images.length + " Fotos";
   if (j.src.mode === "link") { try { meta = new URL(j.src.link).hostname.replace(/^www\./, ""); } catch (e) { meta = "Link"; } }
+  if (j.src.mode === "text") meta = "Eingefügter Text";
+  if (j.src.mode === "pdf") meta = (j.src.pdf && j.src.pdf.name) || "PDF";
   return `<li><div class="row job">
     <span class="thumb-sm">${pic}<span class="job-spin"><span class="spinner"></span></span></span>
     <span class="row-b"><span class="row-t">${esc(j.title || "Rezept wird eingelesen …")}</span>
@@ -1534,11 +1660,13 @@ async function recognize() {
   if (!sample) { renderImport(); return; }
   if (imp.processing) { toast("Einen Moment, die Bilder werden noch vorbereitet."); return; }
   if (imp.mode === "link") {
-    let u = imp.link.trim();
-    const m = u.match(/https?:\/\/\S+/);
-    u = m ? m[0] : u;
-    if (!/^https?:\/\/[^\s.]+\.\S+/.test(u)) { showError("Füg zuerst einen Link ein.", "Zum Beispiel https://www.chefkoch.de/rezepte/…"); return; }
-    startJob({ mode: "link", text: "", link: u, images: [] });
+    const raw = imp.link.trim();
+    const m = raw.match(/https?:\/\/[^\s.]+\.\S+/);
+    const rest = m ? raw.replace(m[0], "").trim() : raw;
+    if (!raw) { showError("Füg zuerst einen Link oder Text ein.", ""); return; }
+    if (m && rest.length < 100 && !/\n/.test(rest)) startJob({ mode: "link", text: "", link: m[0], images: [] });
+    else if (raw.length < 40) { showError("Das ist zu wenig für ein Rezept.", "Füg den ganzen Rezepttext oder einen Link ein."); return; }
+    else startJob({ mode: "text", text: raw.slice(0, 20000), link: m ? m[0] : "", images: [] });
   } else {
     if (!imp.images.length) { showError("Füg zuerst ein Foto hinzu.", ""); return; }
     startJob({ mode: imp.mode, text: imp.text, link: imp.link, images: imp.images.slice() });
@@ -1550,6 +1678,45 @@ async function recognize() {
 /* ---------- Actions ---------- */
 const actions = {
   "open-add": () => openSheet(),
+  sort: () => openSort(),
+  "set-sort": el => {
+    state.sort = el.dataset.s;
+    try { localStorage.setItem("rezepte-sort", state.sort); } catch (e) { /* egal */ }
+    closeLayer(); renderListBody();
+  },
+  share: async () => {
+    const r = current(); if (!r) return;
+    const text = recipeText(r);
+    if (navigator.share) { try { await navigator.share({ title: r.title || "Rezept", text }); } catch (e) { /* abgebrochen */ } return; }
+    try { await navigator.clipboard.writeText(text); toast("Rezept kopiert"); } catch (e) { toast("Teilen geht hier nicht."); }
+  },
+  rate: async el => {
+    const r = current(); if (!r || !col) return;
+    const v = Number(el.dataset.v) === Number(r.rating) ? 0 : Number(el.dataset.v);
+    const i = state.recipes.indexOf(r);
+    state.recipes[i] = Object.assign({}, r, { rating: v });
+    renderDetail();
+    try { await withRetry(() => col.doc(r.id).update({ rating: v })); }
+    catch (e) { state.recipes[i] = r; renderDetail(); toast(dbErrorText(e)); }
+  },
+  nutri: async () => {
+    const r = current(); if (!r || !col || state.nutriBusy) return;
+    await initPromise;
+    if (!sample) { toast("Schätzen geht gerade nicht. Lade die App neu."); return; }
+    state.nutriBusy = r.id; renderDetail();
+    try {
+      const n = await estimateNutrition(r);
+      if (!n) throw { code: "no_recipe", message: "" };
+      await withRetry(() => col.doc(r.id).update({ nutrition: n }));
+      const i = state.recipes.findIndex(x => x.id === r.id);
+      if (i >= 0) state.recipes[i] = Object.assign({}, state.recipes[i], { nutrition: n });
+    } catch (e) {
+      const [t, d] = aiErrorText(e);
+      toast(e && e.code === "no_recipe" ? "Nährwerte ließen sich nicht schätzen." : t + ". " + d);
+    }
+    state.nutriBusy = null;
+    if (state.view === "detail") renderDetail();
+  },
   "login-google": () => loginGoogle(),
   "lg-mode": el => {
     const L = state.login || (state.login = { mode: "in", email: "" });
@@ -1659,10 +1826,9 @@ const actions = {
   "paste-link": async () => {
     let t = "";
     try { t = (await navigator.clipboard.readText()) || ""; } catch (e) { t = ""; }
-    const m = t.match(/https?:\/\/\S+/);
     const f = $("#imp-link");
-    if (!m || !f || !state.imp) { toast("Kein Link kopiert. Halte lange ins Feld und tipp auf „Einfügen“."); if (f) f.focus(); return; }
-    f.value = m[0]; state.imp.link = m[0];
+    if (!t.trim() || !f || !state.imp) { toast("Nichts kopiert. Halte lange ins Feld und tipp auf „Einfügen“."); if (f) f.focus(); return; }
+    f.value = t.trim(); state.imp.link = t.trim(); autosize(f);
   },
   stop: () => { if (state.imp && state.imp.ctl) state.imp.ctl.abort(); },
   "manual-from-import": () => {
@@ -1701,7 +1867,7 @@ document.addEventListener("input", e => {
   const t = e.target;
   if (t.id === "q") { state.query = t.value; renderListBody(); return; }
   if (t.id === "imp-text" && state.imp) { state.imp.text = t.value; autosize(t); return; }
-  if (t.id === "imp-link" && state.imp) { state.imp.link = t.value; return; }
+  if (t.id === "imp-link" && state.imp) { state.imp.link = t.value; autosize(t); return; }
   if (t.dataset && t.dataset.k && state.edit) {
     state.edit.data[t.dataset.k] = t.value; state.edit.dirty = true;
     if (t.tagName === "TEXTAREA") autosize(t);
@@ -1726,6 +1892,19 @@ document.addEventListener("change", async e => {
     }
     if (!images.length) { toast("Das Foto ließ sich nicht öffnen. Versuch ein anderes."); return; }
     startJob({ mode: "photo", text: "", link: "", images });
+    if (state.view !== "list") go("list"); else renderListBody();
+    return;
+  }
+  if (t.dataset.file === "pdf") {
+    const f = files && files[0];
+    t.value = "";
+    if (!f) return;
+    closeLayer();
+    if (f.size > 5 * 1024 * 1024) { toast("Das PDF ist zu groß (höchstens 5 MB). Mach lieber Screenshots der Seiten."); return; }
+    let data = "";
+    try { data = String(await blobToDataUrl(f)).split(",")[1] || ""; } catch (err) { data = ""; }
+    if (!data) { toast("Das PDF ließ sich nicht öffnen."); return; }
+    startJob({ mode: "pdf", text: "", link: "", images: [], pdf: { name: f.name || "PDF", data } });
     if (state.view !== "list") go("list"); else renderListBody();
     return;
   }
