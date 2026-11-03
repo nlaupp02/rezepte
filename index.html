@@ -351,6 +351,9 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: bala
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin-top: -6px; }
 .login-links .btn { padding: 8px 4px; font-size: 15px; }
+.grecaptcha-badge { visibility: hidden !important; }
+.rc-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 6px 0 0; }
+.rc-note a { color: var(--muted); }
 .login .btn.primary { min-height: 50px; }
 .toast {
   position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
@@ -429,12 +432,19 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 const AI_MODEL = "gemini-3.8-flash";
+const APPCHECK_KEY = "6Ld3iQ4uAAAAACRCeaUsl3DDGz26vWcZuLD4kS8A"; // reCAPTCHA Enterprise (Website-Schlüssel, nicht geheim)
 let fb = null, authUser = null, authKnown = false, unsub = null, loadTimer = 0;
 
 const initPromise = (async () => {
   try {
-    const [A, U, F, AI] = await Promise.all([import(FB_URL("app")), import(FB_URL("auth")), import(FB_URL("firestore")), import(FB_URL("ai"))]);
+    const [A, U, F, AI, AC] = await Promise.all([import(FB_URL("app")), import(FB_URL("auth")), import(FB_URL("firestore")), import(FB_URL("ai")),
+      import(FB_URL("app-check")).catch(e => { console.warn("App Check lädt nicht", e); return null; })]);
     const app = A.initializeApp(FB_CFG);
+    // App Check zuerst: Firebase AI Logic verlangt seit November 2026 ein gültiges App-Check-Token
+    if (AC) {
+      try { AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); }
+      catch (e) { console.warn("App Check", e); }
+    }
     const auth = U.getAuth(app);
     auth.languageCode = "de";
     let fsdb;
@@ -559,7 +569,8 @@ function makeSample(model) {
 function mapAiErr(e) {
   const msg = String((e && (e.message || e.code)) || "");
   if (!navigator.onLine || /Failed to fetch|NetworkError|network/i.test(msg)) return { code: "offline", message: msg };
-  if (/app.?check/i.test(msg)) return { code: "appcheck", message: msg };
+  if (/genai config not found/i.test(msg)) return { code: "ai_setup", message: msg };
+  if (/app.?check|deactivated|inactive/i.test(msg)) return { code: "appcheck", message: msg };
   if (/429|quota|RESOURCE_EXHAUSTED|rate.?limit/i.test(msg)) return { code: "rate_limited", message: msg };
   if (/403|PERMISSION_DENIED|SERVICE_DISABLED|not been used|has not been enabled|api-not-enabled|disabled/i.test(msg)) return { code: "ai_off", message: msg };
   if (/SAFETY|blocked|PROHIBITED/i.test(msg)) return { code: "refused", message: msg };
@@ -687,6 +698,7 @@ function renderLogin() {
              <button class="btn quiet" data-action="lg-mode" data-m="reset">Passwort vergessen?</button>`
           : `<button class="btn quiet" data-action="lg-mode" data-m="in">Zurück zur Anmeldung</button>`}
       </div>
+      <p class="rc-note">Diese App ist durch reCAPTCHA geschützt. Es gelten die <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung</a> und die <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Nutzungsbedingungen</a> von Google.</p>
     </main>`;
 }
 function renderBoot() {
@@ -702,6 +714,7 @@ function openAccount() {
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="a-t">
       <div class="grip"></div><h2 id="a-t">Dein Konto</h2>
       <p class="muted">Angemeldet als <b>${esc(mail)}</b>. Deine Rezepte werden automatisch online gespeichert.</p>
+      <p class="rc-note">Geschützt durch reCAPTCHA. Es gelten die <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung</a> und die <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Nutzungsbedingungen</a> von Google.</p>
       <button class="btn block" data-action="logout">${icon("logout")}Abmelden</button>
     </div>`;
   layer.classList.add("open");
@@ -1384,7 +1397,8 @@ async function recognize() {
       invalid_json: ["Die Antwort kam unvollständig an", "Tipp nochmal auf „Rezept erkennen“."],
       empty_completion: ["Keine Antwort erhalten", "Tipp nochmal auf „Rezept erkennen“."],
       ai_off: ["Fotos lesen ist noch nicht eingeschaltet", "In Firebase unter „AI Logic“ die Gemini Developer API aktivieren."],
-      appcheck: ["App Check blockiert das Lesen", "In Firebase unter App Check → APIs bei „Firebase AI Logic“ die Erzwingung aufheben."],
+      appcheck: ["App Check blockiert das Lesen", "In Firebase unter App Check prüfen, ob die Web-App „Rezepte“ mit reCAPTCHA Enterprise registriert ist."],
+      ai_setup: ["Fotos lesen wird noch eingerichtet", "Firebase braucht nach dem Einrichten ein paar Minuten. Versuch es gleich nochmal."],
       offline: ["Keine Internetverbindung", "Zum Lesen der Fotos brauchst du Internet. Versuch es gleich nochmal."]
     }[c] || ["Verbindung unterbrochen", "Tipp nochmal auf „Rezept erkennen“."];
     const detail = e && e.message && !["rate_limited", "offline", "cancelled"].includes(c) ? " (Fehler: " + String(e.message).slice(0, 180) + ")" : "";
