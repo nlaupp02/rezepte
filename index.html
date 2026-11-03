@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBF6EC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rezepte">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Rezepte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: one-column phone app like a paper recipe notebook. Sticky top bar, two-up recipe grid, full-page detail and editor views. Always light. */
+  --bg: #FBF6EC;
+  --surface: #FFFFFF;
+  --ink: #3A2E1C;
+  --muted: #85735A;
+  --line: #EDE3CF;
+  --accent: #9E680D;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F6EAD0;
+  --spice: #C2552E;
+  --danger: #B3261E;
+  --shadow: 0 1px 2px rgba(80, 55, 20, .05), 0 6px 18px rgba(80, 55, 20, .07);
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 var(--font-body); -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+img { max-width: 100%; display: block; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: 0; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+.vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
+
+.ic { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ic.filled { fill: currentColor; }
+
+.app { max-width: 720px; margin: 0 auto; padding: 0 16px 128px; }
+
+/* Top bars */
+.topbar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 -16px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.bar-title { font-size: 18px; flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grow { flex: 1; }
+.back {
+  display: inline-flex; align-items: center; gap: 2px; border: 0; background: none;
+  color: var(--accent); font-weight: 600; padding: 8px 6px 8px 0; min-height: 44px;
+}
+.home-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: calc(22px + env(safe-area-inset-top)) 0 14px; }
+.brand { font-size: 36px; line-height: 1.05; font-weight: 700; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 10px 16px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  font-weight: 600; text-decoration: none; transition: transform .12s ease, background .12s ease;
+}
+.btn:active { transform: scale(.98); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.quiet { background: transparent; border-color: transparent; color: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn.danger.solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.small { min-height: 38px; padding: 7px 12px; font-size: 15px; border-radius: 10px; }
+.btn.block { width: 100%; }
+.btn[disabled] { opacity: .5; pointer-events: none; }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); display: inline-grid; place-items: center; color: var(--muted);
+}
+.icon-btn.on { color: var(--spice); }
+
+.fab {
+  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  z-index: 6; display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 22px; border-radius: 999px; border: 0;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 16px; white-space: nowrap;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.fab:active { transform: translateX(-50%) scale(.97); }
+
+/* Search + chips */
+.search {
+  display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 48px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; color: var(--muted);
+}
+.search input { flex: 1; border: 0; background: none; outline: none; height: 100%; color: var(--ink); font-size: 16px; min-width: 0; }
+.search:focus-within { border-color: var(--accent); }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0 14px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 600; color: var(--ink);
+}
+.chip .n { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.chip.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.chip.on .n { color: inherit; opacity: .7; }
+
+/* Grid + cards */
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 560px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.card {
+  display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
+}
+.card:active { transform: scale(.985); }
+.cover { position: relative; aspect-ratio: 4 / 3; background: var(--accent-soft); overflow: hidden; }
+.cover img { width: 100%; height: 100%; object-fit: cover; }
+.ph {
+  width: 100%; height: 100%; display: grid; place-items: center;
+  background:
+    radial-gradient(circle at 20% 25%, color-mix(in srgb, var(--accent) 10%, transparent) 0 18%, transparent 19%),
+    radial-gradient(circle at 85% 80%, color-mix(in srgb, var(--spice) 14%, transparent) 0 22%, transparent 23%),
+    var(--accent-soft);
+}
+.ph span { font-size: 46px; line-height: 1; }
+.fav-badge {
+  position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--surface); color: var(--spice); box-shadow: var(--shadow);
+}
+.fav-badge .ic { width: 16px; height: 16px; }
+.card-body { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; }
+.card-title {
+  font-weight: 700; font-size: 15px; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.none { color: var(--muted); text-align: center; padding: 32px 0; }
+
+.skel { border-radius: 16px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.skel .cover { background: color-mix(in srgb, var(--line) 60%, var(--surface)); }
+.skel .bar { height: 12px; margin: 12px; border-radius: 6px; background: var(--line); width: 70%; }
+@media (prefers-reduced-motion: no-preference) {
+  .skel { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+}
+
+/* Empty state + option lists */
+.empty { padding: 8px 0 24px; }
+.empty h2 { font-size: 24px; margin-bottom: 6px; }
+.empty p { color: var(--muted); margin: 0 0 18px; max-width: 60ch; }
+.options { display: grid; gap: 10px; }
+.opt {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface);
+}
+.opt:active { transform: scale(.99); }
+.opt .tile {
+  width: 46px; height: 46px; border-radius: 13px; flex: none; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.opt .tile .ic { width: 23px; height: 23px; }
+.opt b { display: block; font-size: 16px; }
+.opt small { display: block; color: var(--muted); font-size: 14px; line-height: 1.35; }
+
+/* Status boxes */
+.status {
+  display: flex; align-items: flex-start; gap: 12px; padding: 13px 14px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  font-size: 15px; line-height: 1.4;
+}
+.status b { display: block; }
+.status > div { flex: 1; min-width: 0; }
+.status span.d { color: var(--muted); display: block; }
+.status.warn { border-left-color: var(--spice); }
+.status.err { border-left-color: var(--danger); }
+.status.ok .ic { color: var(--accent); margin-top: 1px; }
+.spinner {
+  width: 22px; height: 22px; flex: none; border-radius: 50%;
+  border: 3px solid var(--accent-soft); border-top-color: var(--accent); margin-top: 1px;
+}
+@media (prefers-reduced-motion: no-preference) { .spinner { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } } }
+
+/* Forms / import */
+.stack { display: grid; gap: 16px; padding-top: 6px; }
+.lead { margin: 0; color: var(--muted); max-width: 62ch; }
+.howto { margin: 0; padding: 0; list-style: none; counter-reset: h; display: grid; gap: 10px; }
+.howto li {
+  counter-increment: h; position: relative; padding: 12px 14px 12px 52px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; font-size: 15px; line-height: 1.4;
+}
+.howto li::before {
+  content: counter(h); position: absolute; left: 14px; top: 11px; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px;
+}
+.howto b { display: block; }
+.pick-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pick-row.one { grid-template-columns: 1fr; }
+.tilebtn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 92px; border-radius: 16px; border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: var(--surface); color: var(--accent); font-weight: 700; text-align: center; padding: 10px;
+}
+.tilebtn .ic { width: 26px; height: 26px; }
+.tilebtn:active { background: var(--accent-soft); }
+.thumbs { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+.thumbs:empty { display: none; }
+.thumb {
+  position: relative; flex: none; width: 92px; height: 120px; margin: 0; border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--line); background: var(--surface); padding: 0;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb .num {
+  position: absolute; left: 6px; bottom: 6px; font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  background: rgba(0,0,0,.6); color: #fff;
+}
+.thumb-x {
+  position: absolute; top: 5px; right: 5px; width: 28px; height: 28px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; background: rgba(0,0,0,.6); color: #fff; padding: 0;
+}
+.thumb-x .ic { width: 16px; height: 16px; }
+.thumb.loading { display: grid; place-items: center; }
+.thumbs.small .thumb { width: 64px; height: 64px; }
+.thumb.sel.on { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+.field { display: grid; gap: 6px; }
+.field label, .field .lbl { font-weight: 700; font-size: 15px; }
+.field .hint { color: var(--muted); font-size: 13px; margin-top: -2px; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); font-size: 16px; line-height: 1.45;
+}
+.field textarea { resize: vertical; min-height: 96px; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.field.bad input { border-color: var(--danger); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media (max-width: 380px) { .row3 { grid-template-columns: 1fr 1fr; } .row3 .field:first-child { grid-column: 1 / -1; } }
+
+.cover-edit { display: grid; gap: 10px; }
+.cover-prev { aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: var(--accent-soft); }
+.cover-prev img { width: 100%; height: 100%; object-fit: cover; }
+.cover-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pick-cover { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+
+/* Detail */
+.detail { display: grid; gap: 18px; padding-top: 4px; }
+.hero { aspect-ratio: 16 / 10; max-height: 340px; width: 100%; border-radius: 20px; overflow: hidden; background: var(--accent-soft); }
+.hero img { width: 100%; height: 100%; object-fit: cover; }
+.hero .ph span { font-size: 72px; }
+.d-title { font-size: 30px; line-height: 1.12; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -6px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line); font-size: 14px; font-weight: 600;
+}
+.pill .ic { width: 16px; height: 16px; color: var(--muted); }
+.pill.cat { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.src { font-size: 14px; color: var(--muted); margin-top: -8px; overflow-wrap: anywhere; }
+.src a { color: var(--accent); font-weight: 600; }
+.sec { display: grid; gap: 10px; }
+.sec h2 { font-size: 21px; }
+.sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.scaler {
+  display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden;
+}
+.scaler button { width: 42px; height: 40px; border: 0; background: none; font-size: 20px; font-weight: 600; color: var(--accent); }
+.scaler span { padding: 0 6px; font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; padding: 8px 12px; font-weight: 600; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.ings { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.ings li + li { border-top: 1px solid var(--line); }
+.ing {
+  width: 100%; display: flex; align-items: flex-start; gap: 12px; text-align: left;
+  padding: 11px 14px; border: 0; background: none; font-size: 16px; line-height: 1.4;
+}
+.ing .box {
+  width: 22px; height: 22px; flex: none; margin-top: 1px; border-radius: 7px; border: 2px solid var(--line);
+  display: grid; place-items: center; color: transparent;
+}
+.ing .box .ic { width: 14px; height: 14px; stroke-width: 3; }
+.ing b { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.ing.done { color: var(--muted); }
+.ing.done .ing-t { text-decoration: line-through; }
+.ing.done b { color: var(--muted); }
+.ing.done .box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.ing-h { padding: 12px 14px 6px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface)); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.step {
+  width: 100%; display: flex; gap: 12px; text-align: left; padding: 13px 14px; border-radius: 16px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 16px; line-height: 1.5;
+}
+.step .no {
+  width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums;
+}
+.step.done { color: var(--muted); }
+.step.done .no { background: var(--accent); color: var(--accent-ink); }
+.step-h { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 2px 0; }
+.notes { margin: 0; white-space: pre-wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 13px 14px; }
+.muted { color: var(--muted); margin: 0; }
+
+/* Layer: sheet, modal */
+#layer { position: fixed; inset: 0; z-index: 20; display: none; }
+#layer.open { display: block; }
+.scrim { position: absolute; inset: 0; background: rgba(10, 16, 12, .45); }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; max-width: 720px; margin: 0 auto;
+  background: var(--bg); border-radius: 22px 22px 0 0; padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+  display: grid; gap: 12px; max-height: 90%; overflow-y: auto;
+}
+.grip { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 4px; }
+.sheet h2 { font-size: 21px; }
+.modal {
+  position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); max-width: 400px; margin: 0 auto;
+  background: var(--surface); border-radius: 18px; padding: 20px; display: grid; gap: 10px; box-shadow: 0 20px 50px rgba(0,0,0,.25);
+}
+.modal h2 { font-size: 20px; }
+.modal p { margin: 0; color: var(--muted); }
+.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  #layer.open .sheet { animation: up .22s ease-out; }
+  #layer.open .scrim { animation: fade .2s ease-out; }
+  @keyframes up { from { transform: translateY(40px); opacity: .4; } }
+  @keyframes fade { from { opacity: 0; } }
+}
+
+.login { display: grid; gap: 16px; max-width: 440px; margin: 0 auto; padding: calc(44px + env(safe-area-inset-top)) 0 40px; }
+.login.boot { justify-items: center; padding-top: calc(120px + env(safe-area-inset-top)); }
+.login .brand { font-size: 44px; }
+.lg-h { font-size: 20px; }
+.gbtn { gap: 10px; min-height: 50px; font-size: 16px; }
+.gbtn .ic { width: 20px; height: 20px; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 14px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin-top: -6px; }
+.login-links .btn { padding: 8px 4px; font-size: 15px; }
+.login .btn.primary { min-height: 50px; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+  z-index: 30; max-width: calc(100% - 32px); padding: 11px 16px; border-radius: 12px;
+  background: var(--ink); color: var(--bg); font-weight: 600; font-size: 15px; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div id="app" class="app"></div>
+<input class="vh" id="quick-pick" type="file" accept="image/*" multiple data-file="quick" aria-label="Rezeptfoto auswählen">
+<div id="layer"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ---------- Basics ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const app = $("#app");
+const layer = $("#layer");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+const CATEGORIES = ["Frühstück", "Hauptgericht", "Beilage", "Salat", "Suppe", "Snack", "Dessert", "Backen", "Getränk", "Sonstiges"];
+
+const ICONS = {
+  camera: '<path d="M4 8.5h3.2L9 6h6l1.8 2.5H20v10.5H4z"/><circle cx="12" cy="13.5" r="3.6"/>',
+  image: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 15.5l-4.5-4.5-8.5 8"/>',
+  reel: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M10 8.8v6.4l5.3-3.2z"/>',
+  text: '<path d="M5 6.5h14M5 10.5h14M5 14.5h10M5 18.5h7"/>',
+  pen: '<path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.4-4.4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.2l2.8 1.8"/>',
+  copy: '<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/>',
+  trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  user: '<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+  logout: '<path d="M14 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H14"/><path d="M10 12h10M16.5 8.5L20 12l-3.5 3.5"/>',
+  people: '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17 19a5.5 5.5 0 0 0-2-4.2"/>'
+};
+const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
+
+/* ---------- State ---------- */
+const state = {
+  view: "boot",
+  recipes: [],
+  loaded: false,
+  slow: false,
+  storage: "pending",      // pending | ok | none | error
+  storageMsg: "",
+  filter: "all",
+  query: "",
+  currentId: null,
+  servings: null,
+  factor: 1,
+  checked: new Set(),
+  doneSteps: new Set(),
+  edit: null,
+  imp: null,
+  listScroll: 0
+};
+let db = null, assets = null, sample = null, sampleLimits = null, uid = null, col = null, initDone = false;
+let modalResolve = null;
+
+/* ---------- Firebase: Anmeldung, Speicher, Foto-Erkennung ---------- */
+const FB_CFG = { apiKey: "AIzaSyAPZuYvJScQErCrRSyc4z-ZJsb8GgDJm_g", authDomain: "anime-bestenliste.firebaseapp.com", projectId: "anime-bestenliste",
+  storageBucket: "anime-bestenliste.firebasestorage.app", messagingSenderId: "518675323227", appId: "1:518675323227:web:6ac9b40e8847524902227e" };
+const FB_V = "12.19.0";
+const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
+const AI_MODEL = "gemini-3.8-flash";
+let fb = null, authUser = null, authKnown = false, unsub = null, loadTimer = 0;
+
+const initPromise = (async () => {
+  try {
+    const [A, U, F, AI] = await Promise.all([import(FB_URL("app")), import(FB_URL("auth")), import(FB_URL("firestore")), import(FB_URL("ai"))]);
+    const app = A.initializeApp(FB_CFG);
+    const auth = U.getAuth(app);
+    auth.languageCode = "de";
+    let fsdb;
+    try { fsdb = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) }); }
+    catch (e) { fsdb = F.getFirestore(app); }
+    let model = null;
+    try {
+      const ai = AI.getAI(app, { backend: new AI.GoogleAIBackend() });
+      model = AI.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { responseMimeType: "application/json", temperature: 0.2 } });
+    } catch (e) { console.warn("AI Logic nicht verfügbar", e); }
+    fb = { U, F, auth, db: fsdb };
+    sample = model ? makeSample(model) : null;
+    sampleLimits = { maxPromptBytes: 200000, images: { maxCount: 6 } };
+    initDone = true;
+    U.onAuthStateChanged(auth, onAuth);
+  } catch (e) {
+    console.error("Firebase konnte nicht laden", e);
+    initDone = true; state.fbError = true; render();
+  }
+})();
+
+function onAuth(u) {
+  const prev = authUser ? authUser.uid : null;
+  authKnown = true;
+  authUser = u || null;
+  if (unsub) { unsub(); unsub = null; }
+  if (!authUser) {
+    col = null; uid = null; state.recipes = []; state.loaded = false; state.storage = "pending";
+    state.edit = null; state.imp = null; state.view = "login"; render(); return;
+  }
+  if (prev === authUser.uid && col) return;
+  uid = authUser.uid;
+  col = makeCol(uid);
+  state.recipes = []; state.loaded = false; state.storage = "pending"; state.slow = false;
+  state.login = null;
+  subscribe();
+  state.view = "list"; render();
+}
+
+function makeCol(id) {
+  const { F } = fb;
+  return {
+    doc: rid => {
+      const ref = F.doc(fb.db, "recipes", id, "list", rid);
+      return {
+        set: d => fsWrite(F.setDoc(ref, d)),
+        update: d => fsWrite(F.updateDoc(ref, d)),
+        delete: () => fsWrite(F.deleteDoc(ref))
+      };
+    }
+  };
+}
+// Wartet auf die Bestätigung vom Server, höchstens 3 s. Danach bleibt die Änderung
+// im Offline-Speicher und wird hochgeladen, sobald wieder Internet da ist.
+function fsWrite(p) {
+  return new Promise((res, rej) => {
+    let done = false;
+    const t = setTimeout(() => { if (!done) { done = true; res(); } }, 3000);
+    p.then(() => { if (!done) { done = true; clearTimeout(t); res(); } },
+      e => {
+        const m = mapFsErr(e);
+        if (!done) { done = true; clearTimeout(t); rej(m); } else toast(dbErrorText(m));
+      });
+  });
+}
+function mapFsErr(e) {
+  const c = e && e.code;
+  const code = c === "permission-denied" ? "permission" : c === "resource-exhausted" ? "quota_exceeded"
+    : c === "invalid-argument" ? "too_big" : c === "not-found" ? "not_found" : "unavailable";
+  return { code, message: String((e && e.message) || "") };
+}
+
+function subscribe() {
+  const { F } = fb;
+  clearTimeout(loadTimer);
+  loadTimer = setTimeout(() => { if (!state.loaded) { state.slow = true; onDataChanged(); } }, 10000);
+  const myUid = uid;
+  unsub = F.onSnapshot(F.collection(fb.db, "recipes", uid, "list"), snap => {
+    if (uid !== myUid) return;
+    state.recipes = snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    state.loaded = true; state.storage = "ok";
+    clearTimeout(loadTimer); state.slow = false;
+    onDataChanged();
+  }, err => {
+    if (uid !== myUid) return;
+    clearTimeout(loadTimer);
+    console.error("Rezepte laden", err);
+    state.loaded = true; state.slow = false; state.storage = "error";
+    state.storageMsg = err && err.code === "permission-denied"
+      ? "Kein Zugriff auf deine Rezepte. Sind die Firestore-Regeln für „recipes“ veröffentlicht?"
+      : "Deine Rezepte lassen sich gerade nicht laden. Öffne die App später nochmal.";
+    onDataChanged();
+  });
+}
+
+function makeSample(model) {
+  const s = async () => { throw { code: "invalid_request" }; };
+  s.limits = async () => sampleLimits;
+  s.json = async (prompt, opts = {}) => {
+    const signal = opts.signal;
+    const parts = [{ text: prompt }];
+    for (const b of (opts.images ? Array.from(opts.images) : [])) {
+      parts.push({ inlineData: { mimeType: "image/jpeg", data: String(await blobToDataUrl(b)).split(",")[1] } });
+    }
+    if (signal && signal.aborted) throw { code: "cancelled" };
+    const call = model.generateContent(parts).then(r => r.response.text());
+    const stop = new Promise((_, rej) => { if (signal) signal.addEventListener("abort", () => rej({ code: "cancelled" }), { once: true }); });
+    let text;
+    try { text = await Promise.race([call, stop]); }
+    catch (e) { if (e && e.code === "cancelled") throw e; console.warn("Gemini", e); throw mapAiErr(e); }
+    if (signal && signal.aborted) throw { code: "cancelled" };
+    try { return JSON.parse(text); }
+    catch (e) {
+      const m = String(text || "").match(/\{[\s\S]*\}/);
+      if (m) { try { return JSON.parse(m[0]); } catch (e2) { /* unten */ } }
+      throw { code: "invalid_json", text };
+    }
+  };
+  return s;
+}
+function mapAiErr(e) {
+  const msg = String((e && (e.message || e.code)) || "");
+  if (!navigator.onLine || /Failed to fetch|NetworkError|network/i.test(msg)) return { code: "offline", message: msg };
+  if (/429|quota|RESOURCE_EXHAUSTED|rate.?limit/i.test(msg)) return { code: "rate_limited", message: msg };
+  if (/403|PERMISSION_DENIED|SERVICE_DISABLED|not been used|has not been enabled|api-not-enabled|disabled/i.test(msg)) return { code: "ai_off", message: msg };
+  if (/SAFETY|blocked|PROHIBITED/i.test(msg)) return { code: "refused", message: msg };
+  if (/too large|payload|413/i.test(msg)) return { code: "image_rejected", message: msg };
+  return { code: "upstream_error", message: msg };
+}
+
+let lastBanner = null;
+function onDataChanged() {
+  if (state.view === "list") {
+    const b = bannerKey();
+    if (b !== lastBanner) renderList(); else renderListBody();
+  } else if (state.view === "detail") {
+    if (!current()) go("list"); else renderDetail();
+  }
+}
+
+async function withRetry(fn) {
+  try { return await fn(); }
+  catch (e) {
+    if (e && e.code === "unavailable") { await sleep(500 + Math.random() * 700); return await fn(); }
+    throw e;
+  }
+}
+function dbErrorText(e) {
+  const c = e && e.code;
+  if (c === "permission") return "Kein Zugriff zum Speichern. Sind die Firestore-Regeln für „recipes“ veröffentlicht?";
+  if (c === "quota_exceeded") return "Das kostenlose Tageslimit ist erreicht. Morgen geht es weiter.";
+  if (c === "too_big") return "Das Rezept ist zu groß. Nimm ein kleineres Titelbild.";
+  if (c === "not_found") return "Das Rezept gibt es nicht mehr.";
+  return "Keine Verbindung zum Speicher. Prüf dein Internet und versuch es nochmal.";
+}
+
+/* ---------- Anmeldung ---------- */
+function authMsg(e) {
+  const c = (e && e.code) || "";
+  return ({
+    "auth/invalid-email": "Diese E-Mail-Adresse stimmt nicht.",
+    "auth/invalid-credential": "E-Mail oder Passwort stimmt nicht.",
+    "auth/wrong-password": "E-Mail oder Passwort stimmt nicht.",
+    "auth/user-not-found": "Zu dieser E-Mail gibt es noch kein Konto. Tipp auf „Neues Konto erstellen“.",
+    "auth/email-already-in-use": "Mit dieser E-Mail gibt es schon ein Konto. Melde dich einfach an.",
+    "auth/weak-password": "Das Passwort braucht mindestens 6 Zeichen.",
+    "auth/too-many-requests": "Zu viele Versuche. Warte ein paar Minuten.",
+    "auth/network-request-failed": "Keine Internetverbindung.",
+    "auth/account-exists-with-different-credential": "Mit dieser E-Mail meldest du dich anders an, zum Beispiel mit Google.",
+    "auth/unauthorized-domain": "Diese Seite ist in Firebase noch nicht freigegeben."
+  })[c] || "Anmelden hat nicht geklappt. Versuch es nochmal.";
+}
+function setLg(kind, text) {
+  if (!state.login) return;
+  state.login.err = kind === "err" ? text : "";
+  state.login.msg = kind === "msg" ? text : "";
+  const el = $("#lg-msg");
+  if (el) el.innerHTML = lgMsgHtml();
+}
+const lgMsgHtml = () => {
+  const L = state.login || {};
+  if (L.err) return `<div class="status err"><div>${esc(L.err)}</div></div>`;
+  if (L.msg) return `<div class="status ok">${icon("check")}<div>${esc(L.msg)}</div></div>`;
+  return "";
+};
+function lgBusy(b) {
+  if (state.login) state.login.busy = b;
+  $$(".login button").forEach(x => { x.disabled = b; });
+}
+async function loginGoogle() {
+  await initPromise;
+  if (!fb) return;
+  setLg("", "");
+  const { U, auth } = fb;
+  lgBusy(true);
+  try { await U.signInWithPopup(auth, new U.GoogleAuthProvider()); }
+  catch (e) {
+    const c = e && e.code;
+    if (c === "auth/popup-blocked" || c === "auth/operation-not-supported-in-this-environment") {
+      try { await U.signInWithRedirect(auth, new U.GoogleAuthProvider()); return; } catch (e2) { setLg("err", authMsg(e2)); }
+    } else if (c !== "auth/popup-closed-by-user" && c !== "auth/cancelled-popup-request") setLg("err", authMsg(e));
+  }
+  lgBusy(false);
+}
+async function loginEmail() {
+  await initPromise;
+  if (!fb || !state.login) return;
+  const L = state.login, { U, auth } = fb;
+  const mail = ($("#lg-mail") || {}).value ? $("#lg-mail").value.trim() : "";
+  const pass = $("#lg-pass") ? $("#lg-pass").value : "";
+  L.email = mail;
+  if (!/^\S+@\S+\.\S+$/.test(mail)) { setLg("err", "Gib deine E-Mail-Adresse ein."); return; }
+  if (L.mode !== "reset" && !pass) { setLg("err", "Gib dein Passwort ein."); return; }
+  if (L.mode === "new" && pass.length < 6) { setLg("err", "Das Passwort braucht mindestens 6 Zeichen."); return; }
+  lgBusy(true); setLg("", "");
+  try {
+    if (L.mode === "reset") {
+      await U.sendPasswordResetEmail(auth, mail);
+      L.mode = "in"; renderLogin();
+      setLg("msg", "Wir haben dir einen Link zum Zurücksetzen geschickt. Schau auch im Spam-Ordner nach.");
+    } else if (L.mode === "new") await U.createUserWithEmailAndPassword(auth, mail, pass);
+    else await U.signInWithEmailAndPassword(auth, mail, pass);
+  } catch (e) { setLg("err", authMsg(e)); }
+  lgBusy(false);
+}
+const GOOGLE_G = '<svg class="ic" viewBox="0 0 48 48" aria-hidden="true" style="stroke:none"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.9 6.2C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.8c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.2C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.9l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.8c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-10l-7.9 6.2C6.6 42.6 14.6 48 24 48z"/></svg>';
+function renderLogin() {
+  const L = state.login || (state.login = { mode: "in", email: "", busy: false, msg: "", err: "" });
+  const btn = L.mode === "new" ? "Konto erstellen" : L.mode === "reset" ? "Link zum Zurücksetzen senden" : "Anmelden";
+  app.innerHTML = `
+    <main class="login">
+      <h1 class="brand">Rezepte</h1>
+      <p class="lead">Fotografier Rezepte und hab sie auf jedem Gerät dabei. Mit deinem Konto bleibt alles gespeichert.</p>
+      <button class="btn block gbtn" data-action="login-google">${GOOGLE_G}Mit Google anmelden</button>
+      <div class="or"><span>oder mit E-Mail</span></div>
+      <form id="login-form" class="stack" style="padding:0" novalidate>
+        ${L.mode === "new" ? `<h2 class="lg-h">Neues Konto</h2>` : L.mode === "reset" ? `<h2 class="lg-h">Passwort zurücksetzen</h2>` : ""}
+        <div class="field"><label for="lg-mail">E-Mail</label>
+          <input id="lg-mail" type="email" autocomplete="email" inputmode="email" autocapitalize="off" value="${esc(L.email)}" placeholder="name@beispiel.de"></div>
+        ${L.mode !== "reset" ? `<div class="field"><label for="lg-pass">Passwort</label>
+          <input id="lg-pass" type="password" autocomplete="${L.mode === "new" ? "new-password" : "current-password"}" placeholder="${L.mode === "new" ? "mindestens 6 Zeichen" : ""}"></div>` : ""}
+        <div id="lg-msg" aria-live="polite">${lgMsgHtml()}</div>
+        <button class="btn primary block" type="submit">${btn}</button>
+      </form>
+      <div class="login-links">
+        ${L.mode === "in"
+          ? `<button class="btn quiet" data-action="lg-mode" data-m="new">Neues Konto erstellen</button>
+             <button class="btn quiet" data-action="lg-mode" data-m="reset">Passwort vergessen?</button>`
+          : `<button class="btn quiet" data-action="lg-mode" data-m="in">Zurück zur Anmeldung</button>`}
+      </div>
+    </main>`;
+}
+function renderBoot() {
+  app.innerHTML = state.fbError
+    ? `<main class="login"><h1 class="brand">Rezepte</h1>
+        <div class="status err"><div><b>Die App konnte nicht laden.</b><span class="d">Prüf deine Internetverbindung und versuch es nochmal.</span></div></div>
+        <button class="btn primary block" data-action="reload">Nochmal versuchen</button></main>`
+    : `<main class="login boot"><h1 class="brand">Rezepte</h1><span class="spinner"></span></main>`;
+}
+function openAccount() {
+  const mail = authUser ? (authUser.email || authUser.displayName || "") : "";
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="a-t">
+      <div class="grip"></div><h2 id="a-t">Dein Konto</h2>
+      <p class="muted">Angemeldet als <b>${esc(mail)}</b>. Deine Rezepte werden automatisch online gespeichert.</p>
+      <button class="btn block" data-action="logout">${icon("logout")}Abmelden</button>
+    </div>`;
+  layer.classList.add("open");
+}
+
+/* ---------- Helpers: recipes ---------- */
+const current = () => state.recipes.find(r => r.id === state.currentId) || null;
+const isHead = s => /^#/.test(s) || (/:\s*$/.test(s) && !/\d/.test(s) && s.length < 60);
+const headText = s => s.replace(/^#+\s*/, "").replace(/:\s*$/, "");
+const newId = () => "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function coverSrc(cover) {
+  if (!cover) return null;
+  if (cover.assetId) return "/_blob/" + encodeURIComponent(cover.assetId);
+  if (typeof cover.dataUrl === "string" && cover.dataUrl.startsWith("data:image/")) return cover.dataUrl;
+  return null;
+}
+const placeholder = emoji => `<div class="ph"><span>${esc(emoji || "🍽️")}</span></div>`;
+function coverHtml(r) {
+  const src = coverSrc(r.cover);
+  return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="${esc(r.emoji || "")}">` : placeholder(r.emoji);
+}
+document.addEventListener("error", e => {
+  const t = e.target;
+  if (t && t.tagName === "IMG" && t.dataset && "ph" in t.dataset) t.outerHTML = placeholder(t.dataset.ph);
+}, true);
+
+function parseMin(s) {
+  if (!s) return 0;
+  s = String(s).toLowerCase().replace(",", ".");
+  let m = 0, hit = false;
+  const h = s.match(/(\d+(?:\.\d+)?)\s*(h\b|std|stunde)/);
+  if (h) { m += parseFloat(h[1]) * 60; hit = true; }
+  const mi = s.match(/(\d+)\s*(min|m\b)/);
+  if (mi) { m += parseInt(mi[1], 10); hit = true; }
+  if (!hit && /^\s*\d+\s*$/.test(s)) m = parseInt(s, 10);
+  return m;
+}
+function fmtMin(m) {
+  m = Math.round(m);
+  if (m < 60) return m + " Min.";
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? `${h} Std. ${r} Min.` : `${h} Std.`;
+}
+function totalTime(r) {
+  const t = parseMin(r.prepTime) + parseMin(r.cookTime);
+  return t > 0 ? fmtMin(t) : "";
+}
+
+/* Quantity scaling */
+const FRAC = { "½": .5, "¼": .25, "¾": .75, "⅓": 1 / 3, "⅔": 2 / 3, "⅛": .125 };
+const NUM = "(?:\\d+(?:[.,]\\d+)?\\s*[½¼¾⅓⅔⅛]|\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:[.,]\\d+)?|[½¼¾⅓⅔⅛])";
+const QTY_RE = new RegExp("^(" + NUM + ")(?:(\\s*[-–]\\s*)(" + NUM + "))?");
+function toNum(s) {
+  s = s.trim(); let m;
+  if ((m = s.match(/^(\d+)\s*([½¼¾⅓⅔⅛])$/))) return +m[1] + FRAC[m[2]];
+  if ((m = s.match(/^(\d+)\s+(\d+)\/(\d+)$/))) return +m[1] + m[2] / m[3];
+  if ((m = s.match(/^(\d+)\/(\d+)$/))) return m[1] / m[2];
+  if (FRAC[s] != null) return FRAC[s];
+  return parseFloat(s.replace(",", "."));
+}
+function fmtNum(n) {
+  if (!isFinite(n)) return "";
+  if (n >= 100) return String(Math.round(n / 5) * 5);
+  if (n >= 10) return String(Math.round(n));
+  const whole = Math.floor(n), frac = n - whole;
+  const nice = [[0, ""], [.25, "¼"], [1 / 3, "⅓"], [.5, "½"], [2 / 3, "⅔"], [.75, "¾"], [1, ""]];
+  for (const [v, sym] of nice) {
+    if (Math.abs(frac - v) < 0.04) {
+      const w = v === 1 ? whole + 1 : whole;
+      if (!sym) return String(w);
+      return (w ? String(w) : "") + sym;
+    }
+  }
+  return String(Math.round(n * 10) / 10).replace(".", ",");
+}
+function splitQty(line, factor) {
+  const m = line.match(QTY_RE);
+  if (!m) return { qty: "", rest: line };
+  let qty = m[0];
+  if (factor !== 1 && !/^\s*(prise|msp|messerspitze|schuss|spritzer|etwas)\b/i.test(line.slice(m[0].length))) {
+    const a = fmtNum(toNum(m[1]) * factor);
+    qty = m[3] ? a + "–" + fmtNum(toNum(m[3]) * factor) : a;
+  }
+  return { qty, rest: line.slice(m[0].length) };
+}
+
+/* ---------- Images ---------- */
+function loadImg(blob) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => res({ img, url });
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("decode")); };
+    img.src = url;
+  });
+}
+async function toJpeg(blob, maxSide, q) {
+  const { img, url } = await loadImg(blob);
+  const w0 = img.naturalWidth, h0 = img.naturalHeight;
+  const s = Math.min(1, maxSide / Math.max(w0, h0));
+  const w = Math.max(1, Math.round(w0 * s)), h = Math.max(1, Math.round(h0 * s));
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  URL.revokeObjectURL(url);
+  return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("encode")), "image/jpeg", q));
+}
+const blobToDataUrl = b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });
+
+async function storeCover(blob) {
+  if (assets) {
+    try {
+      const big = await toJpeg(blob, 1200, 0.82);
+      const r = await assets.upload(big);
+      if (r && r.id) return { assetId: r.id };
+    } catch (e) { /* fall back to an inline copy */ }
+  }
+  const small = await toJpeg(blob, 640, 0.72);
+  return { dataUrl: await blobToDataUrl(small) };
+}
+
+/* ---------- UI helpers ---------- */
+let toastT;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2800);
+}
+function closeLayer() { layer.classList.remove("open"); layer.innerHTML = ""; }
+function confirmDialog({ title, text, yes, danger }) {
+  return new Promise(res => {
+    layer.innerHTML = `<div class="scrim" data-action="modal-no"></div>
+      <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="m-t">
+        <h2 id="m-t">${esc(title)}</h2>${text ? `<p>${esc(text)}</p>` : ""}
+        <div class="modal-actions">
+          <button class="btn" data-action="modal-no">Abbrechen</button>
+          <button class="btn ${danger ? "danger solid" : "primary"}" data-action="modal-yes">${esc(yes)}</button>
+        </div>
+      </div>`;
+    layer.classList.add("open");
+    modalResolve = res;
+    const y = $(".modal [data-action=modal-yes]"); if (y) y.focus();
+  });
+}
+const ADD_OPTIONS = [
+  { mode: "photo", icon: "camera", t: "Rezept fotografieren", d: "Kochbuch, Zeitschrift, Zettel oder Handschrift" },
+  { mode: "manual", icon: "pen", t: "Selbst eintippen", d: "Leeres Rezept anlegen" }
+];
+const addOptions = () => ADD_OPTIONS.map(o =>
+  `<button class="opt" data-action="start" data-mode="${o.mode}"><span class="tile">${icon(o.icon)}</span><span><b>${o.t}</b><small>${o.d}</small></span></button>`
+).join("");
+function openSheet() {
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="s-t">
+      <div class="grip"></div><h2 id="s-t">Rezept hinzufügen</h2>
+      <div class="options">${addOptions()}</div>
+    </div>`;
+  layer.classList.add("open");
+  const f = $(".sheet .opt"); if (f) f.focus();
+}
+function autosize(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight + 2, 640) + "px"; }
+
+/* ---------- Navigation ---------- */
+function go(view) {
+  if (state.view === "list") state.listScroll = window.scrollY;
+  state.view = view;
+  render();
+  window.scrollTo(0, view === "list" ? state.listScroll : 0);
+}
+function render() {
+  if (state.view === "login") { renderLogin(); return; }
+  if (state.view === "boot" || !authKnown) { renderBoot(); return; }
+  if (state.view === "list") renderList();
+  else if (state.view === "detail") renderDetail();
+  else if (state.view === "edit") renderEdit();
+  else if (state.view === "import") renderImport();
+}
+
+/* ---------- List view ---------- */
+function bannerKey() { return state.storage + (state.slow ? "-slow" : ""); }
+function banner() {
+  if (state.storage === "none") return `<div class="status warn"><div><b>Speichern ist hier nicht möglich.</b><span class="d">Melde dich an, damit deine Rezepte gespeichert werden.</span></div></div>`;
+  if (state.storage === "error") return `<div class="status err"><div><b>Problem beim Laden</b><span class="d">${esc(state.storageMsg)}</span></div></div>`;
+  if (state.slow) return `<div class="status warn"><div><b>Das dauert gerade länger.</b><span class="d">Deine Rezepte sind noch nicht erreichbar. Die Seite versucht es weiter.</span></div></div>`;
+  return "";
+}
+function renderList() {
+  lastBanner = bannerKey();
+  app.innerHTML = `
+    <header class="home-head">
+      <div><h1 class="brand">Rezepte</h1><p class="sub" id="count"></p></div>
+      <button class="icon-btn" data-action="account" aria-label="Dein Konto">${icon("user")}</button>
+    </header>
+    <div class="stack" style="padding:0;gap:12px">${banner()}</div>
+    <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="Rezept oder Zutat suchen" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
+    <div id="chips" class="chips"></div>
+    <div id="grid"></div>
+    <label class="fab" id="fab" for="quick-pick">${icon("camera")}<span>Rezept fotografieren</span></label>`;
+  renderListBody();
+}
+function filtered() {
+  const q = norm(state.query).trim();
+  return state.recipes.filter(r => {
+    if (state.filter === "fav" && !r.favorite) return false;
+    if (state.filter.startsWith("cat:") && r.category !== state.filter.slice(4)) return false;
+    if (!q) return true;
+    const hay = norm([r.title, r.category, r.source, ...(r.ingredients || [])].join(" "));
+    return q.split(/\s+/).every(t => hay.includes(t));
+  });
+}
+function chip(f, label, n) {
+  return `<button class="chip ${state.filter === f ? "on" : ""}" data-action="filter" data-f="${esc(f)}" aria-pressed="${state.filter === f}">${esc(label)} <span class="n">${n}</span></button>`;
+}
+function card(r) {
+  const meta = [r.category, totalTime(r)].filter(Boolean).join(" · ");
+  return `<button class="card" data-action="open-recipe" data-id="${esc(r.id)}">
+    <div class="cover">${coverHtml(r)}${r.favorite ? `<span class="fav-badge">${icon("heart", "filled")}</span>` : ""}</div>
+    <div class="card-body"><span class="card-title">${esc(r.title || "Ohne Titel")}</span><span class="card-meta">${esc(meta || " ")}</span></div>
+  </button>`;
+}
+function renderListBody() {
+  const count = $("#count"), chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab");
+  if (!grid) return;
+  const rs = state.recipes;
+  if (!state.loaded) {
+    count.textContent = "Lädt …";
+    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true;
+    grid.innerHTML = `<div class="grid">${Array.from({ length: 4 }, () => `<div class="skel"><div class="cover"></div><div class="bar"></div></div>`).join("")}</div>`;
+    return;
+  }
+  count.textContent = rs.length === 1 ? "1 Rezept" : rs.length + " Rezepte";
+  if (!rs.length) {
+    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true;
+    grid.innerHTML = `<section class="empty">
+      <h2>Dein erstes Rezept</h2>
+      <p>Fotografier eine Kochbuchseite oder einen Rezeptzettel. Zutaten und Schritte werden automatisch erkannt und hier gespeichert.</p>
+      <div class="options">${addOptions()}</div>
+    </section>`;
+    return;
+  }
+  sw.hidden = false; fab.hidden = false;
+  const cats = CATEGORIES.filter(c => rs.some(r => r.category === c));
+  const favN = rs.filter(r => r.favorite).length;
+  if ((state.filter === "fav" && !favN) || (state.filter.startsWith("cat:") && !cats.includes(state.filter.slice(4)))) state.filter = "all";
+  chips.innerHTML = [chip("all", "Alle", rs.length), favN ? chip("fav", "Favoriten", favN) : "",
+    ...cats.map(c => chip("cat:" + c, c, rs.filter(r => r.category === c).length))].join("");
+  const list = filtered();
+  grid.innerHTML = list.length
+    ? `<div class="grid">${list.map(card).join("")}</div>`
+    : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`;
+}
+
+/* ---------- Detail view ---------- */
+function openDetail(id) {
+  state.currentId = id;
+  state.servings = null; state.factor = 1;
+  state.checked = new Set(); state.doneSteps = new Set();
+  go("detail");
+}
+function renderDetail() {
+  const r = current();
+  if (!r) { app.innerHTML = ""; return; }
+  const base = Number(r.servings) > 0 ? Number(r.servings) : null;
+  if (base && state.servings == null) state.servings = base;
+  const factor = base ? state.servings / base : state.factor;
+  const ings = Array.isArray(r.ingredients) ? r.ingredients : [];
+  const steps = Array.isArray(r.steps) ? r.steps : [];
+
+  const pills = [];
+  if (r.category) pills.push(`<span class="pill cat">${esc(r.category)}</span>`);
+  if (r.prepTime) pills.push(`<span class="pill">${icon("clock")}Vorbereitung ${esc(r.prepTime)}</span>`);
+  if (r.cookTime) pills.push(`<span class="pill">${icon("clock")}Kochen ${esc(r.cookTime)}</span>`);
+
+  let src = "";
+  const link = typeof r.link === "string" && /^https?:\/\//i.test(r.link) ? r.link : "";
+  if (r.source || link) {
+    src = `<p class="src">Quelle: ${esc(r.source || "")}${r.source && link ? " · " : ""}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${/instagram\.com/i.test(link) ? "Reel öffnen" : "Link öffnen"}</a>` : ""}</p>`;
+  }
+
+  const scaler = base
+    ? `<div class="scaler" role="group" aria-label="Portionen anpassen">
+         <button data-action="serv" data-d="-1" aria-label="Weniger Portionen">−</button>
+         <span><b>${fmtNum(state.servings)}</b> ${state.servings === 1 ? "Portion" : "Portionen"}</span>
+         <button data-action="serv" data-d="1" aria-label="Mehr Portionen">+</button>
+       </div>`
+    : `<div class="seg" role="group" aria-label="Menge anpassen">${[.5, 1, 2, 3].map(f =>
+        `<button class="${state.factor === f ? "on" : ""}" data-action="factor" data-f="${f}">${f === .5 ? "½" : f}×</button>`).join("")}</div>`;
+
+  let ingHtml = "";
+  ings.forEach((line, i) => {
+    if (isHead(line)) { ingHtml += `<li class="ing-h">${esc(headText(line))}</li>`; return; }
+    const { qty, rest } = splitQty(line, factor);
+    const done = state.checked.has(i);
+    ingHtml += `<li><button class="ing ${done ? "done" : ""}" data-action="toggle-ing" data-i="${i}" aria-pressed="${done}">
+      <span class="box">${icon("check")}</span><span class="ing-t">${qty ? `<b>${esc(qty)}</b>` : ""}${esc(rest)}</span></button></li>`;
+  });
+
+  let stepHtml = "", n = 0;
+  steps.forEach((s, i) => {
+    if (/^#/.test(s)) { stepHtml += `<li class="step-h">${esc(headText(s))}</li>`; return; }
+    n++;
+    const done = state.doneSteps.has(i);
+    stepHtml += `<li><button class="step ${done ? "done" : ""}" data-action="toggle-step" data-i="${i}" aria-pressed="${done}"><span class="no">${done ? icon("check") : n}</span><span>${esc(s)}</span></button></li>`;
+  });
+
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="back" data-action="back">${icon("back")}Rezepte</button>
+      <span class="grow"></span>
+      <button class="icon-btn ${r.favorite ? "on" : ""}" data-action="fav" aria-pressed="${!!r.favorite}" aria-label="${r.favorite ? "Aus Favoriten entfernen" : "Zu Favoriten"}">${icon("heart", r.favorite ? "filled" : "")}</button>
+      <button class="btn small" data-action="edit">Bearbeiten</button>
+    </div>
+    <article class="detail">
+      <div class="hero">${coverHtml(r)}</div>
+      <h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>
+      ${pills.length ? `<div class="meta">${pills.join("")}</div>` : ""}
+      ${src}
+      <section class="sec">
+        <div class="sec-head"><h2>Zutaten</h2>${ings.length ? scaler : ""}</div>
+        ${ings.length ? `<ul class="ings">${ingHtml}</ul>
+          <div><button class="btn small quiet" data-action="copy-ings">${icon("copy")}Zutaten kopieren</button></div>`
+          : `<p class="muted">Noch keine Zutaten eingetragen.</p>`}
+      </section>
+      <section class="sec">
+        <h2>Zubereitung</h2>
+        ${steps.length ? `<ol class="steps">${stepHtml}</ol>` : `<p class="muted">Noch keine Schritte eingetragen.</p>`}
+      </section>
+      ${r.notes ? `<section class="sec"><h2>Notizen</h2><p class="notes">${esc(r.notes)}</p></section>` : ""}
+      <button class="btn danger quiet block" data-action="delete">${icon("trash")}Rezept löschen</button>
+    </article>`;
+}
+
+/* ---------- Editor ---------- */
+function blankData() {
+  return { title: "", category: "Hauptgericht", emoji: "", servings: "", prepTime: "", cookTime: "",
+    ingredientsText: "", stepsText: "", notes: "", source: "", link: "", favorite: false, cover: null, createdAt: null };
+}
+function toEditData(r) {
+  return {
+    title: r.title || "", category: CATEGORIES.includes(r.category) ? r.category : "Sonstiges", emoji: r.emoji || "",
+    servings: r.servings ? String(r.servings) : "", prepTime: r.prepTime || "", cookTime: r.cookTime || "",
+    ingredientsText: (r.ingredients || []).join("\n"), stepsText: (r.steps || []).join("\n"),
+    notes: r.notes || "", source: r.source || "", link: r.link || "", favorite: !!r.favorite,
+    cover: r.cover ? Object.assign({}, r.cover) : null, createdAt: r.createdAt || null
+  };
+}
+function openEditor(opts) {
+  state.edit = Object.assign({ id: null, isNew: true, data: blankData(), coverBlob: null, coverUrl: null,
+    removeCover: false, fromImport: false, importImages: [], dirty: false, saving: false }, opts);
+  go("edit");
+}
+function hasEditCover(ed) { return !!ed.coverBlob || (!ed.removeCover && !!coverSrc(ed.data.cover)); }
+function editCoverHtml(ed) {
+  if (ed.coverBlob && ed.coverUrl) return `<img src="${esc(ed.coverUrl)}" alt="Titelbild">`;
+  if (!ed.removeCover && coverSrc(ed.data.cover)) return `<img src="${esc(coverSrc(ed.data.cover))}" alt="Titelbild" data-ph="${esc(ed.data.emoji)}">`;
+  return placeholder(ed.data.emoji);
+}
+function renderCoverSec() {
+  const ed = state.edit, el = $("#cover-sec");
+  if (!ed || !el) return;
+  const has = hasEditCover(ed);
+  el.innerHTML = `
+    <div class="cover-prev">${editCoverHtml(ed)}</div>
+    <div class="cover-actions">
+      <label class="btn small" for="cover-file">${icon("image")}${has ? "Foto ändern" : "Foto vom Gericht hinzufügen"}</label>
+      ${has ? `<button class="btn small quiet" data-action="remove-cover">Foto entfernen</button>` : ""}
+    </div>
+    ${ed.importImages.length ? `<div class="pick-cover"><span>Oder eins deiner Bilder als Titelbild:</span>
+      <div class="thumbs small">${ed.importImages.map((im, i) =>
+        `<button class="thumb sel ${ed.coverBlob === im.blob ? "on" : ""}" data-action="use-import-cover" data-i="${i}" aria-label="Bild ${i + 1} als Titelbild"><img src="${esc(im.url)}" alt=""></button>`).join("")}</div></div>` : ""}`;
+}
+function fieldHtml(k, label, type, opts = {}) {
+  const v = state.edit.data[k];
+  const id = "f-" + k;
+  let ctl;
+  if (type === "textarea") ctl = `<textarea id="${id}" data-k="${k}" rows="${opts.rows || 4}" placeholder="${esc(opts.ph || "")}">${esc(v)}</textarea>`;
+  else if (type === "select") ctl = `<select id="${id}" data-k="${k}">${CATEGORIES.map(c => `<option ${c === v ? "selected" : ""}>${c}</option>`).join("")}</select>`;
+  else ctl = `<input id="${id}" data-k="${k}" type="${type}" value="${esc(v)}" placeholder="${esc(opts.ph || "")}" ${opts.attrs || ""}>`;
+  return `<div class="field" id="w-${k}"><label for="${id}">${label}</label>${opts.hint ? `<span class="hint">${opts.hint}</span>` : ""}${ctl}</div>`;
+}
+function renderEdit() {
+  const ed = state.edit;
+  if (!ed) { go("list"); return; }
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="back" data-action="back">${icon("back")}${ed.isNew ? "Abbrechen" : "Zurück"}</button>
+      <h2 class="bar-title">${ed.isNew ? "Neues Rezept" : "Bearbeiten"}</h2>
+      <button class="btn primary small" data-action="save">Speichern</button>
+    </div>
+    <main class="stack">
+      ${ed.fromImport ? `<div class="status ok">${icon("check")}<div><b>Rezept erkannt</b><span class="d">Schau kurz über Mengen und Schritte, dann tippst du auf Speichern.</span></div></div>` : ""}
+      <div class="cover-edit" id="cover-sec"></div>
+      <input class="vh" id="cover-file" type="file" accept="image/*" data-file="cover">
+      ${fieldHtml("title", "Titel", "text", { ph: "z. B. Linsen-Dal mit Kokosmilch", attrs: 'autocomplete="off"' })}
+      <div class="row2">
+        ${fieldHtml("category", "Kategorie", "select")}
+        ${fieldHtml("servings", "Portionen", "text", { ph: "4", attrs: 'inputmode="decimal"' })}
+      </div>
+      <div class="row2">
+        ${fieldHtml("prepTime", "Vorbereitung", "text", { ph: "15 Min." })}
+        ${fieldHtml("cookTime", "Koch-/Backzeit", "text", { ph: "30 Min." })}
+      </div>
+      ${fieldHtml("ingredientsText", "Zutaten", "textarea", { rows: 8, hint: "Eine Zutat pro Zeile, Menge zuerst. Zwischenüberschrift mit # beginnen.", ph: "# Für den Teig\n250 g Mehl\n2 Eier" })}
+      ${fieldHtml("stepsText", "Zubereitung", "textarea", { rows: 8, hint: "Ein Schritt pro Zeile.", ph: "Ofen auf 180 °C vorheizen.\nMehl und Eier verrühren." })}
+      ${fieldHtml("notes", "Notizen", "textarea", { rows: 3, ph: "Tipps, Varianten, was du nächstes Mal anders machst" })}
+      ${fieldHtml("source", "Quelle", "text", { ph: "z. B. Omas Kochbuch, Seite 42" })}
+      <button class="btn primary block" data-action="save">Rezept speichern</button>
+    </main>`;
+  renderCoverSec();
+  $$("textarea", app).forEach(autosize);
+}
+function linesOf(s) {
+  return String(s || "").split(/\n/).map(x => x.replace(/^\s*[-•*–]\s+/, "").trim()).filter(Boolean);
+}
+async function saveRecipe() {
+  const ed = state.edit;
+  if (!ed || ed.saving) return;
+  const d = ed.data;
+  const title = d.title.trim();
+  if (!title) {
+    const w = $("#w-title"); if (w) { w.classList.add("bad"); $("#f-title").focus(); }
+    toast("Gib dem Rezept einen Titel.");
+    return;
+  }
+  if (!col) { toast("Melde dich an, um Rezepte zu speichern."); return; }
+  ed.saving = true;
+  $$("[data-action=save]").forEach(b => { b.disabled = true; b.textContent = "Speichert …"; });
+  try {
+    let cover = d.cover || null, oldAsset = null;
+    if (ed.coverBlob) {
+      const nc = await storeCover(ed.coverBlob);
+      if (cover && cover.assetId) oldAsset = cover.assetId;
+      cover = nc;
+    } else if (ed.removeCover) {
+      if (cover && cover.assetId) oldAsset = cover.assetId;
+      cover = null;
+    }
+    const sv = parseFloat(String(d.servings).replace(",", "."));
+    const now = Date.now();
+    const doc = {
+      title, category: d.category, emoji: d.emoji || "",
+      servings: sv > 0 && sv < 1000 ? sv : null,
+      prepTime: d.prepTime.trim(), cookTime: d.cookTime.trim(),
+      ingredients: linesOf(d.ingredientsText), steps: linesOf(d.stepsText).map(s => s.replace(/^\d+[.)]\s*/, "")),
+      notes: d.notes.trim(), source: d.source.trim(), link: d.link.trim(),
+      favorite: !!d.favorite, cover, createdAt: d.createdAt || now, updatedAt: now
+    };
+    const id = ed.id || newId();
+    await withRetry(() => col.doc(id).set(doc));
+    if (oldAsset && assets) assets.delete(oldAsset).catch(() => {});
+    const i = state.recipes.findIndex(r => r.id === id);
+    const local = Object.assign({ id }, doc);
+    if (i >= 0) state.recipes[i] = local; else state.recipes.unshift(local);
+    const fromImport = ed.fromImport;
+    state.edit = null;
+    if (fromImport) state.imp = null;
+    openDetail(id);
+    toast("Gespeichert");
+  } catch (e) {
+    ed.saving = false;
+    $$("[data-action=save]").forEach((b, k) => { b.disabled = false; b.textContent = k ? "Rezept speichern" : "Speichern"; });
+    toast(e && e.code ? dbErrorText(e) : "Das Foto ließ sich nicht verarbeiten. Nimm ein anderes oder speichere ohne Foto.");
+  }
+}
+
+/* ---------- Import ---------- */
+const imagesAllowed = () => !initDone || !!(sampleLimits && sampleLimits.images);
+const aiAvailable = () => !initDone || !!sample;
+const maxImages = () => (sampleLimits && sampleLimits.images && sampleLimits.images.maxCount) || 5;
+
+function startImport(mode) {
+  state.imp = { mode, images: [], processing: 0, text: "", link: "", busy: false, ctl: null };
+  go("import");
+}
+function renderImport() {
+  const imp = state.imp;
+  if (!imp) { go("list"); return; }
+  const titles = { photo: "Rezept fotografieren" };
+  const intro = `<p class="lead">Fotografier die Seite gerade von oben und gut beleuchtet. Geht das Rezept über mehrere Seiten, nimm einfach mehrere Fotos.</p>`;
+  const noAi = !aiAvailable()
+    ? `<div class="status warn"><div><b>Fotos lesen geht gerade nicht.</b><span class="d">Lade die App neu oder tipp das Rezept selbst ein.</span></div></div>` : "";
+  const noImg = aiAvailable() && initDone && !imagesAllowed() && imp.mode !== "text"
+    ? `<div class="status warn"><div><b>Bilder gehen hier gerade nicht.</b><span class="d">Füg stattdessen den Rezepttext ein.</span></div></div>` : "";
+  const pickers = imagesAllowed() && imp.mode !== "text"
+    ? `<div class="pick-row">
+        <label class="tilebtn" for="pick-cam">${icon("camera")}<span>${imp.images.length ? "Weitere Seite" : "Foto aufnehmen"}</span></label>
+        <input class="vh" id="pick-cam" type="file" accept="image/*" capture="environment" data-file="import">
+        <label class="tilebtn" for="pick-lib">${icon("image")}<span>Aus Fotos wählen</span></label>
+        <input class="vh" id="pick-lib" type="file" accept="image/*" multiple data-file="import">
+      </div>
+      <div class="thumbs" id="thumbs"></div>` : "";
+  const textField = { label: "Hinweis (optional)", ph: "z. B. nur das Rezept rechts auf der Seite", rows: 2 };
+
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="back" data-action="back">${icon("back")}Zurück</button>
+      <h2 class="bar-title">${titles[imp.mode]}</h2>
+      <span style="width:64px"></span>
+    </div>
+    <main class="stack">
+      ${intro}${noAi}${noImg}${pickers}
+      <div class="field">
+        <label for="imp-text">${textField.label}</label>
+        <textarea id="imp-text" rows="${textField.rows}" placeholder="${esc(textField.ph)}">${esc(imp.text)}</textarea>
+      </div>
+      <div id="imp-status" aria-live="polite"></div>
+      <button class="btn primary block" id="recognize" data-action="recognize" ${aiAvailable() ? "" : "disabled"}>Rezept erkennen</button>
+      <button class="btn quiet block" data-action="manual-from-import">Lieber selbst eintippen</button>
+    </main>`;
+  renderThumbs();
+  const ta = $("#imp-text"); if (ta) autosize(ta);
+  if (imp.busy) showBusy();
+}
+function renderThumbs() {
+  const el = $("#thumbs"), imp = state.imp;
+  if (!el || !imp) return;
+  el.innerHTML = imp.images.map((im, i) =>
+    `<figure class="thumb"><img src="${esc(im.url)}" alt="Bild ${i + 1}"><span class="num">${i + 1}</span>
+      <button class="thumb-x" data-action="remove-img" data-i="${i}" aria-label="Bild ${i + 1} entfernen">${icon("x")}</button></figure>`).join("")
+    + Array.from({ length: imp.processing }, () => `<figure class="thumb loading"><span class="spinner"></span></figure>`).join("");
+}
+async function addImportFiles(files) {
+  const imp = state.imp;
+  if (!imp) return;
+  const max = maxImages();
+  let list = Array.from(files || []);
+  const room = max - imp.images.length - imp.processing;
+  if (list.length > room) { toast(`Höchstens ${max} Bilder pro Rezept.`); list = list.slice(0, Math.max(0, room)); }
+  for (const f of list) {
+    imp.processing++; renderThumbs();
+    try {
+      const blob = await toJpeg(f, 1800, 0.86);
+      imp.images.push({ blob, url: URL.createObjectURL(blob) });
+    } catch (e) {
+      toast("Ein Bild ließ sich nicht öffnen. Versuch ein anderes.");
+    }
+    imp.processing--; renderThumbs();
+  }
+}
+function setStatus(html) { const el = $("#imp-status"); if (el) el.innerHTML = html; }
+function showBusy(detail) {
+  setStatus(`<div class="status"><span class="spinner"></span><div><b>Rezept wird gelesen …</b>
+    <span class="d" id="busy-detail">${esc(detail || "Das dauert meist 5 bis 20 Sekunden.")}</span></div>
+    <button class="btn small" data-action="stop">Stopp</button></div>`);
+  const b = $("#recognize"); if (b) b.disabled = true;
+}
+function showError(title, text) {
+  setStatus(`<div class="status err"><div><b>${esc(title)}</b>${text ? `<span class="d">${esc(text)}</span>` : ""}</div></div>`);
+  const b = $("#recognize"); if (b) b.disabled = !aiAvailable();
+}
+
+function buildPrompt(imp, n) {
+  const t = imp.text.trim();
+  let material;
+  if (imp.mode === "insta") {
+    material = `Das Material stammt aus einem Instagram-Reel oder -Post` +
+      (n ? `: ${n} Screenshot(s) (Bild 1 bis ${n}) aus dem Video und/oder der Beschreibung` : "") +
+      (t ? (n ? ", dazu" : ":") + " die kopierte Beschreibung (unten)" : "") +
+      `. Text-Einblendungen im Video gehören auch zum Rezept.`;
+  } else if (imp.mode === "photo") {
+    material = `Das Material sind ${n} Foto(s) (Bild 1 bis ${n}) eines Rezepts, z. B. aus einem Kochbuch, einer Zeitschrift, von einem Zettel oder handschriftlich. Mehrere Bilder gehören zum selben Rezept.`;
+  } else {
+    material = `Das Material ist ein eingefügter Text` + (n ? ` und ${n} Bild(er)` : "") + `.`;
+  }
+  return `Du hilfst einer Kochbuch-App, Rezepte zu speichern. ${material}
+
+Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern:
+- "isRecipe": true oder false
+- "problem": leer, oder kurz auf Deutsch, warum kein Rezept erkennbar ist (z. B. unscharf, abgeschnitten, nur ein Video-Standbild ohne Text)
+- "title": kurzer, klarer Rezeptname auf Deutsch
+- "category": genau eins von: ${CATEGORIES.join(", ")}
+- "emoji": ein passendes Essens-Emoji
+- "servings": Anzahl Portionen als Zahl, oder null
+- "prepTime": Vorbereitungszeit wie "15 Min." oder "1 Std. 10 Min.", sonst ""
+- "cookTime": Koch- bzw. Backzeit im selben Format, sonst ""
+- "ingredients": Liste von Strings, eine Zutat pro Eintrag, Menge zuerst, z. B. "200 g Mehl", "2 EL Olivenöl", "1 Prise Salz". Zwischenüberschriften als eigener Eintrag mit "# " davor, z. B. "# Für die Soße".
+- "steps": Liste von Strings, ein Arbeitsschritt pro Eintrag, ohne Nummerierung
+- "notes": Tipps oder Hinweise aus dem Rezept, sonst ""
+- "source": Buchtitel, Website oder Instagram-Kanal (z. B. "@kanalname"), falls erkennbar, sonst ""
+- "coverImage": Nummer des Bildes (ab 1), das das fertige Gericht gut zeigt, sonst null
+
+Regeln:
+- Schreib alles auf Deutsch. Ist das Rezept in einer anderen Sprache, übersetze es.
+- Rechne amerikanische Maße in metrische um (cups in g oder ml, oz und lb in g, °F in °C, tbsp in EL, tsp in TL) und runde sinnvoll.
+- Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen. Unleserliche Stellen markierst du mit [?].
+- Fehlen die Zubereitungsschritte, lass "steps" leer und schreib in "notes", dass die Zubereitung nur im Video gezeigt wird oder fehlt.
+- Lass Hashtags, Werbung, „Link in Bio“, Rabattcodes, Emojis und Danksagungen weg.
+- Stehen mehrere Rezepte im Material, nimm das Hauptrezept und erwähne die anderen kurz in "notes".` +
+    (imp.mode === "photo" && t ? `\n\nHinweis des Nutzers: ${t}` : "") +
+    (imp.mode !== "photo" && t ? `\n\nEingefügter Text:\n<<<\n${t.slice(0, 20000)}\n>>>` : "");
+}
+const str = v => typeof v === "string" ? v.trim() : (typeof v === "number" ? String(v) : "");
+function arr(v) {
+  if (typeof v === "string") v = v.split(/\n+/);
+  if (!Array.isArray(v)) return [];
+  return v.map(x => typeof x === "string" ? x
+      : (x && typeof x === "object" ? [x.amount, x.unit, x.name].filter(y => y != null && y !== "").join(" ") : String(x ?? "")))
+    .map(s => s.replace(/^\s*[-•*]\s+/, "").trim()).filter(Boolean);
+}
+function resultToEdit(res, imp) {
+  const d = blankData();
+  d.title = str(res.title) || "Neues Rezept";
+  d.category = CATEGORIES.includes(res.category) ? res.category : "Sonstiges";
+  d.emoji = Array.from(str(res.emoji)).slice(0, 3).join("");
+  const sv = Number(res.servings);
+  d.servings = sv > 0 && sv < 1000 ? String(Math.round(sv * 10) / 10).replace(".", ",") : "";
+  d.prepTime = str(res.prepTime); d.cookTime = str(res.cookTime);
+  d.ingredientsText = arr(res.ingredients).join("\n");
+  d.stepsText = arr(res.steps).map(s => s.replace(/^(\d+[.)]|schritt\s*\d+:?)\s*/i, "")).join("\n");
+  d.notes = str(res.notes);
+  d.source = str(res.source) || (imp.mode === "insta" ? "Instagram" : "");
+  d.link = imp.link.trim();
+  let ci = Number(res.coverImage);
+  ci = Number.isInteger(ci) && ci >= 1 && ci <= imp.images.length ? ci - 1 : -1;
+  const pick = ci >= 0 ? imp.images[ci] : null;
+  return { data: d, coverBlob: pick ? pick.blob : null, coverUrl: pick ? pick.url : null };
+}
+async function recognize() {
+  const imp = state.imp;
+  if (!imp || imp.busy) return;
+  await initPromise;
+  if (!sample) { renderImport(); return; }
+  if (imp.processing) { toast("Einen Moment, die Bilder werden noch vorbereitet."); return; }
+  const imgs = imagesAllowed() ? imp.images.map(i => i.blob) : [];
+  const t = imp.text.trim();
+  if (!imgs.length && t.length < 15) {
+    showError(imp.mode === "text" ? "Füg zuerst den Rezepttext ein." : "Füg zuerst ein Foto hinzu.", imp.mode === "insta" ? "Screenshots vom Reel oder die kopierte Beschreibung reichen." : "");
+    return;
+  }
+  imp.busy = true;
+  const ctl = new AbortController(); imp.ctl = ctl;
+  showBusy();
+  const opts = {
+    signal: ctl.signal, cache: false, modelTier: "default",
+    onText: ({ text }) => {
+      const m = text.match(/"title"\s*:\s*"([^"]{2,80})"/);
+      const el = $("#busy-detail");
+      if (m && el) el.textContent = "Gefunden: " + m[1];
+    }
+  };
+  if (imgs.length) opts.images = imgs;
+  try {
+    const res = await sample.json(buildPrompt(imp, imgs.length), opts);
+    imp.busy = false; imp.ctl = null;
+    if (state.imp !== imp) return;
+    if (!res || typeof res !== "object" || res.isRecipe === false) {
+      showError("Kein Rezept erkannt", str(res && res.problem) || "Versuch ein schärferes Foto oder füg den Text ein.");
+      return;
+    }
+    const conv = resultToEdit(res, imp);
+    if (!linesOf(conv.data.ingredientsText).length && !linesOf(conv.data.stepsText).length) {
+      showError("Kein Rezept erkannt", str(res.problem) || "Weder Zutaten noch Schritte waren lesbar. Versuch ein schärferes Foto.");
+      return;
+    }
+    openEditor({ isNew: true, data: conv.data, coverBlob: conv.coverBlob, coverUrl: conv.coverUrl, fromImport: true, importImages: imp.images.slice(), dirty: true });
+  } catch (e) {
+    imp.busy = false; imp.ctl = null;
+    if (state.imp !== imp) return;
+    const c = e && e.code;
+    if (c === "cancelled") { setStatus(""); const b = $("#recognize"); if (b) b.disabled = false; return; }
+    if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) {
+      sample = null; renderImport(); return;
+    }
+    if (c === "images_unavailable") { sampleLimits = Object.assign({}, sampleLimits, { images: undefined }); renderImport(); showError("Bilder gehen hier gerade nicht.", "Füg stattdessen den Rezepttext ein."); return; }
+    const msg = {
+      rate_limited: ["Gerade zu viele Anfragen", "Oder dein Claude-Limit ist erreicht. Versuch es später nochmal."],
+      session_expired: ["Bitte neu anmelden", "Melde dich in Claude neu an und versuch es dann nochmal."],
+      image_rejected: ["Ein Bild ließ sich nicht lesen", "Entfern es oder nimm ein anderes Foto."],
+      refused: ["Das konnte Claude nicht verarbeiten", "Versuch ein anderes Foto oder einen anderen Text."],
+      prompt_too_large: ["Der Text ist zu lang", "Kürz ihn auf das eigentliche Rezept."],
+      invalid_json: ["Die Antwort kam unvollständig an", "Tipp nochmal auf „Rezept erkennen“."],
+      empty_completion: ["Keine Antwort erhalten", "Tipp nochmal auf „Rezept erkennen“."],
+      ai_off: ["Fotos lesen ist noch nicht eingeschaltet", "In Firebase unter „AI Logic“ die Gemini Developer API aktivieren."],
+      offline: ["Keine Internetverbindung", "Zum Lesen der Fotos brauchst du Internet. Versuch es gleich nochmal."]
+    }[c] || ["Verbindung unterbrochen", "Tipp nochmal auf „Rezept erkennen“."];
+    showError(msg[0], msg[1]);
+  }
+}
+
+/* ---------- Actions ---------- */
+const actions = {
+  "open-add": () => openSheet(),
+  "login-google": () => loginGoogle(),
+  "lg-mode": el => {
+    const L = state.login || (state.login = { mode: "in", email: "" });
+    const m = $("#lg-mail"); if (m) L.email = m.value.trim();
+    L.mode = el.dataset.m; L.err = ""; L.msg = "";
+    renderLogin();
+    const f = $("#lg-mail"); if (f && !L.email) f.focus();
+  },
+  account: () => openAccount(),
+  logout: async () => {
+    closeLayer();
+    try { await fb.U.signOut(fb.auth); } catch (e) { toast("Abmelden hat nicht geklappt. Versuch es nochmal."); }
+  },
+  reload: () => location.reload(),
+  "close-layer": () => closeLayer(),
+  "modal-yes": () => { closeLayer(); if (modalResolve) { modalResolve(true); modalResolve = null; } },
+  "modal-no": () => { closeLayer(); if (modalResolve) { modalResolve(false); modalResolve = null; } },
+  start: el => {
+    closeLayer();
+    const mode = el.dataset.mode;
+    if (mode === "manual") openEditor({ isNew: true });
+    else startImport(mode);
+  },
+  filter: el => { state.filter = el.dataset.f; renderListBody(); },
+  "open-recipe": el => openDetail(el.dataset.id),
+  back: async () => {
+    if (state.view === "detail") { go("list"); return; }
+    if (state.view === "import") {
+      if (state.imp && state.imp.ctl) state.imp.ctl.abort();
+      state.imp = null; go("list"); return;
+    }
+    if (state.view === "edit") {
+      const ed = state.edit;
+      if (ed && ed.dirty) {
+        const ok = await confirmDialog({ title: "Änderungen verwerfen?", text: ed.fromImport ? "Das erkannte Rezept wird nicht gespeichert." : "Was du geändert hast, geht verloren.", yes: "Verwerfen", danger: true });
+        if (!ok) return;
+      }
+      state.edit = null;
+      if (ed && ed.fromImport && state.imp) { go("import"); return; }
+      if (ed && ed.id && state.recipes.some(r => r.id === ed.id)) { openDetail(ed.id); return; }
+      go("list");
+    }
+  },
+  fav: async () => {
+    const r = current(); if (!r || !col) return;
+    const v = !r.favorite;
+    const i = state.recipes.indexOf(r);
+    state.recipes[i] = Object.assign({}, r, { favorite: v });
+    renderDetail();
+    try { await withRetry(() => col.doc(r.id).update({ favorite: v })); }
+    catch (e) { state.recipes[i] = r; renderDetail(); toast(dbErrorText(e)); }
+  },
+  edit: () => {
+    const r = current(); if (!r) return;
+    openEditor({ id: r.id, isNew: false, data: toEditData(r) });
+  },
+  delete: async () => {
+    const r = current(); if (!r || !col) return;
+    const ok = await confirmDialog({ title: "Rezept löschen?", text: `„${r.title}“ wird endgültig entfernt.`, yes: "Löschen", danger: true });
+    if (!ok) return;
+    try {
+      await withRetry(() => col.doc(r.id).delete());
+      if (r.cover && r.cover.assetId && assets) assets.delete(r.cover.assetId).catch(() => {});
+      state.recipes = state.recipes.filter(x => x.id !== r.id);
+      go("list"); toast("Rezept gelöscht");
+    } catch (e) { toast(dbErrorText(e)); }
+  },
+  serv: el => {
+    const d = Number(el.dataset.d);
+    state.servings = Math.max(1, Math.round((state.servings || 1) + d));
+    renderDetail();
+  },
+  factor: el => { state.factor = Number(el.dataset.f); renderDetail(); },
+  "toggle-ing": el => {
+    const i = Number(el.dataset.i);
+    state.checked.has(i) ? state.checked.delete(i) : state.checked.add(i);
+    el.classList.toggle("done"); el.setAttribute("aria-pressed", state.checked.has(i));
+  },
+  "toggle-step": el => {
+    const i = Number(el.dataset.i);
+    state.doneSteps.has(i) ? state.doneSteps.delete(i) : state.doneSteps.add(i);
+    renderDetail();
+  },
+  "copy-ings": async () => {
+    const r = current(); if (!r) return;
+    const base = Number(r.servings) > 0 ? Number(r.servings) : null;
+    const factor = base ? state.servings / base : state.factor;
+    const lines = (r.ingredients || []).map(l => {
+      if (isHead(l)) return "\n" + headText(l) + ":";
+      const { qty, rest } = splitQty(l, factor);
+      return "• " + qty + rest;
+    });
+    const head = r.title + (base ? ` (${fmtNum(state.servings)} Portionen)` : "");
+    try { await navigator.clipboard.writeText(head + "\n" + lines.join("\n").trim()); toast("Zutaten kopiert"); }
+    catch (e) { toast("Kopieren wird hier nicht unterstützt."); }
+  },
+  "remove-img": el => {
+    const imp = state.imp; if (!imp || imp.busy) return;
+    const i = Number(el.dataset.i);
+    const [im] = imp.images.splice(i, 1);
+    if (im) setTimeout(() => URL.revokeObjectURL(im.url), 1000);
+    renderThumbs();
+  },
+  recognize: () => recognize(),
+  stop: () => { if (state.imp && state.imp.ctl) state.imp.ctl.abort(); },
+  "manual-from-import": () => {
+    const imp = state.imp;
+    const d = blankData();
+    if (imp && imp.ctl) imp.ctl.abort();
+    openEditor({ isNew: true, data: d, fromImport: !!imp, importImages: imp ? imp.images.slice() : [], coverBlob: null, dirty: !!(imp && imp.images.length) });
+  },
+  save: () => saveRecipe(),
+  "remove-cover": () => {
+    const ed = state.edit; if (!ed) return;
+    ed.coverBlob = null; ed.coverUrl = null; ed.removeCover = true; ed.dirty = true;
+    renderCoverSec();
+  },
+  "use-import-cover": el => {
+    const ed = state.edit; if (!ed) return;
+    const im = ed.importImages[Number(el.dataset.i)]; if (!im) return;
+    ed.coverBlob = im.blob; ed.coverUrl = im.url; ed.removeCover = false; ed.dirty = true;
+    renderCoverSec();
+  }
+};
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+  const fn = actions[el.dataset.action];
+  if (fn) { e.preventDefault(); fn(el, e); }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && layer.classList.contains("open")) {
+    closeLayer();
+    if (modalResolve) { modalResolve(false); modalResolve = null; }
+  }
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "q") { state.query = t.value; renderListBody(); return; }
+  if (t.id === "imp-text" && state.imp) { state.imp.text = t.value; autosize(t); return; }
+  if (t.id === "imp-link" && state.imp) { state.imp.link = t.value; return; }
+  if (t.dataset && t.dataset.k && state.edit) {
+    state.edit.data[t.dataset.k] = t.value; state.edit.dirty = true;
+    if (t.tagName === "TEXTAREA") autosize(t);
+    if (t.dataset.k === "title") { const w = $("#w-title"); if (w) w.classList.remove("bad"); }
+  }
+});
+document.addEventListener("change", async e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.k && state.edit) { state.edit.data[t.dataset.k] = t.value; state.edit.dirty = true; return; }
+  if (t.type !== "file") return;
+  const files = t.files;
+  if (t.dataset.file === "quick") {
+    const list = Array.from(files || []);
+    t.value = "";
+    if (!list.length) return;
+    startImport("photo");
+    await addImportFiles(list);
+    renderImport();
+    return;
+  }
+  if (t.dataset.file === "import") { await addImportFiles(files); if (state.view === "import") renderImport(); }
+  else if (t.dataset.file === "cover" && files && files[0] && state.edit) {
+    try {
+      const blob = await toJpeg(files[0], 1600, 0.85);
+      const ed = state.edit;
+      ed.coverBlob = blob; ed.coverUrl = URL.createObjectURL(blob); ed.removeCover = false; ed.dirty = true;
+      renderCoverSec();
+    } catch (err) { toast("Das Foto ließ sich nicht öffnen. Versuch ein anderes."); }
+  }
+  t.value = "";
+});
+document.addEventListener("submit", e => {
+  e.preventDefault();
+  if (e.target && e.target.id === "login-form") loginEmail();
+});
+
+render();
+</script>
+</body>
+</html>
