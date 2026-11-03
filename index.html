@@ -1196,7 +1196,7 @@ function renderImport() {
   const imp = state.imp;
   if (!imp) { go("list"); return; }
   const titles = { photo: "Rezept fotografieren" };
-  const intro = `<p class="lead">Fotografier die Seite gerade von oben und gut beleuchtet. Auch Handschrift und andere Sprachen gehen, alles wird ins Deutsche übersetzt. Geht das Rezept über mehrere Seiten, nimm einfach mehrere Fotos.</p>`;
+  const intro = `<p class="lead">Fotografier die Seite gerade von oben und gut beleuchtet. Auch Handschrift sowie englische, serbische und ungarische Rezepte gehen, alles wird ins Deutsche übersetzt. Geht das Rezept über mehrere Seiten, nimm einfach mehrere Fotos.</p>`;
   const noAi = !aiAvailable()
     ? `<div class="status warn"><div><b>Fotos lesen geht gerade nicht.</b><span class="d">Lade die App neu oder tipp das Rezept selbst ein.</span></div></div>` : "";
   const noImg = aiAvailable() && initDone && !imagesAllowed() && imp.mode !== "text"
@@ -1298,14 +1298,16 @@ Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern
 - "notes": Tipps oder Hinweise aus dem Rezept, sonst ""
 - "source": Buchtitel, Website oder Instagram-Kanal (z. B. "@kanalname"), falls erkennbar, sonst ""
 - "coverImage": Nummer des Bildes (ab 1), das das fertige Gericht gut zeigt, sonst null
-- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Russisch", "Türkisch"
+- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
 
 Regeln:
 - Lies auch Handschrift sorgfältig, selbst wenn sie unordentlich, schräg, verblasst oder durchgestrichen ist, und auch alte deutsche Schrift (Sütterlin, Kurrent). Nutze den Zusammenhang des Rezepts, um schwer lesbare Wörter und Mengen zu entziffern.
-- Das Rezept kann in jeder Sprache und Schrift sein, z. B. Englisch, Italienisch, Polnisch, Russisch (Kyrillisch), Griechisch, Türkisch, Arabisch, Persisch, Chinesisch, Japanisch oder Koreanisch, auch gemischt.
-- Schreib alles auf Deutsch: übersetze Titel, Zutaten, Schritte und Notizen natürlich und so, wie man es in einem deutschen Kochbuch schreiben würde. Hat das Gericht einen bekannten Originalnamen (z. B. Borschtsch, Börek, Moussaka), behalte ihn im Titel und ergänze bei Bedarf kurz in Klammern, was es ist.
+- Das Rezept ist auf Deutsch, Englisch, Serbisch oder Ungarisch, auch gemischt. Serbisch kann in kyrillischer (Ћирилица) oder lateinischer Schrift (mit č, ć, š, ž, đ) geschrieben sein. Ungarisch hat Zeichen wie á, é, ő, ű. Lies diese Zeichen genau, auch in Handschrift.
+- Schreib alles auf Deutsch: übersetze Titel, Zutaten, Schritte und Notizen natürlich und so, wie man es in einem deutschen Kochbuch schreiben würde. Hat das Gericht einen bekannten Originalnamen (z. B. Sarma, Ćevapčići, Gulyás, Pörkölt, Lángos, Palatschinken), behalte ihn im Titel und ergänze bei Bedarf kurz in Klammern, was es ist.
 - Unbekannte Zutaten übersetzt du mit dem in Deutschland üblichen Namen; gibt es keinen, behalte den Originalnamen und erkläre ihn kurz in Klammern.
 - Rechne amerikanische und alte Maße in metrische um (cups in g oder ml, oz und lb in g, °F in °C, tbsp in EL, tsp in TL, Pfund = 500 g, Tasse ca. 200 ml, Glas ca. 200 ml) und runde sinnvoll. Ist eine Umrechnung nur geschätzt, schreib „ca.“ davor. Gasherd-Stufen rechnest du in °C um.
+- Ungarische Maße: dkg = 10 g (25 dkg = 250 g), dl = 100 ml, ek / evőkanál = EL, kk / kávéskanál = TL, mokkáskanál = ca. ½ TL, bögre = ca. 250 ml, csipet = 1 Prise, egy kevés = etwas.
+- Serbische Maße: kašika / кашика = EL, kašičica / кашичица = TL, šolja / шоља = ca. 200 ml, čaša / чаша = ca. 200 ml, prstohvat / прстохват = 1 Prise, dl = 100 ml, kesica / кесица = 1 Päckchen (z. B. Backpulver oder Vanillezucker).
 - Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen. Unleserliche Stellen markierst du mit [?].
 - Fehlen die Zubereitungsschritte, lass "steps" leer und schreib in "notes", dass die Zubereitung nur im Video gezeigt wird oder fehlt.
 - Lass Hashtags, Werbung, „Link in Bio“, Rabattcodes, Emojis und Danksagungen weg.
