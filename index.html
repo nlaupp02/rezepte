@@ -1183,7 +1183,7 @@ function renderImport() {
   const imp = state.imp;
   if (!imp) { go("list"); return; }
   const titles = { photo: "Rezept fotografieren" };
-  const intro = `<p class="lead">Fotografier die Seite gerade von oben und gut beleuchtet. Geht das Rezept über mehrere Seiten, nimm einfach mehrere Fotos.</p>`;
+  const intro = `<p class="lead">Fotografier die Seite gerade von oben und gut beleuchtet. Auch Handschrift und andere Sprachen gehen, alles wird ins Deutsche übersetzt. Geht das Rezept über mehrere Seiten, nimm einfach mehrere Fotos.</p>`;
   const noAi = !aiAvailable()
     ? `<div class="status warn"><div><b>Fotos lesen geht gerade nicht.</b><span class="d">Lade die App neu oder tipp das Rezept selbst ein.</span></div></div>` : "";
   const noImg = aiAvailable() && initDone && !imagesAllowed() && imp.mode !== "text"
@@ -1196,7 +1196,7 @@ function renderImport() {
         <input class="vh" id="pick-lib" type="file" accept="image/*" multiple data-file="import">
       </div>
       <div class="thumbs" id="thumbs"></div>` : "";
-  const textField = { label: "Hinweis (optional)", ph: "z. B. nur das Rezept rechts auf der Seite", rows: 2 };
+  const textField = { label: "Hinweis (optional)", ph: "z. B. Omas Handschrift, oder: nur das Rezept rechts", rows: 2 };
 
   app.innerHTML = `
     <div class="topbar">
@@ -1236,7 +1236,7 @@ async function addImportFiles(files) {
   for (const f of list) {
     imp.processing++; renderThumbs();
     try {
-      const blob = await toJpeg(f, 1800, 0.86);
+      const blob = await toJpeg(f, 2400, 0.88);
       imp.images.push({ blob, url: URL.createObjectURL(blob) });
     } catch (e) {
       toast("Ein Bild ließ sich nicht öffnen. Versuch ein anderes.");
@@ -1265,7 +1265,7 @@ function buildPrompt(imp, n) {
       (t ? (n ? ", dazu" : ":") + " die kopierte Beschreibung (unten)" : "") +
       `. Text-Einblendungen im Video gehören auch zum Rezept.`;
   } else if (imp.mode === "photo") {
-    material = `Das Material sind ${n} Foto(s) (Bild 1 bis ${n}) eines Rezepts, z. B. aus einem Kochbuch, einer Zeitschrift, von einem Zettel oder handschriftlich. Mehrere Bilder gehören zum selben Rezept.`;
+    material = `Das Material sind ${n} Foto(s) (Bild 1 bis ${n}) eines Rezepts, z. B. aus einem Kochbuch, einer Zeitschrift, von einem Zettel oder handschriftlich. Mehrere Bilder gehören zum selben Rezept (z. B. mehrere Seiten oder Vorder- und Rückseite).`;
   } else {
     material = `Das Material ist ein eingefügter Text` + (n ? ` und ${n} Bild(er)` : "") + `.`;
   }
@@ -1285,10 +1285,14 @@ Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern
 - "notes": Tipps oder Hinweise aus dem Rezept, sonst ""
 - "source": Buchtitel, Website oder Instagram-Kanal (z. B. "@kanalname"), falls erkennbar, sonst ""
 - "coverImage": Nummer des Bildes (ab 1), das das fertige Gericht gut zeigt, sonst null
+- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Russisch", "Türkisch"
 
 Regeln:
-- Schreib alles auf Deutsch. Ist das Rezept in einer anderen Sprache, übersetze es.
-- Rechne amerikanische Maße in metrische um (cups in g oder ml, oz und lb in g, °F in °C, tbsp in EL, tsp in TL) und runde sinnvoll.
+- Lies auch Handschrift sorgfältig, selbst wenn sie unordentlich, schräg, verblasst oder durchgestrichen ist, und auch alte deutsche Schrift (Sütterlin, Kurrent). Nutze den Zusammenhang des Rezepts, um schwer lesbare Wörter und Mengen zu entziffern.
+- Das Rezept kann in jeder Sprache und Schrift sein, z. B. Englisch, Italienisch, Polnisch, Russisch (Kyrillisch), Griechisch, Türkisch, Arabisch, Persisch, Chinesisch, Japanisch oder Koreanisch, auch gemischt.
+- Schreib alles auf Deutsch: übersetze Titel, Zutaten, Schritte und Notizen natürlich und so, wie man es in einem deutschen Kochbuch schreiben würde. Hat das Gericht einen bekannten Originalnamen (z. B. Borschtsch, Börek, Moussaka), behalte ihn im Titel und ergänze bei Bedarf kurz in Klammern, was es ist.
+- Unbekannte Zutaten übersetzt du mit dem in Deutschland üblichen Namen; gibt es keinen, behalte den Originalnamen und erkläre ihn kurz in Klammern.
+- Rechne amerikanische und alte Maße in metrische um (cups in g oder ml, oz und lb in g, °F in °C, tbsp in EL, tsp in TL, Pfund = 500 g, Tasse ca. 200 ml, Glas ca. 200 ml) und runde sinnvoll. Ist eine Umrechnung nur geschätzt, schreib „ca.“ davor. Gasherd-Stufen rechnest du in °C um.
 - Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen. Unleserliche Stellen markierst du mit [?].
 - Fehlen die Zubereitungsschritte, lass "steps" leer und schreib in "notes", dass die Zubereitung nur im Video gezeigt wird oder fehlt.
 - Lass Hashtags, Werbung, „Link in Bio“, Rabattcodes, Emojis und Danksagungen weg.
@@ -1315,6 +1319,8 @@ function resultToEdit(res, imp) {
   d.ingredientsText = arr(res.ingredients).join("\n");
   d.stepsText = arr(res.steps).map(s => s.replace(/^(\d+[.)]|schritt\s*\d+:?)\s*/i, "")).join("\n");
   d.notes = str(res.notes);
+  const lang = str(res.originalLanguage);
+  if (lang && !/^deutsch/i.test(lang)) d.notes = (d.notes ? d.notes + "\n\n" : "") + "Übersetzt, Originalsprache: " + lang + ".";
   d.source = str(res.source) || (imp.mode === "insta" ? "Instagram" : "");
   d.link = imp.link.trim();
   let ci = Number(res.coverImage);
