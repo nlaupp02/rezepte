@@ -352,6 +352,13 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: bala
 .login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin-top: -6px; }
 .login-links .btn { padding: 8px 4px; font-size: 15px; }
 .grecaptcha-badge { visibility: hidden !important; }
+.card.job .cover img { filter: saturate(.6) brightness(1.05); }
+.job-spin { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(251, 246, 236, .55); }
+.job-spin .spinner { width: 30px; height: 30px; }
+.card.job.err { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
+.job-err { font-size: 13px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
+.job-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.job-actions .btn { min-height: 34px; padding: 5px 10px; font-size: 14px; }
 .ver-box { display: flex; align-items: baseline; gap: 8px; padding: 11px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 15px; }
 .ver-box b { font-size: 17px; color: var(--accent); font-variant-numeric: tabular-nums; }
 .ver-box .ver-date { margin-left: auto; color: var(--muted); font-size: 14px; }
@@ -401,6 +408,7 @@ const ICONS = {
   trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   user: '<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
   logout: '<path d="M14 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H14"/><path d="M10 12h10M16.5 8.5L20 12l-3.5 3.5"/>',
   people: '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17 19a5.5 5.5 0 0 0-2-4.2"/>'
@@ -424,6 +432,7 @@ const state = {
   doneSteps: new Set(),
   edit: null,
   imp: null,
+  jobs: [],
   listScroll: 0
 };
 let db = null, assets = null, sample = null, sampleLimits = null, uid = null, col = null, initDone = false;
@@ -435,9 +444,13 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V13";
+const APP_VERSION = "V14";
 const APP_DATE = "03.11.2026";
-const AI_MODEL = "gemini-3.8-flash";
+const AI_MODEL = "gemini-3.5-flash-lite"; // Gemini: nur, wenn WORKER_URL leer ist
+// Claude über den eigenen Cloudflare-Worker. Leer lassen = kostenlos mit Gemini.
+const WORKER_URL = "";
+const CLAUDE_MODEL = "claude-sonnet-5-5";
+const useClaude = () => !!WORKER_URL;
 const USE_STREAM = false; // einfache Übertragung: robuster bei Virenscannern und Browserschutz
 const APPCHECK_KEY = "6Ld3iQ4uAAAAACRCeaUsl3DDGz26vWcZuLD4kS8A"; // reCAPTCHA Enterprise (Website-Schlüssel, nicht geheim)
 let fb = null, authUser = null, authKnown = false, unsub = null, loadTimer = 0;
@@ -449,7 +462,7 @@ const initPromise = (async () => {
     const app = A.initializeApp(FB_CFG);
     // App Check zuerst: Firebase AI Logic verlangt seit November 2026 ein gültiges App-Check-Token
     let appCheck = null;
-    if (AC) {
+    if (AC && !useClaude()) {
       try { appCheck = AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); }
       catch (e) { console.warn("App Check", e); }
     }
@@ -465,7 +478,7 @@ const initPromise = (async () => {
       model = AI.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { responseMimeType: "application/json", thinkingConfig: { thinkingLevel: low } } });
     } catch (e) { console.warn("AI Logic nicht verfügbar", e); }
     fb = { U, F, auth, db: fsdb, AC, appCheck };
-    sample = model ? makeSample(model) : null;
+    sample = useClaude() ? makeClaude() : (model ? makeSample(model) : null);
     sampleLimits = { maxPromptBytes: 200000, images: { maxCount: 6 } };
     initDone = true;
     U.onAuthStateChanged(auth, onAuth);
@@ -602,6 +615,71 @@ function makeSample(model) {
   };
   return s;
 }
+/* Claude über den Worker */
+async function workerPost(path, body, signal, timeoutMs) {
+  if (!authUser) throw { code: "permission", message: "nicht angemeldet" };
+  let tok;
+  try { tok = await authUser.getIdToken(); } catch (e) { throw { code: "auth_worker", message: String(e.message || e) }; }
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  const onAbort = () => ctl.abort();
+  if (signal) signal.addEventListener("abort", onAbort, { once: true });
+  let res;
+  try {
+    res = await fetch(WORKER_URL.replace(/\/$/, "") + path, {
+      method: "POST", headers: { "Authorization": "Bearer " + tok, "Content-Type": "application/json" }, body, signal: ctl.signal
+    });
+  } catch (e) {
+    if (signal && signal.aborted) throw { code: "cancelled" };
+    if (ctl.signal.aborted) throw { code: "timeout" };
+    throw { code: "offline", message: String(e.message || e) };
+  } finally { clearTimeout(timer); if (signal) signal.removeEventListener("abort", onAbort); }
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  if (!res.ok) throw mapClaudeErr(res.status, data);
+  return data;
+}
+function mapClaudeErr(status, data) {
+  const er = data && data.error;
+  const msg = String((er && typeof er === "object" ? er.message || er.type : (data && data.message) || er) || "");
+  if (er === "not_allowed") return { code: "not_allowed", message: msg };
+  if (er === "auth" || status === 401) return { code: "auth_worker", message: msg };
+  if (er === "no_key") return { code: "no_key", message: msg };
+  if (/credit balance|billing/i.test(msg)) return { code: "no_credit", message: msg };
+  if (status === 429 || status === 529 || /overloaded|rate/i.test(msg)) return { code: "rate_limited", message: msg };
+  if (status === 413 || /image/i.test(msg) && status === 400) return { code: "image_rejected", message: msg };
+  return { code: "upstream_error", message: status + " " + msg };
+}
+function parseJsonLoose(text) {
+  try { return JSON.parse(text); }
+  catch (e) {
+    const m = String(text || "").match(/\{[\s\S]*\}/);
+    if (m) { try { return JSON.parse(m[0]); } catch (e2) { /* unten */ } }
+    throw { code: "invalid_json", text };
+  }
+}
+function makeClaude() {
+  const s = async () => { throw { code: "invalid_request" }; };
+  s.limits = async () => ({ images: { maxCount: 6 } });
+  s.json = async (prompt, opts = {}) => {
+    const content = [];
+    for (const b of (opts.images ? Array.from(opts.images) : [])) {
+      content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: String(await blobToDataUrl(b)).split(",")[1] } });
+    }
+    content.push({ type: "text", text: prompt });
+    // Modell und max_tokens müssen ganz vorne stehen (der Worker prüft das)
+    const body = JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 4096, messages: [{ role: "user", content }] });
+    const data = await workerPost("/scan", body, opts.signal, 120000);
+    const text = ((data && data.content) || []).filter(c => c.type === "text").map(c => c.text).join("");
+    if (!text) throw { code: "empty_completion" };
+    return parseJsonLoose(text);
+  };
+  return s;
+}
+async function fetchPage(url, signal) {
+  return await workerPost("/page", JSON.stringify({ url }), signal, 30000);
+}
+
 function mapAiErr(e) {
   const msg = String((e && (e.message || e.code)) || "");
   if (!navigator.onLine || /Failed to fetch|NetworkError|network/i.test(msg)) return { code: "offline", message: msg };
@@ -767,6 +845,7 @@ const newId = () => "r" + Date.now().toString(36) + Math.random().toString(36).s
 function coverSrc(cover) {
   if (!cover) return null;
   if (cover.assetId) return "/_blob/" + encodeURIComponent(cover.assetId);
+  if (typeof cover.url === "string" && /^https:\/\//.test(cover.url)) return cover.url;
   if (typeof cover.dataUrl === "string" && cover.dataUrl.startsWith("data:image/")) return cover.dataUrl;
   return null;
 }
@@ -902,9 +981,10 @@ function confirmDialog({ title, text, yes, danger }) {
 }
 const ADD_OPTIONS = [
   { mode: "photo", icon: "camera", t: "Rezept fotografieren", d: "Kochbuch, Zeitschrift, Zettel oder Handschrift" },
+  { mode: "link", icon: "link", t: "Link einfügen", d: "Rezept von einer Website, z. B. Chefkoch" },
   { mode: "manual", icon: "pen", t: "Selbst eintippen", d: "Leeres Rezept anlegen" }
 ];
-const addOptions = () => ADD_OPTIONS.map(o =>
+const addOptions = () => ADD_OPTIONS.filter(o => o.mode !== "link" || useClaude()).map(o =>
   `<button class="opt" data-action="start" data-mode="${o.mode}"><span class="tile">${icon(o.icon)}</span><span><b>${o.t}</b><small>${o.d}</small></span></button>`
 ).join("");
 function openSheet() {
@@ -947,7 +1027,10 @@ function renderList() {
   app.innerHTML = `
     <header class="home-head">
       <div><h1 class="brand">Rezepte</h1><p class="sub" id="count"></p></div>
-      <button class="icon-btn" data-action="account" aria-label="Dein Konto">${icon("user")}</button>
+      <div style="display:flex;gap:8px">
+        ${useClaude() ? `<button class="icon-btn" data-action="open-add" aria-label="Rezept hinzufügen">${icon("plus")}</button>` : ""}
+        <button class="icon-btn" data-action="account" aria-label="Dein Konto">${icon("user")}</button>
+      </div>
     </header>
     <div class="stack" style="padding:0;gap:12px">${banner()}</div>
     <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="Rezept oder Zutat suchen" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
@@ -987,7 +1070,7 @@ function renderListBody() {
     return;
   }
   count.textContent = rs.length === 1 ? "1 Rezept" : rs.length + " Rezepte";
-  if (!rs.length) {
+  if (!rs.length && !state.jobs.length) {
     chips.innerHTML = ""; sw.hidden = true; fab.hidden = true;
     grid.innerHTML = `<section class="empty">
       <h2>Dein erstes Rezept</h2>
@@ -996,15 +1079,16 @@ function renderListBody() {
     </section>`;
     return;
   }
-  sw.hidden = false; fab.hidden = false;
+  sw.hidden = !rs.length; fab.hidden = false;
   const cats = CATEGORIES.filter(c => rs.some(r => r.category === c));
   const favN = rs.filter(r => r.favorite).length;
   if ((state.filter === "fav" && !favN) || (state.filter.startsWith("cat:") && !cats.includes(state.filter.slice(4)))) state.filter = "all";
-  chips.innerHTML = [chip("all", "Alle", rs.length), favN ? chip("fav", "Favoriten", favN) : "",
+  chips.innerHTML = !rs.length ? "" : [chip("all", "Alle", rs.length), favN ? chip("fav", "Favoriten", favN) : "",
     ...cats.map(c => chip("cat:" + c, c, rs.filter(r => r.category === c).length))].join("");
   const list = filtered();
-  grid.innerHTML = list.length
-    ? `<div class="grid">${list.map(card).join("")}</div>`
+  const jobsHtml = state.jobs.map(jobCard).join("");
+  grid.innerHTML = (jobsHtml || list.length)
+    ? `<div class="grid">${jobsHtml}${list.map(card).join("")}</div>`
     : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`;
 }
 
@@ -1233,6 +1317,7 @@ function startImport(mode) {
 function renderImport() {
   const imp = state.imp;
   if (!imp) { go("list"); return; }
+  if (imp.mode === "link") { renderLinkImport(); return; }
   const titles = { photo: "Rezept fotografieren" };
   const intro = `<p class="lead">Fotografier die Seite gerade von oben und gut beleuchtet. Auch Handschrift sowie englische, serbische und ungarische Rezepte gehen, alles wird ins Deutsche übersetzt. Geht das Rezept über mehrere Seiten, nimm einfach mehrere Fotos.</p>`;
   const noAi = !aiAvailable()
@@ -1269,6 +1354,24 @@ function renderImport() {
   const ta = $("#imp-text"); if (ta) autosize(ta);
   if (imp.busy) showBusy();
 }
+function renderLinkImport() {
+  const imp = state.imp;
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="back" data-action="back">${icon("back")}Zurück</button>
+      <h2 class="bar-title">Link einfügen</h2>
+      <span style="width:64px"></span>
+    </div>
+    <main class="stack">
+      <p class="lead">Kopier den Link zu einem Rezept, zum Beispiel von Chefkoch oder einem Kochblog, und füg ihn hier ein. Das Rezept wird gelesen, ins Deutsche übersetzt und gespeichert.</p>
+      <div class="field"><label for="imp-link">Link zum Rezept</label>
+        <input id="imp-link" type="url" inputmode="url" autocomplete="off" autocapitalize="off" placeholder="https://www.chefkoch.de/rezepte/…" value="${esc(imp.link)}"></div>
+      <div id="imp-status" aria-live="polite"></div>
+      <button class="btn primary block" id="recognize" data-action="recognize">Rezept holen</button>
+      <p class="muted" style="font-size:14px">Instagram-Links klappen meist nicht, weil Instagram ohne Anmeldung nichts zeigt. Dafür lieber Screenshots machen.</p>
+    </main>`;
+  const f = $("#imp-link"); if (f && !imp.link) f.focus();
+}
 function renderThumbs() {
   const el = $("#thumbs"), imp = state.imp;
   if (!el || !imp) return;
@@ -1287,7 +1390,7 @@ async function addImportFiles(files) {
   for (const f of list) {
     imp.processing++; renderThumbs();
     try {
-      const blob = await toJpeg(f, 2000, 0.86);
+      const blob = await toJpeg(f, 1568, 0.86);
       imp.images.push({ blob, url: URL.createObjectURL(blob) });
     } catch (e) {
       toast("Ein Bild ließ sich nicht öffnen. Versuch ein anderes.");
@@ -1389,71 +1492,153 @@ function resultToEdit(res, imp) {
   const pick = ci >= 0 ? imp.images[ci] : null;
   return { data: d, coverBlob: pick ? pick.blob : null, coverUrl: pick ? pick.url : null };
 }
+function aiErrorText(e) {
+  const c = e && e.code;
+  const msg = {
+    no_recipe: ["Kein Rezept erkannt", (e && e.message) || "Versuch ein schärferes Foto."],
+    no_credit: ["Claude-Guthaben ist aufgebraucht", "Neues Guthaben kommt mit dem nächsten Max-Monat, oder lade auf platform.claude.com auf."],
+    not_allowed: ["Dieses Konto ist nicht freigeschaltet", "Die E-Mail-Adresse muss im Worker bei ALLOWED_EMAILS stehen."],
+    auth_worker: ["Anmeldung beim Server hat nicht geklappt", "Melde dich ab und wieder an."],
+    no_key: ["Der Claude-Schlüssel fehlt", "In Cloudflare beim Worker das Secret ANTHROPIC_API_KEY eintragen."],
+    page_failed: ["Die Seite ließ sich nicht öffnen", (e && e.message) || "Prüf den Link oder mach einen Screenshot vom Rezept."],
+    empty_completion: ["Keine Antwort erhalten", "Tipp auf „Nochmal“."],
+    rate_limited: ["Gerade zu viele Anfragen", "Das kostenlose Limit ist kurz erreicht. Versuch es in einer Minute nochmal."],
+    image_rejected: ["Ein Bild ließ sich nicht lesen", "Nimm ein anderes Foto."],
+    refused: ["Das Foto wurde abgelehnt", "Versuch ein anderes Foto."],
+    invalid_json: ["Die Antwort kam unvollständig an", "Tipp auf „Nochmal“."],
+    ai_off: ["Fotos lesen ist noch nicht eingeschaltet", "In Firebase unter „AI Logic“ die Gemini Developer API aktivieren."],
+    appcheck: ["App Check blockiert das Lesen", "In Firebase unter App Check prüfen, ob die Web-App „Rezepte“ registriert ist."],
+    appcheck_timeout: ["Sicherheitsprüfung hängt", "Werbeblocker oder Brave-Schutz für diese Seite ausschalten und neu laden."],
+    timeout: ["Das Lesen hat zu lange gedauert", "Tipp auf „Nochmal“."],
+    ai_setup: ["Fotos lesen wird noch eingerichtet", "Versuch es in ein paar Minuten nochmal."],
+    offline: ["Keine Internetverbindung", "Tipp auf „Nochmal“, sobald du wieder online bist."],
+    permission: ["Speichern ging nicht", dbErrorText(e)],
+    unavailable: ["Speichern ging nicht", dbErrorText(e)],
+    quota_exceeded: ["Speichern ging nicht", dbErrorText(e)],
+    too_big: ["Speichern ging nicht", dbErrorText(e)]
+  }[c] || ["Lesen hat nicht geklappt", "Tipp auf „Nochmal“."];
+  const detail = e && e.message && !["no_recipe", "rate_limited", "offline", "cancelled", "timeout", "appcheck_timeout"].includes(c)
+    ? " (Fehler: " + String(e.message).slice(0, 160) + ")" : "";
+  return [msg[0], msg[1] + detail];
+}
+
+/* Rezept direkt speichern (ohne Editor) */
+async function saveData(d, coverBlob, coverUrl) {
+  if (!col) throw { code: "permission", message: "nicht angemeldet" };
+  let cover = null;
+  if (coverBlob) { try { cover = await storeCover(coverBlob); } catch (e) { cover = null; } }
+  else if (coverUrl && /^https:\/\//.test(coverUrl)) cover = { url: coverUrl.slice(0, 1500) };
+  const sv = parseFloat(String(d.servings).replace(",", "."));
+  const now = Date.now();
+  const doc = {
+    title: d.title.trim() || "Neues Rezept", category: d.category, emoji: d.emoji || "",
+    servings: sv > 0 && sv < 1000 ? sv : null,
+    prepTime: d.prepTime.trim(), cookTime: d.cookTime.trim(),
+    ingredients: linesOf(d.ingredientsText), steps: linesOf(d.stepsText).map(s => s.replace(/^\d+[.)]\s*/, "")),
+    notes: d.notes.trim(), source: d.source.trim(), link: d.link.trim(),
+    favorite: false, cover, createdAt: now, updatedAt: now
+  };
+  const id = newId();
+  await withRetry(() => col.doc(id).set(doc));
+  if (!state.recipes.some(r => r.id === id)) state.recipes.unshift(Object.assign({ id }, doc));
+  return id;
+}
+
+/* Lesen im Hintergrund: man ist sofort wieder in der Liste */
+function refreshJobs() { if (state.view === "list") renderListBody(); }
+function removeJob(job) { state.jobs = state.jobs.filter(j => j !== job); refreshJobs(); }
+function startJob(src) {
+  const job = { id: "j" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), src, status: "busy", title: "", error: [], t0: Date.now(), ctl: null };
+  state.jobs.unshift(job);
+  runJob(job);
+  return job;
+}
+async function runJob(job) {
+  await initPromise;
+  job.status = "busy"; job.error = []; job.t0 = Date.now(); job.title = "";
+  job.ctl = new AbortController();
+  refreshJobs();
+  if (!sample) { job.status = "error"; job.error = ["Fotos lesen geht gerade nicht", "Lade die App neu und versuch es nochmal."]; refreshJobs(); return; }
+  let src = job.src, pageImage = "";
+  if (src.mode === "link") {
+    try {
+      const pg = await fetchPage(src.link, job.ctl.signal);
+      const m = (pg && pg.meta) || {};
+      pageImage = m["og:image"] || "";
+      const head = [m["og:site_name"] && "Website: " + m["og:site_name"], m["og:title"] && "Titel: " + m["og:title"], m["og:description"] && "Beschreibung: " + m["og:description"]].filter(Boolean).join("\n");
+      const body = pg && pg.kind === "recipe" ? "Strukturierte Rezeptdaten der Seite (schema.org/Recipe):\n" + pg.data : (pg && pg.data) || "";
+      src = { mode: "text", text: `Link: ${src.link}\n${head}\n\n${body}`, link: src.link, images: [] };
+    } catch (e) {
+      if (e && e.code === "cancelled") { removeJob(job); return; }
+      job.status = "error"; job.error = aiErrorText(e && e.code === "upstream_error" ? { code: "page_failed", message: "" } : e); refreshJobs(); return;
+    }
+  }
+  const imgs = src.images.map(i => i.blob);
+  const opts = {
+    signal: job.ctl.signal, cache: false,
+    onText: ({ text }) => {
+      const m = text.match(/"title"\s*:\s*"([^"]{2,80})"/);
+      if (m && m[1] !== job.title) { job.title = m[1]; refreshJobs(); }
+    }
+  };
+  if (imgs.length) opts.images = imgs;
+  try {
+    const res = await sample.json(buildPrompt(src, imgs.length), opts);
+    const insta = /instagram\.com/i.test(job.src.link || "") && job.src.mode === "link";
+    const noRec = insta ? "Instagram zeigt Rezepte nur angemeldet. Mach lieber Screenshots vom Reel und der Beschreibung." : "";
+    if (!res || typeof res !== "object" || res.isRecipe === false) throw { code: "no_recipe", message: noRec || str(res && res.problem) };
+    const conv = resultToEdit(res, src);
+    if (!linesOf(conv.data.ingredientsText).length && !linesOf(conv.data.stepsText).length) throw { code: "no_recipe", message: noRec || str(res.problem) };
+    if (job.src.mode === "link" && !conv.data.source) { try { conv.data.source = new URL(job.src.link).hostname.replace(/^www\./, ""); } catch (e) { /* egal */ } }
+    await saveData(conv.data, conv.coverBlob, pageImage);
+    removeJob(job);
+    toast(`„${conv.data.title}“ gespeichert`);
+  } catch (e) {
+    if (e && e.code === "cancelled") { removeJob(job); return; }
+    console.warn("Rezept lesen", e);
+    job.status = "error"; job.error = aiErrorText(e);
+    refreshJobs();
+  }
+}
+function jobCard(j) {
+  const im = j.src.images[0];
+  const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder(j.src.mode === "link" ? "🔗" : "🍽️");
+  if (j.status === "error") {
+    return `<div class="card job err">
+      <div class="cover">${pic}</div>
+      <div class="card-body"><span class="card-title">${esc(j.error[0] || "Lesen hat nicht geklappt")}</span>
+        <span class="job-err">${esc(j.error[1] || "")}</span>
+        <div class="job-actions"><button class="btn small" data-action="job-retry" data-id="${j.id}">Nochmal</button>
+        <button class="btn small quiet" data-action="job-drop" data-id="${j.id}">Verwerfen</button></div></div></div>`;
+  }
+  return `<div class="card job">
+    <div class="cover">${pic}<span class="job-spin"><span class="spinner"></span></span></div>
+    <div class="card-body"><span class="card-title">${esc(j.title || "Wird gelesen …")}</span>
+      <span class="card-meta">Wird gelesen · <span class="job-time" data-t0="${j.t0}">${Math.round((Date.now() - j.t0) / 1000)} s</span></span></div></div>`;
+}
+setInterval(() => {
+  $$(".job-time").forEach(el => { el.textContent = Math.round((Date.now() - Number(el.dataset.t0)) / 1000) + " s"; });
+}, 1000);
+
 async function recognize() {
   const imp = state.imp;
   if (!imp || imp.busy) return;
   await initPromise;
   if (!sample) { renderImport(); return; }
   if (imp.processing) { toast("Einen Moment, die Bilder werden noch vorbereitet."); return; }
-  const imgs = imagesAllowed() ? imp.images.map(i => i.blob) : [];
-  const t = imp.text.trim();
-  if (!imgs.length && t.length < 15) {
-    showError(imp.mode === "text" ? "Füg zuerst den Rezepttext ein." : "Füg zuerst ein Foto hinzu.", imp.mode === "insta" ? "Screenshots vom Reel oder die kopierte Beschreibung reichen." : "");
-    return;
+  if (imp.mode === "link") {
+    let u = imp.link.trim();
+    const m = u.match(/https?:\/\/\S+/);
+    u = m ? m[0] : u;
+    if (!/^https?:\/\/[^\s.]+\.\S+/.test(u)) { showError("Füg zuerst einen Link ein.", "Zum Beispiel https://www.chefkoch.de/rezepte/…"); return; }
+    startJob({ mode: "link", text: "", link: u, images: [] });
+  } else {
+    if (!imp.images.length) { showError("Füg zuerst ein Foto hinzu.", ""); return; }
+    startJob({ mode: imp.mode, text: imp.text, link: imp.link, images: imp.images.slice() });
   }
-  imp.busy = true;
-  const ctl = new AbortController(); imp.ctl = ctl;
-  showBusy();
-  const opts = {
-    signal: ctl.signal, cache: false, modelTier: "default",
-    onText: ({ text }) => {
-      const m = text.match(/"title"\s*:\s*"([^"]{2,80})"/);
-      const el = $("#busy-detail");
-      if (m && el) el.textContent = "Gefunden: " + m[1];
-    }
-  };
-  if (imgs.length) opts.images = imgs;
-  try {
-    const res = await sample.json(buildPrompt(imp, imgs.length), opts);
-    imp.busy = false; imp.ctl = null;
-    if (state.imp !== imp) return;
-    if (!res || typeof res !== "object" || res.isRecipe === false) {
-      showError("Kein Rezept erkannt", str(res && res.problem) || "Versuch ein schärferes Foto oder füg den Text ein.");
-      return;
-    }
-    const conv = resultToEdit(res, imp);
-    if (!linesOf(conv.data.ingredientsText).length && !linesOf(conv.data.stepsText).length) {
-      showError("Kein Rezept erkannt", str(res.problem) || "Weder Zutaten noch Schritte waren lesbar. Versuch ein schärferes Foto.");
-      return;
-    }
-    openEditor({ isNew: true, data: conv.data, coverBlob: conv.coverBlob, coverUrl: conv.coverUrl, fromImport: true, importImages: imp.images.slice(), dirty: true });
-  } catch (e) {
-    imp.busy = false; imp.ctl = null;
-    if (state.imp !== imp) return;
-    const c = e && e.code;
-    if (c === "cancelled") { setStatus(""); const b = $("#recognize"); if (b) b.disabled = false; return; }
-    if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) {
-      sample = null; renderImport(); return;
-    }
-    if (c === "images_unavailable") { sampleLimits = Object.assign({}, sampleLimits, { images: undefined }); renderImport(); showError("Bilder gehen hier gerade nicht.", "Füg stattdessen den Rezepttext ein."); return; }
-    const msg = {
-      rate_limited: ["Gerade zu viele Anfragen", "Oder dein Claude-Limit ist erreicht. Versuch es später nochmal."],
-      session_expired: ["Bitte neu anmelden", "Melde dich in Claude neu an und versuch es dann nochmal."],
-      image_rejected: ["Ein Bild ließ sich nicht lesen", "Entfern es oder nimm ein anderes Foto."],
-      refused: ["Das konnte Claude nicht verarbeiten", "Versuch ein anderes Foto oder einen anderen Text."],
-      prompt_too_large: ["Der Text ist zu lang", "Kürz ihn auf das eigentliche Rezept."],
-      invalid_json: ["Die Antwort kam unvollständig an", "Tipp nochmal auf „Rezept erkennen“."],
-      empty_completion: ["Keine Antwort erhalten", "Tipp nochmal auf „Rezept erkennen“."],
-      ai_off: ["Fotos lesen ist noch nicht eingeschaltet", "In Firebase unter „AI Logic“ die Gemini Developer API aktivieren."],
-      appcheck: ["App Check blockiert das Lesen", "In Firebase unter App Check prüfen, ob die Web-App „Rezepte“ mit reCAPTCHA Enterprise registriert ist."],
-      appcheck_timeout: ["Sicherheitsprüfung hängt", "reCAPTCHA antwortet nicht. Wenn du einen Werbeblocker oder den Brave-Schutz nutzt, schalte ihn für diese Seite aus und lade neu."],
-      timeout: ["Das Lesen dauert zu lange", "Versuch es nochmal, am besten mit einem schärferen oder zugeschnittenen Foto."],
-      ai_setup: ["Fotos lesen wird noch eingerichtet", "Firebase braucht nach dem Einrichten ein paar Minuten. Versuch es gleich nochmal."],
-      offline: ["Keine Internetverbindung", "Zum Lesen der Fotos brauchst du Internet. Versuch es gleich nochmal."]
-    }[c] || ["Verbindung unterbrochen", "Tipp nochmal auf „Rezept erkennen“."];
-    const detail = e && e.message && !["rate_limited", "offline", "cancelled"].includes(c) ? " (Fehler: " + String(e.message).slice(0, 180) + ")" : "";
-    showError(msg[0], msg[1] + detail);
-  }
+  state.imp = null;
+  go("list");
+  toast("Wird gelesen. Du kannst schon weitermachen.");
 }
 
 /* ---------- Actions ---------- */
@@ -1473,6 +1658,8 @@ const actions = {
     try { await fb.U.signOut(fb.auth); } catch (e) { toast("Abmelden hat nicht geklappt. Versuch es nochmal."); }
   },
   reload: () => location.reload(),
+  "job-retry": el => { const j = state.jobs.find(x => x.id === el.dataset.id); if (j) runJob(j); },
+  "job-drop": el => { const j = state.jobs.find(x => x.id === el.dataset.id); if (j) removeJob(j); },
   "close-layer": () => closeLayer(),
   "modal-yes": () => { closeLayer(); if (modalResolve) { modalResolve(true); modalResolve = null; } },
   "modal-no": () => { closeLayer(); if (modalResolve) { modalResolve(false); modalResolve = null; } },
@@ -1613,12 +1800,19 @@ document.addEventListener("change", async e => {
   if (t.type !== "file") return;
   const files = t.files;
   if (t.dataset.file === "quick") {
-    const list = Array.from(files || []);
+    const list = Array.from(files || []).slice(0, maxImages());
     t.value = "";
     if (!list.length) return;
-    startImport("photo");
-    await addImportFiles(list);
-    renderImport();
+    // Direkt im Hintergrund lesen: man bleibt in der Liste und kann weitermachen
+    const images = [];
+    for (const f of list) {
+      try { const blob = await toJpeg(f, 1568, 0.86); images.push({ blob, url: URL.createObjectURL(blob) }); }
+      catch (err) { /* Bild übersprungen */ }
+    }
+    if (!images.length) { toast("Das Foto ließ sich nicht öffnen. Versuch ein anderes."); return; }
+    startJob({ mode: "photo", text: "", link: "", images });
+    if (state.view !== "list") go("list"); else renderListBody();
+    toast("Wird gelesen. Du kannst schon weitermachen.");
     return;
   }
   if (t.dataset.file === "import") { await addImportFiles(files); if (state.view === "import") renderImport(); }
