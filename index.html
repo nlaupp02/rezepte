@@ -443,7 +443,7 @@ const initPromise = (async () => {
     let model = null;
     try {
       const ai = AI.getAI(app, { backend: new AI.GoogleAIBackend() });
-      model = AI.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { responseMimeType: "application/json", temperature: 0.2 } });
+      model = AI.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { responseMimeType: "application/json" } });
     } catch (e) { console.warn("AI Logic nicht verfügbar", e); }
     fb = { U, F, auth, db: fsdb };
     sample = model ? makeSample(model) : null;
@@ -1381,7 +1381,8 @@ async function recognize() {
       appcheck: ["App Check blockiert das Lesen", "In Firebase unter App Check → APIs bei „Firebase AI Logic“ die Erzwingung aufheben."],
       offline: ["Keine Internetverbindung", "Zum Lesen der Fotos brauchst du Internet. Versuch es gleich nochmal."]
     }[c] || ["Verbindung unterbrochen", "Tipp nochmal auf „Rezept erkennen“."];
-    showError(msg[0], msg[1]);
+    const detail = e && e.message && !["rate_limited", "offline", "cancelled"].includes(c) ? " (Fehler: " + String(e.message).slice(0, 180) + ")" : "";
+    showError(msg[0], msg[1] + detail);
   }
 }
 
