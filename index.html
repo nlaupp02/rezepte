@@ -441,8 +441,9 @@ const initPromise = (async () => {
       import(FB_URL("app-check")).catch(e => { console.warn("App Check lädt nicht", e); return null; })]);
     const app = A.initializeApp(FB_CFG);
     // App Check zuerst: Firebase AI Logic verlangt seit November 2026 ein gültiges App-Check-Token
+    let appCheck = null;
     if (AC) {
-      try { AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); }
+      try { appCheck = AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); }
       catch (e) { console.warn("App Check", e); }
     }
     const auth = U.getAuth(app);
@@ -455,7 +456,7 @@ const initPromise = (async () => {
       const ai = AI.getAI(app, { backend: new AI.GoogleAIBackend() });
       model = AI.getGenerativeModel(ai, { model: AI_MODEL, generationConfig: { responseMimeType: "application/json" } });
     } catch (e) { console.warn("AI Logic nicht verfügbar", e); }
-    fb = { U, F, auth, db: fsdb };
+    fb = { U, F, auth, db: fsdb, AC, appCheck };
     sample = model ? makeSample(model) : null;
     sampleLimits = { maxPromptBytes: 200000, images: { maxCount: 6 } };
     initDone = true;
@@ -551,11 +552,36 @@ function makeSample(model) {
       parts.push({ inlineData: { mimeType: "image/jpeg", data: String(await blobToDataUrl(b)).split(",")[1] } });
     }
     if (signal && signal.aborted) throw { code: "cancelled" };
-    const call = model.generateContent(parts).then(r => r.response.text());
     const stop = new Promise((_, rej) => { if (signal) signal.addEventListener("abort", () => rej({ code: "cancelled" }), { once: true }); });
+    const after = (ms, err) => new Promise((_, rej) => setTimeout(() => rej(err), ms));
+    // 1. Sicherheitsprüfung (App Check / reCAPTCHA) – hängt sie, sofort sagen statt endlos zu laden
+    if (fb.AC && fb.appCheck) {
+      try { await Promise.race([fb.AC.getToken(fb.appCheck, false), stop, after(15000, { code: "appcheck_timeout" })]); }
+      catch (e) {
+        if (e && (e.code === "cancelled" || e.code === "appcheck_timeout")) throw e;
+        console.warn("App Check Token", e);
+        throw { code: "appcheck", message: String((e && e.message) || e) };
+      }
+    }
+    // 2. Gemini fragen, mit Zwischenstand, damit man sieht, dass etwas passiert
+    const run = async () => {
+      if (typeof model.generateContentStream === "function") {
+        const res = await model.generateContentStream(parts);
+        let t = "";
+        for await (const chunk of res.stream) {
+          let piece = "";
+          try { piece = chunk.text(); } catch (e) { piece = ""; }
+          if (piece) { t += piece; if (opts.onText) { try { opts.onText({ text: t, delta: piece }); } catch (e) { /* egal */ } } }
+          if (signal && signal.aborted) break;
+        }
+        if (t) return t;
+        return (await res.response).text();
+      }
+      return (await model.generateContent(parts)).response.text();
+    };
     let text;
-    try { text = await Promise.race([call, stop]); }
-    catch (e) { if (e && e.code === "cancelled") throw e; console.warn("Gemini", e); throw mapAiErr(e); }
+    try { text = await Promise.race([run(), stop, after(120000, { code: "timeout" })]); }
+    catch (e) { if (e && (e.code === "cancelled" || e.code === "timeout")) throw e; console.warn("Gemini", e); throw mapAiErr(e); }
     if (signal && signal.aborted) throw { code: "cancelled" };
     try { return JSON.parse(text); }
     catch (e) {
@@ -1249,7 +1275,7 @@ async function addImportFiles(files) {
   for (const f of list) {
     imp.processing++; renderThumbs();
     try {
-      const blob = await toJpeg(f, 2400, 0.88);
+      const blob = await toJpeg(f, 2000, 0.86);
       imp.images.push({ blob, url: URL.createObjectURL(blob) });
     } catch (e) {
       toast("Ein Bild ließ sich nicht öffnen. Versuch ein anderes.");
@@ -1258,9 +1284,17 @@ async function addImportFiles(files) {
   }
 }
 function setStatus(html) { const el = $("#imp-status"); if (el) el.innerHTML = html; }
+let busyTimer = 0;
 function showBusy(detail) {
-  setStatus(`<div class="status"><span class="spinner"></span><div><b>Rezept wird gelesen …</b>
-    <span class="d" id="busy-detail">${esc(detail || "Das dauert meist 5 bis 20 Sekunden.")}</span></div>
+  clearInterval(busyTimer);
+  const t0 = Date.now();
+  busyTimer = setInterval(() => {
+    const el = $("#busy-time");
+    if (!el || !state.imp || !state.imp.busy) { clearInterval(busyTimer); return; }
+    el.textContent = Math.round((Date.now() - t0) / 1000) + " s";
+  }, 1000);
+  setStatus(`<div class="status"><span class="spinner"></span><div><b>Rezept wird gelesen … <span id="busy-time" style="font-weight:500;color:var(--muted)"></span></b>
+    <span class="d" id="busy-detail">${esc(detail || "Das dauert meist 10 bis 40 Sekunden.")}</span></div>
     <button class="btn small" data-action="stop">Stopp</button></div>`);
   const b = $("#recognize"); if (b) b.disabled = true;
 }
@@ -1400,6 +1434,8 @@ async function recognize() {
       empty_completion: ["Keine Antwort erhalten", "Tipp nochmal auf „Rezept erkennen“."],
       ai_off: ["Fotos lesen ist noch nicht eingeschaltet", "In Firebase unter „AI Logic“ die Gemini Developer API aktivieren."],
       appcheck: ["App Check blockiert das Lesen", "In Firebase unter App Check prüfen, ob die Web-App „Rezepte“ mit reCAPTCHA Enterprise registriert ist."],
+      appcheck_timeout: ["Sicherheitsprüfung hängt", "reCAPTCHA antwortet nicht. Wenn du einen Werbeblocker oder den Brave-Schutz nutzt, schalte ihn für diese Seite aus und lade neu."],
+      timeout: ["Das Lesen dauert zu lange", "Versuch es nochmal, am besten mit einem schärferen oder zugeschnittenen Foto."],
       ai_setup: ["Fotos lesen wird noch eingerichtet", "Firebase braucht nach dem Einrichten ein paar Minuten. Versuch es gleich nochmal."],
       offline: ["Keine Internetverbindung", "Zum Lesen der Fotos brauchst du Internet. Versuch es gleich nochmal."]
     }[c] || ["Verbindung unterbrochen", "Tipp nochmal auf „Rezept erkennen“."];
