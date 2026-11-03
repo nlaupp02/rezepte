@@ -12,12 +12,18 @@ const MODEL = "claude-sonnet-5-5";
 const MAX_TOKENS_LIMIT = 8000;
 const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 
-let jwksCache = null; // { keys, until }
+let jwksCache = null; // { keys, until, missUntil }
 
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
     const cors = corsHeaders(origin);
+    try { return await handle(request, env, origin, cors); }
+    catch (e) { return json({ error: "internal", message: String(e && e.message || e).slice(0, 200) }, 500, cors); }
+  }
+};
+
+async function handle(request, env, origin, cors) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/") {
@@ -30,16 +36,20 @@ export default {
     let user;
     try { user = await verifyFirebaseToken(request.headers.get("Authorization") || ""); }
     catch (e) { return json({ error: "auth", message: String(e.message || e) }, 401, cors); }
+    // Nur die eingetragenen E-Mails – ist die Liste leer, darf niemand rein (lieber zu, als offen)
     const allowed = String(env.ALLOWED_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-    if (allowed.length && !allowed.includes(String(user.email || "").toLowerCase())) {
+    if (!allowed.length || !allowed.includes(String(user.email || "").toLowerCase())) {
       return json({ error: "not_allowed", message: "Dieses Konto ist nicht freigeschaltet." }, 403, cors);
+    }
+    // Die E-Mail muss bestätigt sein (bei Google-Anmeldung immer), sonst könnte sich jemand mit fremder Adresse registrieren
+    if (user.email_verified !== true) {
+      return json({ error: "not_verified", message: "E-Mail-Adresse noch nicht bestätigt." }, 403, cors);
     }
 
     if (url.pathname === "/scan") return scan(request, env, cors);
     if (url.pathname === "/page") return page(request, cors);
     return json({ error: "not_found" }, 404, cors);
-  }
-};
+}
 
 async function scan(request, env, cors) {
   if (!env.ANTHROPIC_API_KEY) return json({ error: "no_key", message: "ANTHROPIC_API_KEY fehlt im Worker." }, 500, cors);
@@ -47,8 +57,13 @@ async function scan(request, env, cors) {
   if (body.length > 20 * 1024 * 1024) return json({ error: "too_big" }, 413, cors);
   // Günstige Prüfung ohne das (große) JSON zu zerlegen: Modell und max_tokens stehen ganz vorne
   const head = body.slice(0, 80);
-  const m = head.match(/^\{"model":"([a-z0-9.-]+)","max_tokens":(\d+),/);
+  const m = head.match(/^\{"model":"([a-z0-9.-]+)","max_tokens":(\d+),"messages":/);
   if (!m || m[1] !== MODEL || Number(m[2]) > MAX_TOKENS_LIMIT) return json({ error: "bad_request", message: "Modell oder Länge nicht erlaubt." }, 400, cors);
+  // Diese Schlüssel dürfen nur einmal vorkommen (in Texten stehen Anführungszeichen immer als \" – das zählt hier nicht mit)
+  for (const key of ['"model":', '"max_tokens":', '"messages":', '"system":', '"tools":', '"stream":']) {
+    const n = body.split(key).length - 1;
+    if (n > (key === '"system":' || key === '"tools":' || key === '"stream":' ? 0 : 1)) return json({ error: "bad_request", message: "Anfrage nicht erlaubt." }, 400, cors);
+  }
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
@@ -57,10 +72,34 @@ async function scan(request, env, cors) {
   return new Response(r.body, { status: r.status, headers: { ...cors, "content-type": "application/json" } });
 }
 
+const MAX_HTML = 1500000;
+function publicWebUrl(u) {
+  if (!/^https?:$/.test(u.protocol)) return false;
+  if (u.port && u.port !== "80" && u.port !== "443") return false;
+  const h = u.hostname.toLowerCase();
+  if (!h.includes(".") || h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".localhost") || h === "localhost") return false;
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(h) || h.startsWith("[")) return false; // keine IP-Adressen
+  if (u.username || u.password) return false;
+  return true;
+}
+async function readLimited(res, max) {
+  const reader = res.body && res.body.getReader();
+  if (!reader) return await res.text();
+  const dec = new TextDecoder();
+  let out = "", got = 0;
+  while (got < max) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    got += value.length;
+    out += dec.decode(value, { stream: true });
+  }
+  try { reader.cancel(); } catch (e) { /* egal */ }
+  return out.slice(0, max);
+}
 async function page(request, cors) {
   let target;
   try { target = new URL((await request.json()).url); } catch (e) { return json({ error: "bad_url" }, 400, cors); }
-  if (!/^https?:$/.test(target.protocol)) return json({ error: "bad_url" }, 400, cors);
+  if (!publicWebUrl(target)) return json({ error: "bad_url", message: "Das ist keine normale Webadresse." }, 400, cors);
   let res;
   try {
     res = await fetch(target.toString(), {
@@ -74,8 +113,11 @@ async function page(request, cors) {
     });
   } catch (e) { return json({ error: "fetch_failed", message: String(e.message || e) }, 502, cors); }
   if (!res.ok) return json({ error: "fetch_failed", message: "Seite antwortet mit " + res.status }, 502, cors);
-  let html = await res.text();
-  if (html.length > 1500000) html = html.slice(0, 1500000);
+  const ctype = (res.headers.get("content-type") || "").toLowerCase();
+  if (ctype && !/html|xml|text\/plain/.test(ctype)) return json({ error: "fetch_failed", message: "Das ist keine Webseite (" + ctype.split(";")[0] + ")." }, 502, cors);
+  const len = Number(res.headers.get("content-length") || 0);
+  if (len > 8 * MAX_HTML) return json({ error: "fetch_failed", message: "Die Seite ist zu groß." }, 502, cors);
+  const html = await readLimited(res, MAX_HTML);
 
   const meta = {};
   for (const name of ["og:title", "og:description", "og:image", "og:site_name", "description"]) {
@@ -122,8 +164,11 @@ function collectRecipes(node, out) {
 function decodeEntities(s) {
   return s.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+    .replace(/&#(\d+);/g, (_, n) => cp(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => cp(parseInt(n, 16)));
+}
+function cp(n) {
+  return n > 0 && n <= 0x10FFFF && !(n >= 0xD800 && n <= 0xDFFF) ? String.fromCodePoint(n) : "";
 }
 
 /* ---------- Firebase-Anmeldung prüfen (ID-Token, RS256) ---------- */
@@ -147,15 +192,15 @@ async function verifyFirebaseToken(authHeader) {
 }
 async function getKey(kid) {
   const now = Date.now();
-  if (!jwksCache || jwksCache.until < now || !jwksCache.keys.some(k => k.kid === kid)) {
+  if (!jwksCache || jwksCache.until < now || (!jwksCache.keys.some(k => k.kid === kid) && !(jwksCache.missUntil > now))) {
     const r = await fetch(JWKS_URL);
     if (!r.ok) throw new Error("Schlüssel nicht ladbar");
     const data = await r.json();
     const maxAge = Number((r.headers.get("cache-control") || "").match(/max-age=(\d+)/)?.[1] || 3600);
-    jwksCache = { keys: data.keys || [], until: now + maxAge * 1000 };
+    jwksCache = { keys: data.keys || [], until: now + maxAge * 1000, missUntil: 0 };
   }
   const jwk = jwksCache.keys.find(k => k.kid === kid);
-  if (!jwk) throw new Error("unbekannter Schlüssel");
+  if (!jwk) { jwksCache.missUntil = now + 60000; throw new Error("unbekannter Schlüssel"); }
   return crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
 }
 function b64urlBytes(s) {

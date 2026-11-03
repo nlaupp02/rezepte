@@ -104,6 +104,7 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
 }
 .fab .ic { width: 22px; height: 22px; stroke-width: 2.4; }
 .fab:active { opacity: .85; }
+body.typing .fab { display: none; }
 
 /* Search + chips */
 .search {
@@ -136,8 +137,8 @@ button.row:active { opacity: .6; }
 .ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 45%, var(--accent-soft)); }
 .ph .ic { width: 32px; height: 32px; stroke-width: 1.5; }
 .row-b { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.row-t { font-size: 17px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.row-m { display: flex; align-items: center; gap: 5px; font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-t { font-size: 17px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row-m { display: flex; align-items: center; gap: 5px; font-size: 15px; line-height: 1.3; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-m .ic { width: 13px; height: 13px; color: var(--heart); }
 .row-m span { overflow: hidden; text-overflow: ellipsis; }
 .chev { width: 16px; height: 16px; color: var(--faint); stroke-width: 2.4; }
@@ -269,7 +270,7 @@ button.row:active { opacity: .6; }
 .hero img { width: 100%; height: 100%; object-fit: cover; }
 .hero .ph .ic { width: 48px; height: 48px; stroke-width: 1.4; }
 .d-head { display: grid; gap: 4px; }
-.d-title { font-size: 28px; line-height: 1.15; }
+.d-title { font-size: 28px; line-height: 1.15; overflow-wrap: anywhere; }
 .info { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: -8px 0 0; font-size: 16px; }
 .info dt { color: var(--muted); }
 .info dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
@@ -280,11 +281,11 @@ button.row:active { opacity: .6; }
 .sec h2 { font-size: 21px; color: var(--accent); }
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 36px; }
 .scaler { display: inline-flex; align-items: center; background: var(--fill); border-radius: 9px; padding: 2px; }
-.scaler button { width: 38px; height: 32px; border: 0; border-radius: 7px; background: none; font-size: 21px; line-height: 1; color: var(--ink); }
+.scaler button { width: 44px; height: 36px; border: 0; border-radius: 7px; background: none; font-size: 21px; line-height: 1; color: var(--ink); }
 .scaler button:active { background: var(--bg); }
 .scaler span { padding: 0 6px; font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .seg { display: inline-flex; background: var(--fill); border-radius: 9px; padding: 2px; }
-.seg button { border: 0; background: none; border-radius: 7px; padding: 7px 13px; font-weight: 500; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.seg button { border: 0; background: none; border-radius: 7px; padding: 9px 14px; font-weight: 500; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .seg button.on { background: var(--bg); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 .ings { list-style: none; margin: 0; padding: 0; }
 .ing {
@@ -312,7 +313,7 @@ button.row:active { opacity: .6; }
 .step.done .no { color: var(--faint); }
 .notes { margin: 0; white-space: pre-wrap; }
 .stars { display: flex; margin: 0 0 0 -5px; }
-.stars button { width: 34px; height: 34px; border: 0; background: none; padding: 0; display: grid; place-items: center; color: var(--faint); }
+.stars button { width: 40px; height: 44px; border: 0; background: none; padding: 0; display: grid; place-items: center; color: var(--faint); }
 .stars .ic { width: 24px; height: 24px; stroke-width: 1.6; }
 .stars button.on { color: var(--star); }
 .row-m .rt { display: inline-flex; align-items: center; gap: 2px; color: var(--ink); margin-right: 2px; }
@@ -452,7 +453,7 @@ const state = {
   sort: (() => { try { return localStorage.getItem("rezepte-sort") || "added"; } catch (e) { return "added"; } })(),
   nutriBusy: null
 };
-let db = null, assets = null, sample = null, sampleLimits = null, uid = null, col = null, initDone = false;
+let sample = null, uid = null, col = null, initDone = false;
 let modalResolve = null;
 
 /* ---------- Firebase: Anmeldung, Speicher, Foto-Erkennung ---------- */
@@ -461,12 +462,13 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V19";
+const APP_VERSION = "V20";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
 const CLAUDE_MODEL = "claude-sonnet-5-5";
 const useClaude = () => true;
+const isStandalone = () => !!(navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches));
 let fb = null, authUser = null, authKnown = false, unsub = null, loadTimer = 0;
 
 const initPromise = (async () => {
@@ -480,9 +482,14 @@ const initPromise = (async () => {
     catch (e) { fsdb = F.getFirestore(app); }
     fb = { U, F, auth, db: fsdb };
     sample = makeClaude();
-    sampleLimits = { maxPromptBytes: 200000, images: { maxCount: 6 } };
     initDone = true;
     U.onAuthStateChanged(auth, onAuth);
+    // Rückkehr von der Google-Anmeldung (Weiterleitung): Fehler anzeigen statt stumm zu scheitern
+    if (U.getRedirectResult) U.getRedirectResult(auth).catch(e => {
+      state.login = state.login || { mode: "in", email: "", busy: false, msg: "", err: "" };
+      state.login.err = authMsg(e) + (isStandalone() ? " Von der Homescreen-App aus klappt Google manchmal nicht. Dann melde dich mit E-Mail und Passwort an." : "");
+      if (state.view === "login") renderLogin();
+    });
   } catch (e) {
     console.error("Firebase konnte nicht laden", e);
     initDone = true; state.fbError = true; render();
@@ -510,6 +517,7 @@ function onAuth(u) {
   state.login = null;
   subscribe();
   state.view = "list"; render();
+  resumeJobs();
 }
 
 function makeCol(id) {
@@ -518,7 +526,7 @@ function makeCol(id) {
     doc: rid => {
       const ref = F.doc(fb.db, "recipes", id, "list", rid);
       return {
-        set: d => fsWrite(F.setDoc(ref, d)),
+        set: (d, merge) => fsWrite(merge ? F.setDoc(ref, d, { merge: true }) : F.setDoc(ref, d)),
         update: d => fsWrite(F.updateDoc(ref, d)),
         delete: () => fsWrite(F.deleteDoc(ref))
       };
@@ -548,10 +556,12 @@ function mapFsErr(e) {
 function subscribe() {
   const { F } = fb;
   clearTimeout(loadTimer);
-  loadTimer = setTimeout(() => { if (!state.loaded) { state.slow = true; onDataChanged(); } }, 10000);
+  loadTimer = setTimeout(() => { if (!state.loaded) { state.slow = true; state.loaded = true; state.storage = "ok"; onDataChanged(); } }, 10000);
   const myUid = uid;
   unsub = F.onSnapshot(F.collection(fb.db, "recipes", uid, "list"), snap => {
     if (uid !== myUid) return;
+    // Leerer Zwischenspeicher beim ersten Start: noch kurz warten, der Server antwortet gleich
+    if (!state.loaded && snap.empty && snap.metadata && snap.metadata.fromCache) return;
     state.recipes = snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     state.loaded = true; state.storage = "ok";
@@ -586,17 +596,27 @@ async function workerPost(path, body, signal, timeoutMs) {
   } catch (e) {
     if (signal && signal.aborted) throw { code: "cancelled" };
     if (ctl.signal.aborted) throw { code: "timeout" };
-    throw { code: "offline", message: String(e.message || e) };
+    throw { code: navigator.onLine === false ? "offline" : "server_unreachable", message: String(e.message || e) };
   } finally { clearTimeout(timer); if (signal) signal.removeEventListener("abort", onAbort); }
   let data = null;
   try { data = await res.json(); } catch (e) { data = null; }
-  if (!res.ok) throw mapClaudeErr(res.status, data);
+  if (!res.ok) {
+    const err = mapClaudeErr(res.status, data);
+    if (err.code === "not_verified" && !workerPost.retried) {
+      workerPost.retried = true;
+      try { await authUser.reload(); await authUser.getIdToken(true); } catch (e) { /* egal */ }
+      return await workerPost(path, body, signal, timeoutMs);
+    }
+    throw err;
+  }
+  workerPost.retried = false;
   return data;
 }
 function mapClaudeErr(status, data) {
   const er = data && data.error;
   const msg = String((er && typeof er === "object" ? er.message || er.type : (data && data.message) || er) || "");
   if (er === "not_allowed") return { code: "not_allowed", message: msg };
+  if (er === "not_verified") return { code: "not_verified", message: msg };
   if (er === "auth" || status === 401) return { code: "auth_worker", message: msg };
   if (er === "no_key") return { code: "no_key", message: msg };
   if (/credit balance|billing/i.test(msg)) return { code: "no_credit", message: msg };
@@ -613,8 +633,7 @@ function parseJsonLoose(text) {
   }
 }
 function makeClaude() {
-  const s = async () => { throw { code: "invalid_request" }; };
-  s.limits = async () => ({ images: { maxCount: 6 } });
+  const s = {};
   s.json = async (prompt, opts = {}) => {
     const content = [];
     for (const b of (opts.images ? Array.from(opts.images) : [])) {
@@ -623,7 +642,7 @@ function makeClaude() {
     if (opts.pdf) content.unshift({ type: "document", source: { type: "base64", media_type: "application/pdf", data: opts.pdf } });
     content.push({ type: "text", text: prompt });
     // Modell und max_tokens müssen ganz vorne stehen (der Worker prüft das)
-    const body = JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 4096, messages: [{ role: "user", content }] });
+    const body = JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 6000, messages: [{ role: "user", content }] });
     const data = await workerPost("/scan", body, opts.signal, 120000);
     const text = ((data && data.content) || []).filter(c => c.type === "text").map(c => c.text).join("");
     if (!text) throw { code: "empty_completion" };
@@ -635,13 +654,15 @@ async function fetchPage(url, signal) {
   return await workerPost("/page", JSON.stringify({ url }), signal, 30000);
 }
 
-let lastBanner = null;
+let lastBanner = null, lastDetailSig = "";
+const detailSig = r => JSON.stringify(Object.assign({}, r, { viewedAt: 0, cover: r.cover ? (r.cover.url || (r.cover.dataUrl || "").length) : null }));
 function onDataChanged() {
   if (state.view === "list") {
     const b = bannerKey();
     if (b !== lastBanner) renderList(); else renderListBody();
   } else if (state.view === "detail") {
-    if (!current()) go("list"); else renderDetail();
+    const r = current();
+    if (!r) go("list"); else if (detailSig(r) !== lastDetailSig) renderDetail();
   }
 }
 
@@ -740,6 +761,7 @@ function renderLogin() {
       <h1 class="brand">Rezepte</h1>
       <p class="lead">Deine Rezepte, auf allen Geräten gespeichert.</p>
       <button class="btn block gbtn" data-action="login-google">${GOOGLE_G}Mit Google anmelden</button>
+      ${isStandalone() ? `<p class="note" style="margin-top:-6px;text-align:center">Klappt Google hier nicht, nimm E-Mail und Passwort.</p>` : ""}
       <div class="or"><span>oder mit E-Mail</span></div>
       <form id="login-form" class="stack" style="padding:0" novalidate>
         ${L.mode === "new" ? `<h2 class="lg-h">Neues Konto</h2>` : L.mode === "reset" ? `<h2 class="lg-h">Passwort zurücksetzen</h2>` : ""}
@@ -762,7 +784,7 @@ function renderLogin() {
 function renderBoot() {
   app.innerHTML = state.fbError
     ? `<main class="login"><h1 class="brand">Rezepte</h1>
-        <div class="status err"><div><b>Die App konnte nicht laden.</b><span class="d">Prüf deine Internetverbindung und versuch es nochmal.</span></div></div>
+        <div class="status err"><div><b>Die App konnte nicht laden.</b><span class="d">${navigator.onLine === false ? "Du bist offline. Sobald du wieder Internet hast, tipp auf „Nochmal versuchen“." : "Prüf deine Internetverbindung und versuch es nochmal."}</span></div></div>
         <button class="btn primary block" data-action="reload">Nochmal versuchen</button></main>`
     : `<main class="login boot"><img class="login-logo" src="icon-192.png?v=2" alt=""><span class="spinner"></span></main>`;
 }
@@ -774,8 +796,10 @@ function openAccount() {
       <div class="sheet-head"><h2 id="a-t">Konto</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
       <div class="group">
         <div class="cell col"><small>Angemeldet als</small><span class="v">${esc(mail)}</span></div>
+        ${authUser && authUser.email && !authUser.emailVerified ? `<button class="cell" data-action="verify-mail"><span>E-Mail bestätigen</span><span class="v">Link senden ›</span></button>` : ""}
         <div class="cell ver-box"><span>Version</span><span class="v">${APP_VERSION}</span></div>
       </div>
+      ${authUser && authUser.email && !authUser.emailVerified ? `<p class="note">Zum Einlesen von Rezepten muss die E-Mail bestätigt sein. Bei Google-Konten ist sie das schon.</p>` : ""}
       <div class="group"><button class="cell danger" data-action="logout">Abmelden</button></div>
     </div>`;
   layer.classList.add("open");
@@ -783,21 +807,24 @@ function openAccount() {
 
 /* ---------- Helpers: recipes ---------- */
 const current = () => state.recipes.find(r => r.id === state.currentId) || null;
+function patchLocal(id, patch) {
+  const i = state.recipes.findIndex(x => x.id === id);
+  if (i >= 0) state.recipes[i] = Object.assign({}, state.recipes[i], patch);
+}
 const isHead = s => /^#/.test(s) || (/:\s*$/.test(s) && !/\d/.test(s) && s.length < 60);
 const headText = s => s.replace(/^#+\s*/, "").replace(/:\s*$/, "");
 const newId = () => "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-function coverSrc(cover) {
+function coverSrc(cover, key) {
   if (!cover) return null;
-  if (cover.assetId) return "/_blob/" + encodeURIComponent(cover.assetId);
   if (typeof cover.url === "string" && /^https:\/\//.test(cover.url)) return cover.url;
-  if (typeof cover.dataUrl === "string" && cover.dataUrl.startsWith("data:image/")) return blobUrl(cover.dataUrl);
+  if (typeof cover.dataUrl === "string" && cover.dataUrl.startsWith("data:image/")) return blobUrl(cover.dataUrl, key);
   return null;
 }
 /* Fotos einmal in eine kurze Blob-Adresse umwandeln: die Liste baut sich dann ohne riesige Texte auf */
 const blobCache = new Map();
-function blobUrl(d) {
-  const k = d.length + ":" + d.slice(-40);
+function blobUrl(d, key) {
+  const k = (key || "") + ":" + d.length + ":" + d.slice(-40);
   let u = blobCache.get(k);
   if (u) return u;
   try {
@@ -805,13 +832,13 @@ function blobUrl(d) {
     for (let j = 0; j < bin.length; j++) a[j] = bin.charCodeAt(j);
     u = URL.createObjectURL(new Blob([a], { type: d.slice(5, d.indexOf(";")) || "image/jpeg" }));
   } catch (e) { u = d; }
-  if (blobCache.size > 600) { const [k0, u0] = blobCache.entries().next().value; blobCache.delete(k0); if (u0.startsWith("blob:")) URL.revokeObjectURL(u0); }
+  if (blobCache.size > 1500) { const [k0, u0] = blobCache.entries().next().value; blobCache.delete(k0); if (u0.startsWith("blob:")) URL.revokeObjectURL(u0); }
   blobCache.set(k, u);
   return u;
 }
 const placeholder = (ic = "pot") => `<div class="ph">${icon(ic)}</div>`;
 function coverHtml(r) {
-  const src = coverSrc(r.cover);
+  const src = coverSrc(r.cover, r.id + ":" + (r.updatedAt || 0));
   return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="">` : placeholder();
 }
 document.addEventListener("error", e => {
@@ -884,7 +911,15 @@ const WORDS = [["Ei", "Eier"], ["Zwiebel", "Zwiebeln"], ["Knoblauchzehe", "Knobl
   ["Glas", "Gläser"], ["Netz", "Netze"], ["Hähnchenbrustfilet", "Hähnchenbrustfilets"], ["Wurst", "Würste"], ["Würstchen", "Würstchen"]];
 const SING = Object.fromEntries(WORDS.map(([a, b]) => [b, a])), PLUR = Object.fromEntries(WORDS);
 function numWord(text, n) {
-  return text.replace(/^(\s*)([A-Za-zÄÖÜäöüß]+)/, (all, sp, w) => sp + ((n > 1 ? PLUR[w] : SING[w]) || w));
+  // erstes Wort aus der Liste (z. B. „Zwiebel“ in „rote Zwiebel“) in Ein- oder Mehrzahl setzen
+  let done = false;
+  return text.replace(/[A-Za-zÄÖÜäöüß]+/g, w => {
+    if (done) return w;
+    const t = n > 1 ? PLUR[w] : SING[w];
+    if (t) { done = true; return t; }
+    if (n > 1 ? SING[w] : PLUR[w]) { done = true; return w; }
+    return w;
+  });
 }
 const dec = (v, d) => String(Math.round(v * 10 ** d) / 10 ** d).replace(".", ",");
 function fmtFrac(v, steps) { // Brüche wie in der Küche
@@ -974,13 +1009,6 @@ async function toJpeg(blob, maxSide, q) {
 const blobToDataUrl = b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });
 
 async function storeCover(blob) {
-  if (assets) {
-    try {
-      const big = await toJpeg(blob, 1200, 0.82);
-      const r = await assets.upload(big);
-      if (r && r.id) return { assetId: r.id };
-    } catch (e) { /* fall back to an inline copy */ }
-  }
   const small = await toJpeg(blob, 640, 0.72);
   return { dataUrl: await blobToDataUrl(small) };
 }
@@ -1039,11 +1067,13 @@ function go(view) {
   keepAwake(view === "detail");
 }
 /* Beim Kochen: Bildschirm bleibt an, solange ein Rezept offen ist */
-let wakeLock = null;
+let wakeLock = null, wakePending = false;
 async function keepAwake(on) {
   try {
-    if (on && !wakeLock && navigator.wakeLock && document.visibilityState === "visible") {
-      const w = await navigator.wakeLock.request("screen");
+    if (on && !wakeLock && !wakePending && navigator.wakeLock && document.visibilityState === "visible") {
+      wakePending = true;
+      let w;
+      try { w = await navigator.wakeLock.request("screen"); } finally { wakePending = false; }
       if (state.view !== "detail") { w.release().catch(() => {}); return; }
       wakeLock = w;
       w.addEventListener("release", () => { if (wakeLock === w) wakeLock = null; });
@@ -1174,6 +1204,7 @@ function openDetail(id) {
 function renderDetail() {
   const r = current();
   if (!r) { app.innerHTML = ""; return; }
+  lastDetailSig = detailSig(r);
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
   if (base && state.servings == null) state.servings = base;
   const factor = base ? state.servings / base : state.factor;
@@ -1289,13 +1320,13 @@ ${(r.ingredients || []).map(l => "- " + l).join("\n")}`;
 
 /* ---------- Editor ---------- */
 function blankData() {
-  return { title: "", category: "Hauptgericht", emoji: "", servings: "", prepTime: "", cookTime: "",
+  return { title: "", category: "Hauptgericht", servings: "", prepTime: "", cookTime: "",
     ingredientsText: "", stepsText: "", notes: "", source: "", link: "", favorite: false, cover: null, createdAt: null,
     rating: 0, nutrition: null, viewedAt: null };
 }
 function toEditData(r) {
   return {
-    title: r.title || "", category: CATEGORIES.includes(r.category) ? r.category : "Sonstiges", emoji: r.emoji || "",
+    title: r.title || "", category: CATEGORIES.includes(r.category) ? r.category : "Sonstiges",
     servings: r.servings ? String(r.servings) : "", prepTime: r.prepTime || "", cookTime: r.cookTime || "",
     ingredientsText: (r.ingredients || []).join("\n"), stepsText: (r.steps || []).join("\n"),
     notes: r.notes || "", source: r.source || "", link: r.link || "", favorite: !!r.favorite,
@@ -1305,7 +1336,7 @@ function toEditData(r) {
 }
 function openEditor(opts) {
   state.edit = Object.assign({ id: null, isNew: true, data: blankData(), coverBlob: null, coverUrl: null,
-    removeCover: false, fromImport: false, importImages: [], dirty: false, saving: false }, opts);
+    removeCover: false, dirty: false, saving: false }, opts);
   go("edit");
 }
 function hasEditCover(ed) { return !!ed.coverBlob || (!ed.removeCover && !!coverSrc(ed.data.cover)); }
@@ -1323,10 +1354,7 @@ function renderCoverSec() {
     <div class="cover-actions">
       <label class="btn small quiet" for="cover-file">${icon("image")}${has ? "Foto ändern" : "Foto vom Gericht hinzufügen"}</label>
       ${has ? `<button class="btn small quiet" data-action="remove-cover">Foto entfernen</button>` : ""}
-    </div>
-    ${ed.importImages.length ? `<div class="pick-cover"><span>Oder eins deiner Bilder als Titelbild:</span>
-      <div class="thumbs small">${ed.importImages.map((im, i) =>
-        `<button class="thumb sel ${ed.coverBlob === im.blob ? "on" : ""}" data-action="use-import-cover" data-i="${i}" aria-label="Bild ${i + 1} als Titelbild"><img src="${esc(im.url)}" alt=""></button>`).join("")}</div></div>` : ""}`;
+    </div>`;
 }
 function fieldHtml(k, label, type, opts = {}) {
   const v = state.edit.data[k];
@@ -1367,6 +1395,7 @@ function renderEdit() {
   renderCoverSec();
   $$("textarea", app).forEach(autosize);
 }
+const stripNo = s => s.replace(/^\d+[.)](?:\s+|$)/, "");
 function linesOf(s) {
   return String(s || "").split(/\n/).map(x => x.replace(/^\s*[-•*–]\s+/, "").trim()).filter(Boolean);
 }
@@ -1384,35 +1413,28 @@ async function saveRecipe() {
   ed.saving = true;
   $$("[data-action=save]").forEach(b => { b.disabled = true; b.textContent = "Speichert …"; });
   try {
-    let cover = d.cover || null, oldAsset = null;
-    if (ed.coverBlob) {
-      const nc = await storeCover(ed.coverBlob);
-      if (cover && cover.assetId) oldAsset = cover.assetId;
-      cover = nc;
-    } else if (ed.removeCover) {
-      if (cover && cover.assetId) oldAsset = cover.assetId;
-      cover = null;
-    }
+    let cover = d.cover || null;
+    if (ed.coverBlob) cover = await storeCover(ed.coverBlob);
+    else if (ed.removeCover) cover = null;
     const sv = parseFloat(String(d.servings).replace(",", "."));
     const now = Date.now();
+    // Nur die Felder aus dem Formular. Sterne, Favorit, Nährwerte usw. bleiben, wie sie gerade (auch vom anderen Gerät) sind.
     const doc = {
-      title, category: d.category, emoji: d.emoji || "",
+      title, category: d.category,
       servings: sv > 0 && sv < 1000 ? sv : null,
       prepTime: d.prepTime.trim(), cookTime: d.cookTime.trim(),
-      ingredients: linesOf(d.ingredientsText), steps: linesOf(d.stepsText).map(s => s.replace(/^\d+[.)]\s*/, "")),
-      notes: d.notes.trim(), source: d.source.trim(), link: d.link.trim(),
-      favorite: !!d.favorite, cover, createdAt: d.createdAt || now, updatedAt: now,
-      rating: Number(d.rating) || 0, nutrition: cleanNutrition(d.nutrition), viewedAt: d.viewedAt || null
+      ingredients: linesOf(d.ingredientsText), steps: linesOf(d.stepsText).map(stripNo),
+      notes: d.notes.trim(), source: d.source.trim(), cover, updatedAt: now
     };
     const id = ed.id || newId();
-    await withRetry(() => col.doc(id).set(doc));
-    if (oldAsset && assets) assets.delete(oldAsset).catch(() => {});
+    const existing = ed.id ? state.recipes.find(r => r.id === ed.id) : null;
+    if (!existing) Object.assign(doc, { link: d.link.trim(), favorite: false, createdAt: now, rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null });
+    await withRetry(() => col.doc(id).set(doc, true));
     const i = state.recipes.findIndex(r => r.id === id);
-    const local = Object.assign({ id }, doc);
+    const local = Object.assign({ id }, existing || {}, doc);
     if (i >= 0) state.recipes[i] = local; else state.recipes.unshift(local);
-    const fromImport = ed.fromImport;
     state.edit = null;
-    if (fromImport) state.imp = null;
+    if (ed.coverUrl) URL.revokeObjectURL(ed.coverUrl);
     openDetail(id);
     toast("Gespeichert");
   } catch (e) {
@@ -1423,56 +1445,14 @@ async function saveRecipe() {
 }
 
 /* ---------- Import ---------- */
-const imagesAllowed = () => !initDone || !!(sampleLimits && sampleLimits.images);
-const aiAvailable = () => !initDone || !!sample;
-const maxImages = () => (sampleLimits && sampleLimits.images && sampleLimits.images.maxCount) || 5;
-
+const maxImages = () => 6;
 function startImport(mode) {
-  state.imp = { mode, images: [], processing: 0, text: "", link: "", busy: false, ctl: null };
+  state.imp = { mode, link: "" };
   go("import");
 }
 function renderImport() {
   const imp = state.imp;
   if (!imp) { go("list"); return; }
-  if (imp.mode === "link") { renderLinkImport(); return; }
-  const titles = { photo: "Rezept fotografieren" };
-  const intro = `<p class="lead">Fotografier die Seite gerade von oben und gut beleuchtet. Auch Handschrift sowie englische, serbische und ungarische Rezepte gehen, alles wird ins Deutsche übersetzt. Geht das Rezept über mehrere Seiten, nimm einfach mehrere Fotos.</p>`;
-  const noAi = !aiAvailable()
-    ? `<div class="status warn"><div><b>Fotos lesen geht gerade nicht.</b><span class="d">Lade die App neu oder tipp das Rezept selbst ein.</span></div></div>` : "";
-  const noImg = aiAvailable() && initDone && !imagesAllowed() && imp.mode !== "text"
-    ? `<div class="status warn"><div><b>Bilder gehen hier gerade nicht.</b><span class="d">Füg stattdessen den Rezepttext ein.</span></div></div>` : "";
-  const pickers = imagesAllowed() && imp.mode !== "text"
-    ? `<div class="pick-row">
-        <label class="tilebtn" for="pick-cam">${icon("camera")}<span>${imp.images.length ? "Weitere Seite" : "Foto aufnehmen"}</span></label>
-        <input class="vh" id="pick-cam" type="file" accept="image/*" capture="environment" data-file="import">
-        <label class="tilebtn" for="pick-lib">${icon("image")}<span>Aus Fotos wählen</span></label>
-        <input class="vh" id="pick-lib" type="file" accept="image/*" multiple data-file="import">
-      </div>
-      <div class="thumbs" id="thumbs"></div>` : "";
-  const textField = { label: "Hinweis (optional)", ph: "z. B. Omas Handschrift, oder: nur das Rezept rechts", rows: 2 };
-
-  app.innerHTML = `
-    <div class="topbar">
-      <button class="tbtn" data-action="back">Abbrechen</button>
-      <h2 class="bar-title">${titles[imp.mode]}</h2>
-      <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
-    </div>
-    <main class="stack">
-      ${intro}${noAi}${noImg}${pickers}
-      <div class="field">
-        <label for="imp-text">${textField.label}</label>
-        <textarea id="imp-text" rows="${textField.rows}" placeholder="${esc(textField.ph)}">${esc(imp.text)}</textarea>
-      </div>
-      <div id="imp-status" aria-live="polite"></div>
-      <button class="btn primary block" id="recognize" data-action="recognize" ${aiAvailable() ? "" : "disabled"}>Rezept erkennen</button>
-      <button class="btn quiet block" data-action="manual-from-import">Lieber selbst eintippen</button>
-    </main>`;
-  renderThumbs();
-  const ta = $("#imp-text"); if (ta) autosize(ta);
-  if (imp.busy) showBusy();
-}
-function renderLinkImport() {
-  const imp = state.imp;
   app.innerHTML = `
     <div class="topbar">
       <button class="tbtn" data-action="back">Abbrechen</button>
@@ -1491,50 +1471,9 @@ function renderLinkImport() {
     </main>`;
   const ta = $("#imp-link"); if (ta) autosize(ta);
 }
-function renderThumbs() {
-  const el = $("#thumbs"), imp = state.imp;
-  if (!el || !imp) return;
-  el.innerHTML = imp.images.map((im, i) =>
-    `<figure class="thumb"><img src="${esc(im.url)}" alt="Bild ${i + 1}"><span class="num">${i + 1}</span>
-      <button class="thumb-x" data-action="remove-img" data-i="${i}" aria-label="Bild ${i + 1} entfernen">${icon("x")}</button></figure>`).join("")
-    + Array.from({ length: imp.processing }, () => `<figure class="thumb loading"><span class="spinner"></span></figure>`).join("");
-}
-async function addImportFiles(files) {
-  const imp = state.imp;
-  if (!imp) return;
-  const max = maxImages();
-  let list = Array.from(files || []);
-  const room = max - imp.images.length - imp.processing;
-  if (list.length > room) { toast(`Höchstens ${max} Bilder pro Rezept.`); list = list.slice(0, Math.max(0, room)); }
-  for (const f of list) {
-    imp.processing++; renderThumbs();
-    try {
-      const blob = await toJpeg(f, 1568, 0.86);
-      imp.images.push({ blob, url: URL.createObjectURL(blob) });
-    } catch (e) {
-      toast("Ein Bild ließ sich nicht öffnen. Versuch ein anderes.");
-    }
-    imp.processing--; renderThumbs();
-  }
-}
-function setStatus(html) { const el = $("#imp-status"); if (el) el.innerHTML = html; }
-let busyTimer = 0;
-function showBusy(detail) {
-  clearInterval(busyTimer);
-  const t0 = Date.now();
-  busyTimer = setInterval(() => {
-    const el = $("#busy-time");
-    if (!el || !state.imp || !state.imp.busy) { clearInterval(busyTimer); return; }
-    el.textContent = Math.round((Date.now() - t0) / 1000) + " s";
-  }, 1000);
-  setStatus(`<div class="status"><span class="spinner"></span><div><b>Rezept wird gelesen … <span id="busy-time" style="font-weight:500;color:var(--muted)"></span></b>
-    <span class="d" id="busy-detail">${esc(detail || "Das dauert meist 10 bis 40 Sekunden.")}</span></div>
-    <button class="btn small" data-action="stop">Stopp</button></div>`);
-  const b = $("#recognize"); if (b) b.disabled = true;
-}
 function showError(title, text) {
-  setStatus(`<div class="status err"><div><b>${esc(title)}</b>${text ? `<span class="d">${esc(text)}</span>` : ""}</div></div>`);
-  const b = $("#recognize"); if (b) b.disabled = !aiAvailable();
+  const el = $("#imp-status");
+  if (el) el.innerHTML = `<div class="status err"><div><b>${esc(title)}</b>${text ? `<span class="d">${esc(text)}</span>` : ""}</div></div>`;
 }
 
 function buildPrompt(imp, n) {
@@ -1561,7 +1500,6 @@ Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern
 - "problem": leer, oder kurz auf Deutsch, warum kein Rezept erkennbar ist (z. B. unscharf, abgeschnitten, nur ein Video-Standbild ohne Text)
 - "title": kurzer, klarer Rezeptname auf Deutsch
 - "category": genau eins von: ${CATEGORIES.join(", ")}
-- "emoji": ein passendes Essens-Emoji
 - "servings": für wie viele Personen bzw. Portionen das Rezept ist, als Zahl, oder null
 - "prepTime": Vorbereitungszeit wie "15 Min." oder "1 Std. 10 Min.", sonst ""
 - "cookTime": Koch- bzw. Backzeit im selben Format, sonst ""
@@ -1600,12 +1538,11 @@ function resultToEdit(res, imp) {
   const d = blankData();
   d.title = str(res.title) || "Neues Rezept";
   d.category = CATEGORIES.includes(res.category) ? res.category : "Sonstiges";
-  d.emoji = Array.from(str(res.emoji)).slice(0, 3).join("");
   const sv = Number(res.servings);
   d.servings = sv > 0 && sv < 1000 ? String(Math.round(sv * 10) / 10).replace(".", ",") : "";
   d.prepTime = str(res.prepTime); d.cookTime = str(res.cookTime);
   d.ingredientsText = arr(res.ingredients).join("\n");
-  d.stepsText = arr(res.steps).map(s => s.replace(/^(\d+[.)]|schritt\s*\d+:?)\s*/i, "")).join("\n");
+  d.stepsText = arr(res.steps).map(s => s.replace(/^schritt\s*\d+:?\s*/i, "")).map(stripNo).join("\n");
   d.notes = str(res.notes);
   const lang = str(res.originalLanguage);
   if (lang && !/^deutsch/i.test(lang)) d.notes = (d.notes ? d.notes + "\n\n" : "") + "Übersetzt, Originalsprache: " + lang + ".";
@@ -1613,9 +1550,10 @@ function resultToEdit(res, imp) {
   d.link = imp.link.trim();
   d.nutrition = cleanNutrition(res.nutrition);
   let ci = Number(res.coverImage);
-  ci = Number.isInteger(ci) && ci >= 1 && ci <= imp.images.length ? ci - 1 : -1;
-  const pick = ci >= 0 ? imp.images[ci] : null;
-  return { data: d, coverBlob: pick ? pick.blob : null, coverUrl: pick ? pick.url : null };
+  const imgs = imp.images || [];
+  ci = Number.isInteger(ci) && ci >= 1 && ci <= imgs.length ? ci - 1 : -1;
+  const pick = ci >= 0 ? imgs[ci] : null;
+  return { data: d, coverBlob: pick ? pick.blob : null, coverUrl: null };
 }
 function cleanNutrition(n) {
   if (!n || typeof n !== "object") return null;
@@ -1630,6 +1568,8 @@ function aiErrorText(e) {
     no_recipe: ["Kein Rezept erkannt", (e && e.message) || "Versuch ein schärferes Foto."],
     no_credit: ["Claude-Guthaben ist aufgebraucht", "Neues Guthaben kommt mit dem nächsten Max-Monat, oder lade auf platform.claude.com auf."],
     not_allowed: ["Dieses Konto ist nicht freigeschaltet", "Die E-Mail-Adresse muss im Worker bei ALLOWED_EMAILS stehen."],
+    not_verified: ["E-Mail noch nicht bestätigt", "Melde dich mit Google an, oder bestätige deine E-Mail unter dem Personen-Symbol und lade die App danach neu."],
+    server_unreachable: ["Der Server antwortet nicht", "Versuch es in einer Minute nochmal."],
     auth_worker: ["Anmeldung beim Server hat nicht geklappt", "Melde dich ab und wieder an."],
     no_key: ["Der Claude-Schlüssel fehlt", "In Cloudflare beim Worker das Secret ANTHROPIC_API_KEY eintragen."],
     page_failed: ["Die Seite ließ sich nicht öffnen", (e && e.message) || "Prüf den Link oder mach einen Screenshot vom Rezept."],
@@ -1645,7 +1585,7 @@ function aiErrorText(e) {
     quota_exceeded: ["Speichern ging nicht", dbErrorText(e)],
     too_big: ["Speichern ging nicht", dbErrorText(e)]
   }[c] || ["Lesen hat nicht geklappt", "Tipp auf „Nochmal“."];
-  const detail = e && e.message && !["no_recipe", "rate_limited", "offline", "cancelled", "timeout"].includes(c)
+  const detail = e && e.message && !["no_recipe", "rate_limited", "offline", "cancelled", "timeout", "page_failed", "not_verified", "server_unreachable"].includes(c)
     ? " (Fehler: " + String(e.message).slice(0, 160) + ")" : "";
   return [msg[0], msg[1] + detail];
 }
@@ -1659,10 +1599,10 @@ async function saveData(d, coverBlob, coverUrl) {
   const sv = parseFloat(String(d.servings).replace(",", "."));
   const now = Date.now();
   const doc = {
-    title: d.title.trim() || "Neues Rezept", category: d.category, emoji: d.emoji || "",
+    title: d.title.trim() || "Neues Rezept", category: d.category,
     servings: sv > 0 && sv < 1000 ? sv : null,
     prepTime: d.prepTime.trim(), cookTime: d.cookTime.trim(),
-    ingredients: linesOf(d.ingredientsText), steps: linesOf(d.stepsText).map(s => s.replace(/^\d+[.)]\s*/, "")),
+    ingredients: linesOf(d.ingredientsText), steps: linesOf(d.stepsText).map(stripNo),
     notes: d.notes.trim(), source: d.source.trim(), link: d.link.trim(),
     favorite: false, cover, createdAt: now, updatedAt: now,
     rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null
@@ -1673,12 +1613,67 @@ async function saveData(d, coverBlob, coverUrl) {
   return id;
 }
 
-/* Lesen im Hintergrund: man ist sofort wieder in der Liste */
+/* Lesen im Hintergrund: man ist sofort wieder in der Liste.
+   Jeder Auftrag liegt auch im Gerätespeicher (IndexedDB): lädt iOS die App zwischendurch neu, geht er weiter. */
+const JOB_DB = "rezepte-jobs";
+function jobDb() {
+  if (jobDb.p) return jobDb.p;
+  jobDb.p = new Promise(res => {
+    try {
+      const rq = indexedDB.open(JOB_DB, 1);
+      rq.onupgradeneeded = () => { rq.result.createObjectStore("jobs", { keyPath: "id" }); };
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => res(null);
+      rq.onblocked = () => res(null);
+    } catch (e) { res(null); }
+  });
+  return jobDb.p;
+}
+async function jobStore(op, arg) {
+  const d = await jobDb();
+  if (!d) return op === "all" ? [] : undefined;
+  return await new Promise(res => {
+    try {
+      const tx = d.transaction("jobs", op === "all" ? "readonly" : "readwrite"), st = tx.objectStore("jobs");
+      const rq = op === "all" ? st.getAll() : op === "put" ? st.put(arg) : st.delete(arg);
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => res(op === "all" ? [] : undefined);
+    } catch (e) { res(op === "all" ? [] : undefined); }
+  });
+}
+function jobRecord(job) {
+  const src = job.src;
+  return { id: job.id, uid: job.uid, t0: job.t0, src: { mode: src.mode, text: src.text || "", link: src.link || "", images: (src.images || []).map(i => i.blob), pdf: src.pdf || null } };
+}
+async function resumeJobs() {
+  const myUid = uid;
+  const all = await jobStore("all");
+  if (uid !== myUid) return;
+  for (const rec of all) {
+    if (rec.uid !== uid) continue;
+    if (state.jobs.some(j => j.id === rec.id)) continue;
+    const src = Object.assign({}, rec.src, { images: (rec.src.images || []).map(b => ({ blob: b, url: URL.createObjectURL(b) })) });
+    const job = { id: rec.id, src, status: "busy", title: "", error: [], t0: rec.t0 || Date.now(), ctl: null, uid: rec.uid, conv: null };
+    state.jobs.push(job);
+    runJob(job);
+  }
+  if (all.some(r => r.uid === uid)) refreshJobs();
+}
 function refreshJobs() { if (state.view === "list") renderListBody(); }
-function removeJob(job) { state.jobs = state.jobs.filter(j => j !== job); refreshJobs(); }
-function startJob(src) {
-  const job = { id: "j" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), src, status: "busy", title: "", error: [], t0: Date.now(), ctl: null, uid };
+function removeJob(job) {
+  state.jobs = state.jobs.filter(j => j !== job);
+  jobStore("del", job.id);
+  setTimeout(() => (job.src.images || []).forEach(i => { if (i.url) URL.revokeObjectURL(i.url); }), 2000);
+  refreshJobs();
+}
+function newJob(src, status) {
+  const job = { id: "j" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), src, status: status || "busy", title: "", error: [], t0: Date.now(), ctl: null, uid, conv: null };
   state.jobs.unshift(job);
+  return job;
+}
+function startJob(src, job) {
+  if (!job) job = newJob(src); else job.src = src;
+  jobStore("put", jobRecord(job));
   runJob(job);
   return job;
 }
@@ -1687,52 +1682,51 @@ async function runJob(job) {
   job.status = "busy"; job.error = []; job.t0 = Date.now(); job.title = "";
   job.ctl = new AbortController();
   refreshJobs();
-  if (!sample) { job.status = "error"; job.error = ["Fotos lesen geht gerade nicht", "Lade die App neu und versuch es nochmal."]; refreshJobs(); return; }
-  let src = job.src, pageImage = "";
-  if (src.mode === "link") {
-    try {
-      const pg = await fetchPage(src.link, job.ctl.signal);
+  if (!sample) { job.status = "error"; job.error = ["Lesen geht gerade nicht", "Lade die App neu und versuch es nochmal."]; refreshJobs(); return; }
+  const done = async conv => {
+    if (job.dead || job.uid !== uid) return;
+    await saveData(conv.data, conv.coverBlob, conv.coverUrl);
+    removeJob(job);
+    toast(`„${conv.data.title}“ gespeichert`);
+  };
+  try {
+    // Schon gelesen, nur das Speichern hatte gehakt: nicht nochmal lesen (kostet Guthaben)
+    if (job.conv) { await done(job.conv); return; }
+    let src = job.src, pageImage = "";
+    if (src.mode === "link") {
+      let pg;
+      try { pg = await fetchPage(src.link, job.ctl.signal); }
+      catch (e) { throw (e && e.code === "upstream_error") ? { code: "page_failed", message: String(e.message || "").replace(/^\d{3}\s*/, "") } : e; }
       const m = (pg && pg.meta) || {};
       pageImage = m["og:image"] || "";
       const head = [m["og:site_name"] && "Website: " + m["og:site_name"], m["og:title"] && "Titel: " + m["og:title"], m["og:description"] && "Beschreibung: " + m["og:description"]].filter(Boolean).join("\n");
       const body = pg && pg.kind === "recipe" ? "Strukturierte Rezeptdaten der Seite (schema.org/Recipe):\n" + pg.data : (pg && pg.data) || "";
       src = { mode: "text", page: true, text: `Link: ${src.link}\n${head}\n\n${body}`, link: src.link, images: [] };
-    } catch (e) {
-      if (e && e.code === "cancelled") { removeJob(job); return; }
-      job.status = "error"; job.error = aiErrorText(e && e.code === "upstream_error" ? { code: "page_failed", message: "" } : e); refreshJobs(); return;
     }
-  }
-  const imgs = src.images.map(i => i.blob);
-  const opts = {
-    signal: job.ctl.signal, cache: false,
-    onText: ({ text }) => {
-      const m = text.match(/"title"\s*:\s*"([^"]{2,80})"/);
-      if (m && m[1] !== job.title) { job.title = m[1]; refreshJobs(); }
-    }
-  };
-  if (imgs.length) opts.images = imgs;
-  if (src.pdf) opts.pdf = src.pdf.data;
-  try {
+    const imgs = (src.images || []).map(i => i.blob);
+    const opts = { signal: job.ctl.signal };
+    if (imgs.length) opts.images = imgs;
+    if (src.pdf) opts.pdf = src.pdf.data;
     const res = await sample.json(buildPrompt(src, imgs.length), opts);
     const insta = /instagram\.com/i.test(job.src.link || "") && job.src.mode === "link";
     const noRec = insta ? "Instagram zeigt Rezepte nur angemeldet. Mach lieber Screenshots vom Reel und der Beschreibung." : "";
     if (!res || typeof res !== "object" || res.isRecipe === false) throw { code: "no_recipe", message: noRec || str(res && res.problem) };
     const conv = resultToEdit(res, src);
     if (!linesOf(conv.data.ingredientsText).length && !linesOf(conv.data.stepsText).length) throw { code: "no_recipe", message: noRec || str(res.problem) };
-    if (job.dead || job.uid !== uid) return;
     if (job.src.mode === "link" && !conv.data.source) { try { conv.data.source = new URL(job.src.link).hostname.replace(/^www\./, ""); } catch (e) { /* egal */ } }
-    await saveData(conv.data, conv.coverBlob, pageImage);
-    removeJob(job);
-    toast(`„${conv.data.title}“ gespeichert`);
+    if (!conv.coverBlob && pageImage) conv.coverUrl = pageImage;
+    job.conv = conv;
+    await done(conv);
   } catch (e) {
     if (e && e.code === "cancelled") { removeJob(job); return; }
+    if (job.dead) return;
     console.warn("Rezept lesen", e);
     job.status = "error"; job.error = aiErrorText(e);
     refreshJobs();
   }
 }
 function jobCard(j) {
-  const im = j.src.images[0];
+  const im = (j.src.images || [])[0];
   const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder({ link: "link", text: "text", pdf: "doc" }[j.src.mode] || "pot");
   if (j.status === "error") {
     return `<li><div class="row job err">
@@ -1742,7 +1736,9 @@ function jobCard(j) {
         <span class="job-actions"><button class="btn small primary" data-action="job-retry" data-id="${j.id}">Nochmal</button>
         <button class="btn small" data-action="job-drop" data-id="${j.id}">Entfernen</button></span></span></div></li>`;
   }
-  let meta = j.src.images.length === 1 ? "1 Foto" : j.src.images.length + " Fotos";
+  const n = (j.src.images || []).length;
+  let meta = n === 1 ? "1 Foto" : n + " Fotos";
+  if (j.status === "prep") meta = "Bilder werden vorbereitet …";
   if (j.src.mode === "link") { try { meta = new URL(j.src.link).hostname.replace(/^www\./, ""); } catch (e) { meta = "Link"; } }
   if (j.src.mode === "text") meta = "Eingefügter Text";
   if (j.src.mode === "pdf") meta = (j.src.pdf && j.src.pdf.name) || "PDF";
@@ -1754,22 +1750,16 @@ function jobCard(j) {
 
 async function recognize() {
   const imp = state.imp;
-  if (!imp || imp.busy) return;
+  if (!imp) return;
   await initPromise;
-  if (!sample) { renderImport(); return; }
-  if (imp.processing) { toast("Einen Moment, die Bilder werden noch vorbereitet."); return; }
-  if (imp.mode === "link") {
-    const raw = imp.link.trim();
-    const m = raw.match(/https?:\/\/[^\s.]+\.\S+/);
-    const rest = m ? raw.replace(m[0], "").trim() : raw;
-    if (!raw) { showError("Füg zuerst einen Link oder Text ein.", ""); return; }
-    if (m && rest.length < 100 && !/\n/.test(rest)) startJob({ mode: "link", text: "", link: m[0], images: [] });
-    else if (raw.length < 40) { showError("Das ist zu wenig für ein Rezept.", "Füg den ganzen Rezepttext oder einen Link ein."); return; }
-    else startJob({ mode: "text", text: raw.slice(0, 20000), link: m ? m[0] : "", images: [] });
-  } else {
-    if (!imp.images.length) { showError("Füg zuerst ein Foto hinzu.", ""); return; }
-    startJob({ mode: imp.mode, text: imp.text, link: imp.link, images: imp.images.slice() });
-  }
+  if (!sample) { showError("Lesen geht gerade nicht.", "Lade die App neu und versuch es nochmal."); return; }
+  const raw = imp.link.trim();
+  const m = raw.match(/https?:\/\/[^\s.]+\.\S+/);
+  const rest = m ? raw.replace(m[0], "").trim() : raw;
+  if (!raw) { showError("Füg zuerst einen Link oder Text ein.", ""); return; }
+  if (m && rest.length < 100 && !/\n/.test(rest)) startJob({ mode: "link", text: "", link: m[0], images: [] });
+  else if (raw.length < 40) { showError("Das ist zu wenig für ein Rezept.", "Füg den ganzen Rezepttext oder einen Link ein."); return; }
+  else startJob({ mode: "text", text: raw.slice(0, 20000), link: m ? m[0] : "", images: [] });
   state.imp = null;
   go("list");
 }
@@ -1792,11 +1782,10 @@ const actions = {
   rate: async el => {
     const r = current(); if (!r || !col) return;
     const v = Number(el.dataset.v) === Number(r.rating) ? 0 : Number(el.dataset.v);
-    const i = state.recipes.indexOf(r);
-    state.recipes[i] = Object.assign({}, r, { rating: v });
+    patchLocal(r.id, { rating: v });
     renderDetail();
     try { await withRetry(() => col.doc(r.id).update({ rating: v })); }
-    catch (e) { state.recipes[i] = r; renderDetail(); toast(dbErrorText(e)); }
+    catch (e) { patchLocal(r.id, { rating: r.rating || 0 }); renderDetail(); toast(dbErrorText(e)); }
   },
   nutri: async () => {
     const r = current(); if (!r || !col || state.nutriBusy) return;
@@ -1807,8 +1796,7 @@ const actions = {
       const n = await estimateNutrition(r);
       if (!n) throw { code: "no_recipe", message: "" };
       await withRetry(() => col.doc(r.id).update({ nutrition: n }));
-      const i = state.recipes.findIndex(x => x.id === r.id);
-      if (i >= 0) state.recipes[i] = Object.assign({}, state.recipes[i], { nutrition: n });
+      patchLocal(r.id, { nutrition: n });
     } catch (e) {
       const [t, d] = aiErrorText(e);
       toast(e && e.code === "no_recipe" ? "Nährwerte ließen sich nicht schätzen." : t + ". " + d);
@@ -1825,6 +1813,11 @@ const actions = {
     const f = $("#lg-mail"); if (f && !L.email) f.focus();
   },
   account: () => openAccount(),
+  "verify-mail": async () => {
+    if (!fb || !authUser) return;
+    try { await fb.U.sendEmailVerification(authUser); closeLayer(); toast("Link ist unterwegs. Schau auch im Spam-Ordner nach."); }
+    catch (e) { toast(authMsg(e)); }
+  },
   logout: async () => {
     closeLayer();
     try { await fb.U.signOut(fb.auth); } catch (e) { toast("Abmelden hat nicht geklappt. Versuch es nochmal."); }
@@ -1845,18 +1838,15 @@ const actions = {
   "open-recipe": el => openDetail(el.dataset.id),
   back: async () => {
     if (state.view === "detail") { go("list"); return; }
-    if (state.view === "import") {
-      if (state.imp && state.imp.ctl) state.imp.ctl.abort();
-      state.imp = null; go("list"); return;
-    }
+    if (state.view === "import") { state.imp = null; go("list"); return; }
     if (state.view === "edit") {
       const ed = state.edit;
       if (ed && ed.dirty) {
-        const ok = await confirmDialog({ title: "Änderungen verwerfen?", text: ed.fromImport ? "Das erkannte Rezept wird nicht gespeichert." : "Was du geändert hast, geht verloren.", yes: "Verwerfen", danger: true });
+        const ok = await confirmDialog({ title: "Änderungen verwerfen?", text: "Was du geändert hast, geht verloren.", yes: "Verwerfen", danger: true });
         if (!ok) return;
       }
       state.edit = null;
-      if (ed && ed.fromImport && state.imp) { go("import"); return; }
+      if (ed && ed.coverUrl) URL.revokeObjectURL(ed.coverUrl);
       if (ed && ed.id && state.recipes.some(r => r.id === ed.id)) { openDetail(ed.id); return; }
       go("list");
     }
@@ -1864,11 +1854,10 @@ const actions = {
   fav: async () => {
     const r = current(); if (!r || !col) return;
     const v = !r.favorite;
-    const i = state.recipes.indexOf(r);
-    state.recipes[i] = Object.assign({}, r, { favorite: v });
+    patchLocal(r.id, { favorite: v });
     renderDetail();
     try { await withRetry(() => col.doc(r.id).update({ favorite: v })); }
-    catch (e) { state.recipes[i] = r; renderDetail(); toast(dbErrorText(e)); }
+    catch (e) { patchLocal(r.id, { favorite: r.favorite }); renderDetail(); toast(dbErrorText(e)); }
   },
   edit: () => {
     const r = current(); if (!r) return;
@@ -1880,7 +1869,6 @@ const actions = {
     if (!ok) return;
     try {
       await withRetry(() => col.doc(r.id).delete());
-      if (r.cover && r.cover.assetId && assets) assets.delete(r.cover.assetId).catch(() => {});
       state.recipes = state.recipes.filter(x => x.id !== r.id);
       go("list"); toast("Rezept gelöscht");
     } catch (e) { toast(dbErrorText(e)); }
@@ -1899,7 +1887,7 @@ const actions = {
   "toggle-step": el => {
     const i = Number(el.dataset.i);
     state.doneSteps.has(i) ? state.doneSteps.delete(i) : state.doneSteps.add(i);
-    renderDetail();
+    el.classList.toggle("done"); el.setAttribute("aria-pressed", state.doneSteps.has(i));
   },
   "copy-ings": async () => {
     const r = current(); if (!r) return;
@@ -1914,13 +1902,6 @@ const actions = {
     try { await navigator.clipboard.writeText(head + "\n" + lines.join("\n").trim()); toast("Zutaten kopiert"); }
     catch (e) { toast("Kopieren wird hier nicht unterstützt."); }
   },
-  "remove-img": el => {
-    const imp = state.imp; if (!imp || imp.busy) return;
-    const i = Number(el.dataset.i);
-    const [im] = imp.images.splice(i, 1);
-    if (im) setTimeout(() => URL.revokeObjectURL(im.url), 1000);
-    renderThumbs();
-  },
   recognize: () => recognize(),
   "paste-link": async () => {
     let t = "";
@@ -1929,23 +1910,11 @@ const actions = {
     if (!t.trim() || !f || !state.imp) { toast("Nichts kopiert. Halte lange ins Feld und tipp auf „Einfügen“."); if (f) f.focus(); return; }
     f.value = t.trim(); state.imp.link = t.trim(); autosize(f);
   },
-  stop: () => { if (state.imp && state.imp.ctl) state.imp.ctl.abort(); },
-  "manual-from-import": () => {
-    const imp = state.imp;
-    const d = blankData();
-    if (imp && imp.ctl) imp.ctl.abort();
-    openEditor({ isNew: true, data: d, fromImport: !!imp, importImages: imp ? imp.images.slice() : [], coverBlob: null, dirty: !!(imp && imp.images.length) });
-  },
   save: () => saveRecipe(),
   "remove-cover": () => {
     const ed = state.edit; if (!ed) return;
+    if (ed.coverUrl) URL.revokeObjectURL(ed.coverUrl);
     ed.coverBlob = null; ed.coverUrl = null; ed.removeCover = true; ed.dirty = true;
-    renderCoverSec();
-  },
-  "use-import-cover": el => {
-    const ed = state.edit; if (!ed) return;
-    const im = ed.importImages[Number(el.dataset.i)]; if (!im) return;
-    ed.coverBlob = im.blob; ed.coverUrl = im.url; ed.removeCover = false; ed.dirty = true;
     renderCoverSec();
   }
 };
@@ -1966,7 +1935,6 @@ let searchT = 0;
 document.addEventListener("input", e => {
   const t = e.target;
   if (t.id === "q") { state.query = t.value; clearTimeout(searchT); searchT = setTimeout(renderListBody, state.recipes.length > 60 ? 120 : 0); return; }
-  if (t.id === "imp-text" && state.imp) { state.imp.text = t.value; autosize(t); return; }
   if (t.id === "imp-link" && state.imp) { state.imp.link = t.value; autosize(t); return; }
   if (t.dataset && t.dataset.k && state.edit) {
     state.edit.data[t.dataset.k] = t.value; state.edit.dirty = true;
@@ -1980,19 +1948,23 @@ document.addEventListener("change", async e => {
   if (t.type !== "file") return;
   const files = t.files;
   if (t.dataset.file === "quick") {
-    const list = Array.from(files || []).slice(0, maxImages());
+    const all = Array.from(files || []), list = all.slice(0, maxImages());
     t.value = "";
     if (!list.length) return;
     closeLayer();
+    if (all.length > list.length) toast(`Höchstens ${maxImages()} Fotos pro Rezept. Die ersten ${list.length} werden genommen.`);
     // Direkt im Hintergrund lesen: man bleibt in der Liste und kann weitermachen
-    const images = [];
+    const job = newJob({ mode: "photo", text: "", link: "", images: [] }, "prep");
+    if (state.view !== "list") go("list"); else renderListBody();
+    const images = []; let bad = 0;
     for (const f of list) {
       try { const blob = await toJpeg(f, 1568, 0.86); images.push({ blob, url: URL.createObjectURL(blob) }); }
-      catch (err) { /* Bild übersprungen */ }
+      catch (err) { bad++; }
     }
-    if (!images.length) { toast("Das Foto ließ sich nicht öffnen. Versuch ein anderes."); return; }
-    startJob({ mode: "photo", text: "", link: "", images });
-    if (state.view !== "list") go("list"); else renderListBody();
+    if (bad) toast(bad === 1 ? "Ein Foto ließ sich nicht öffnen." : bad + " Fotos ließen sich nicht öffnen.");
+    if (!images.length) { removeJob(job); return; }
+    if (job.dead) { images.forEach(i => URL.revokeObjectURL(i.url)); return; }
+    startJob({ mode: "photo", text: "", link: "", images }, job);
     return;
   }
   if (t.dataset.file === "pdf") {
@@ -2008,23 +1980,29 @@ document.addEventListener("change", async e => {
     if (state.view !== "list") go("list"); else renderListBody();
     return;
   }
-  if (t.dataset.file === "import") { await addImportFiles(files); if (state.view === "import") renderImport(); }
-  else if (t.dataset.file === "cover" && files && files[0] && state.edit) {
+  if (t.dataset.file === "cover" && files && files[0] && state.edit) {
     try {
       const blob = await toJpeg(files[0], 1600, 0.85);
       const ed = state.edit;
+      if (ed.coverUrl) URL.revokeObjectURL(ed.coverUrl);
       ed.coverBlob = blob; ed.coverUrl = URL.createObjectURL(blob); ed.removeCover = false; ed.dirty = true;
       renderCoverSec();
     } catch (err) { toast("Das Foto ließ sich nicht öffnen. Versuch ein anderes."); }
   }
   t.value = "";
 });
+document.addEventListener("focusin", e => { if (e.target && e.target.id === "q") document.body.classList.add("typing"); });
+document.addEventListener("focusout", e => { if (e.target && e.target.id === "q") document.body.classList.remove("typing"); });
 document.addEventListener("submit", e => {
   e.preventDefault();
   if (e.target && e.target.id === "login-form") loginEmail();
 });
 
 render();
+// Offline-Speicher für die App-Dateien (Rezepte liegen schon im Firestore-Speicher)
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 </script>
 </body>
 </html>
