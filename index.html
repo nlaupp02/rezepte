@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FBF6EC">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Rezepte">
@@ -13,25 +13,22 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2">
 <title>Rezepte</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  /* Layout: one-column phone app like a paper recipe notebook. Sticky top bar, two-up recipe grid, full-page detail and editor views. Always light. */
-  --bg: #FBF6EC;
-  --surface: #FFFFFF;
-  --ink: #3A2E1C;
-  --muted: #85735A;
-  --line: #EDE3CF;
+  /* Layout: plain one-column phone app in iOS style. Large title, search, filter chips and a list of recipe rows with small photos. Full-page detail and editor, bottom sheets for options. Always light. */
+  --bg: #FFFFFF;
+  --group: #F4F2EF;
+  --fill: #F1EFEB;
+  --ink: #1D1B18;
+  --muted: #79736A;
+  --faint: #C9C3B9;
+  --line: #ECE8E2;
   --accent: #9E680D;
   --accent-ink: #FFFFFF;
-  --accent-soft: #F6EAD0;
-  --spice: #C2552E;
-  --danger: #B3261E;
-  --shadow: 0 1px 2px rgba(80, 55, 20, .05), 0 6px 18px rgba(80, 55, 20, .07);
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
-  --font-body: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --accent-soft: #F6EEDF;
+  --heart: #E0483E;
+  --danger: #C4322A;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color-scheme: light;
 }
 
@@ -40,198 +37,195 @@
 html { -webkit-text-size-adjust: 100%; background: var(--bg); }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
-  font: 16px/1.5 var(--font-body); -webkit-font-smoothing: antialiased;
+  font: 17px/1.45 var(--font); -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; }
+button, label[for] { cursor: pointer; }
 img { max-width: 100%; display: block; }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: 0; }
-:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 2px; }
 .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
 
 .ic { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ic.filled { fill: currentColor; }
 
-.app { max-width: 720px; margin: 0 auto; padding: 0 16px 128px; }
+.app { max-width: 680px; margin: 0 auto; padding: 0 16px 120px; }
 
 /* Top bars */
 .topbar {
   position: sticky; top: 0; z-index: 5;
-  display: flex; align-items: center; gap: 8px;
-  margin: 0 -16px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
-  background: var(--bg);
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  display: flex; align-items: center; gap: 2px;
+  margin: 0 -16px; padding: calc(2px + env(safe-area-inset-top)) 6px 2px;
+  background: rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
 }
-.bar-title { font-size: 18px; flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-title { font-size: 17px; font-weight: 600; flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grow { flex: 1; }
-.back {
-  display: inline-flex; align-items: center; gap: 2px; border: 0; background: none;
-  color: var(--accent); font-weight: 600; padding: 8px 6px 8px 0; min-height: 44px;
+.back, .tbtn {
+  display: inline-flex; align-items: center; border: 0; background: none;
+  color: var(--accent); font-size: 17px; min-height: 44px; padding: 8px 10px; white-space: nowrap;
 }
-.home-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: calc(22px + env(safe-area-inset-top)) 0 14px; }
-.brand { font-size: 36px; line-height: 1.05; font-weight: 700; }
-.sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.back { padding-left: 2px; }
+.back .ic { width: 24px; height: 24px; stroke-width: 2.4; margin-right: -1px; }
+.tbtn.bold { font-weight: 600; }
+.tbtn[disabled] { opacity: .4; }
+.home-head { display: flex; justify-content: flex-end; gap: 2px; margin-right: -10px; padding-top: calc(4px + env(safe-area-inset-top)); min-height: calc(48px + env(safe-area-inset-top)); }
+.brand { font-size: 34px; line-height: 1.15; font-weight: 700; margin: 0 0 10px; }
 
 /* Buttons */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 44px; padding: 10px 16px; border-radius: 12px;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  font-weight: 600; text-decoration: none; transition: transform .12s ease, background .12s ease;
+  min-height: 50px; padding: 12px 18px; border-radius: 12px; border: 0;
+  background: var(--fill); color: var(--ink); font-size: 17px; font-weight: 600; text-decoration: none;
 }
-.btn:active { transform: scale(.98); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.btn.quiet { background: transparent; border-color: transparent; color: var(--accent); }
+.btn:active, .opt:active, .cell:active { opacity: .65; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.quiet { background: transparent; color: var(--accent); font-weight: 500; }
 .btn.danger { color: var(--danger); }
-.btn.danger.solid { background: var(--danger); border-color: var(--danger); color: #fff; }
-.btn.small { min-height: 38px; padding: 7px 12px; font-size: 15px; border-radius: 10px; }
+.btn.danger.solid { background: var(--danger); color: #fff; }
+.btn.small { min-height: 36px; padding: 6px 13px; font-size: 15px; border-radius: 9px; }
 .btn.block { width: 100%; }
-.btn[disabled] { opacity: .5; pointer-events: none; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
 .icon-btn {
-  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line);
-  background: var(--surface); display: inline-grid; place-items: center; color: var(--muted);
+  width: 44px; height: 44px; border: 0; border-radius: 22px; background: none;
+  display: inline-grid; place-items: center; color: var(--accent);
 }
-.icon-btn.on { color: var(--spice); }
+.icon-btn .ic { width: 24px; height: 24px; }
+.icon-btn.on { color: var(--heart); }
 
 .fab {
-  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   z-index: 6; display: inline-flex; align-items: center; gap: 8px;
-  padding: 14px 22px; border-radius: 999px; border: 0;
-  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 16px; white-space: nowrap;
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+  padding: 14px 22px; border-radius: 999px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 17px; white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .12), 0 8px 22px rgba(0, 0, 0, .1);
 }
-.fab:active { transform: translateX(-50%) scale(.97); }
+.fab .ic { width: 22px; height: 22px; }
+.fab:active { opacity: .85; }
 
 /* Search + chips */
 .search {
-  display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 48px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; color: var(--muted);
+  display: flex; align-items: center; gap: 6px; padding: 0 10px; height: 38px;
+  background: var(--fill); border-radius: 10px; color: var(--muted);
 }
-.search input { flex: 1; border: 0; background: none; outline: none; height: 100%; color: var(--ink); font-size: 16px; min-width: 0; }
-.search:focus-within { border-color: var(--accent); }
-.chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0 14px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; scrollbar-width: none; }
+.search .ic { width: 18px; height: 18px; }
+.search input { flex: 1; border: 0; background: none; outline: none; height: 100%; color: var(--ink); font-size: 17px; min-width: 0; }
+.search input::-webkit-search-cancel-button { opacity: .5; }
+.chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 12px 16px 2px; scrollbar-width: none; }
+.chips:empty { display: none; }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
-  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 600; color: var(--ink);
+  flex: none; padding: 6px 14px; border-radius: 999px; border: 0;
+  background: var(--fill); font-size: 15px; font-weight: 500; color: var(--ink);
 }
-.chip .n { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
-.chip.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.chip.on .n { color: inherit; opacity: .7; }
+.chip.on { background: var(--ink); color: #fff; }
 
-/* Grid + cards */
-.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (min-width: 560px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.card {
-  display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;
-  border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
+/* Recipe list */
+.list { list-style: none; margin: 8px 0 0; padding: 0; }
+.row {
+  position: relative; width: 100%; display: flex; align-items: center; gap: 14px;
+  padding: 10px 0; border: 0; background: none; text-align: left; color: inherit;
 }
-.card:active { transform: scale(.985); }
-.cover { position: relative; aspect-ratio: 4 / 3; background: var(--accent-soft); overflow: hidden; }
-.cover img { width: 100%; height: 100%; object-fit: cover; }
-.ph {
-  width: 100%; height: 100%; display: grid; place-items: center;
-  background:
-    radial-gradient(circle at 20% 25%, color-mix(in srgb, var(--accent) 10%, transparent) 0 18%, transparent 19%),
-    radial-gradient(circle at 85% 80%, color-mix(in srgb, var(--spice) 14%, transparent) 0 22%, transparent 23%),
-    var(--accent-soft);
-}
-.ph span { font-size: 46px; line-height: 1; }
-.fav-badge {
-  position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%;
-  display: grid; place-items: center; background: var(--surface); color: var(--spice); box-shadow: var(--shadow);
-}
-.fav-badge .ic { width: 16px; height: 16px; }
-.card-body { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; }
-.card-title {
-  font-weight: 700; font-size: 15px; line-height: 1.3;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.card-meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list > li + li > .row::before { content: ""; position: absolute; top: 0; left: 78px; right: 0; border-top: 1px solid var(--line); }
+button.row:active { opacity: .6; }
+.thumb-sm { position: relative; width: 64px; height: 64px; flex: none; border-radius: 10px; overflow: hidden; background: var(--accent-soft); }
+.thumb-sm img { width: 100%; height: 100%; object-fit: cover; }
+.ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 45%, var(--accent-soft)); }
+.ph .ic { width: 32px; height: 32px; stroke-width: 1.5; }
+.row-b { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.row-t { font-size: 17px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row-m { display: flex; align-items: center; gap: 5px; font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-m .ic { width: 13px; height: 13px; color: var(--heart); }
+.row-m span { overflow: hidden; text-overflow: ellipsis; }
+.chev { width: 16px; height: 16px; color: var(--faint); stroke-width: 2.4; }
 .none { color: var(--muted); text-align: center; padding: 32px 0; }
+.job-spin { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(255, 255, 255, .6); }
+.row.job img { filter: saturate(.5); }
+.job-err { font-size: 15px; color: var(--muted); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.row.err .row-t { color: var(--danger); }
+.row.err { align-items: flex-start; }
+.job-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 
-.skel { border-radius: 16px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
-.skel .cover { background: color-mix(in srgb, var(--line) 60%, var(--surface)); }
-.skel .bar { height: 12px; margin: 12px; border-radius: 6px; background: var(--line); width: 70%; }
+.skel .thumb-sm { background: var(--fill); }
+.skel .bar { display: block; height: 12px; border-radius: 6px; background: var(--fill); width: 60%; }
+.skel .bar.s { width: 35%; margin-top: 8px; }
 @media (prefers-reduced-motion: no-preference) {
   .skel { animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse { 50% { opacity: .55; } }
+  @keyframes pulse { 50% { opacity: .5; } }
 }
 
-/* Empty state + option lists */
-.empty { padding: 8px 0 24px; }
-.empty h2 { font-size: 24px; margin-bottom: 6px; }
-.empty p { color: var(--muted); margin: 0 0 18px; max-width: 60ch; }
-.options { display: grid; gap: 10px; }
+/* Empty state + option groups */
+.empty { padding: 36px 0 24px; text-align: center; }
+.empty-ic { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 16px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.empty-ic .ic { width: 38px; height: 38px; stroke-width: 1.5; }
+.empty h2 { font-size: 22px; margin-bottom: 6px; }
+.empty p { color: var(--muted); margin: 0 auto 22px; max-width: 34ch; }
+.options { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-align: left; }
+.sheet .options { border: 0; }
 .opt {
-  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
-  padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface);
+  position: relative; display: flex; align-items: center; gap: 14px; width: 100%; min-height: 52px;
+  padding: 13px 16px; border: 0; background: var(--bg); text-align: left; font-size: 17px; color: var(--ink);
 }
-.opt:active { transform: scale(.99); }
-.opt .tile {
-  width: 46px; height: 46px; border-radius: 13px; flex: none; display: grid; place-items: center;
-  background: var(--accent-soft); color: var(--accent);
+.opt + .opt::before { content: ""; position: absolute; top: 0; left: 52px; right: 0; border-top: 1px solid var(--line); }
+.opt > .ic { width: 22px; height: 22px; color: var(--accent); }
+.opt .chev { margin-left: auto; }
+
+/* Grouped cells (account) */
+.group { background: var(--bg); border-radius: 12px; overflow: hidden; }
+.cell {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  min-height: 48px; padding: 12px 16px; border: 0; background: var(--bg); font-size: 17px; text-align: left; color: var(--ink);
 }
-.opt .tile .ic { width: 23px; height: 23px; }
-.opt b { display: block; font-size: 16px; }
-.opt small { display: block; color: var(--muted); font-size: 14px; line-height: 1.35; }
+.cell + .cell::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 1px solid var(--line); }
+.cell.col { flex-direction: column; align-items: flex-start; gap: 1px; }
+.cell small { font-size: 13px; color: var(--muted); }
+.cell .v { color: var(--muted); text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.cell.col .v { color: var(--ink); text-align: left; }
+.cell.danger { color: var(--danger); justify-content: center; }
 
 /* Status boxes */
 .status {
-  display: flex; align-items: flex-start; gap: 12px; padding: 13px 14px; border-radius: 14px;
-  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent);
-  font-size: 15px; line-height: 1.4;
+  display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 12px;
+  background: var(--group); font-size: 15px; line-height: 1.4;
 }
 .status b { display: block; }
 .status > div { flex: 1; min-width: 0; }
 .status span.d { color: var(--muted); display: block; }
-.status.warn { border-left-color: var(--spice); }
-.status.err { border-left-color: var(--danger); }
+.status.warn { background: #FBF3E3; }
+.status.err { background: #FBECEA; }
+.status.err b, .status.err > div:only-child { color: var(--danger); }
 .status.ok .ic { color: var(--accent); margin-top: 1px; }
 .spinner {
   width: 22px; height: 22px; flex: none; border-radius: 50%;
-  border: 3px solid var(--accent-soft); border-top-color: var(--accent); margin-top: 1px;
+  border: 2.5px solid color-mix(in srgb, var(--muted) 25%, transparent); border-top-color: var(--muted);
 }
 @media (prefers-reduced-motion: no-preference) { .spinner { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } } }
 
 /* Forms / import */
-.stack { display: grid; gap: 16px; padding-top: 6px; }
+.stack { display: grid; gap: 18px; padding-top: 8px; }
 .lead { margin: 0; color: var(--muted); max-width: 62ch; }
-.howto { margin: 0; padding: 0; list-style: none; counter-reset: h; display: grid; gap: 10px; }
-.howto li {
-  counter-increment: h; position: relative; padding: 12px 14px 12px 52px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; font-size: 15px; line-height: 1.4;
-}
-.howto li::before {
-  content: counter(h); position: absolute; left: 14px; top: 11px; width: 26px; height: 26px; border-radius: 50%;
-  display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px;
-}
-.howto b { display: block; }
+.note { margin: 0; color: var(--muted); font-size: 15px; }
 .pick-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.pick-row.one { grid-template-columns: 1fr; }
 .tilebtn {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  min-height: 92px; border-radius: 16px; border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--line));
-  background: var(--surface); color: var(--accent); font-weight: 700; text-align: center; padding: 10px;
+  min-height: 88px; border-radius: 12px; background: var(--fill); color: var(--accent); font-weight: 600; text-align: center; padding: 10px;
 }
 .tilebtn .ic { width: 26px; height: 26px; }
-.tilebtn:active { background: var(--accent-soft); }
 .thumbs { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
 .thumbs:empty { display: none; }
 .thumb {
-  position: relative; flex: none; width: 92px; height: 120px; margin: 0; border-radius: 12px; overflow: hidden;
-  border: 1px solid var(--line); background: var(--surface); padding: 0;
+  position: relative; flex: none; width: 92px; height: 120px; margin: 0; border-radius: 10px; overflow: hidden;
+  background: var(--fill); padding: 0; border: 0;
 }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .thumb .num {
-  position: absolute; left: 6px; bottom: 6px; font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
-  background: rgba(0,0,0,.6); color: #fff;
+  position: absolute; left: 6px; bottom: 6px; font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+  background: rgba(0,0,0,.55); color: #fff;
 }
 .thumb-x {
   position: absolute; top: 5px; right: 5px; width: 28px; height: 28px; border-radius: 50%; border: 0;
-  display: grid; place-items: center; background: rgba(0,0,0,.6); color: #fff; padding: 0;
+  display: grid; place-items: center; background: rgba(0,0,0,.55); color: #fff; padding: 0;
 }
 .thumb-x .ic { width: 16px; height: 16px; }
 .thumb.loading { display: grid; place-items: center; }
@@ -239,135 +233,131 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: bala
 .thumb.sel.on { outline: 3px solid var(--accent); outline-offset: 1px; }
 
 .field { display: grid; gap: 6px; }
-.field label, .field .lbl { font-weight: 700; font-size: 15px; }
-.field .hint { color: var(--muted); font-size: 13px; margin-top: -2px; }
+.field label, .field .lbl { font-weight: 600; font-size: 15px; }
+.field .hint { color: var(--muted); font-size: 13px; margin-top: -3px; }
 .field input, .field select, .field textarea {
-  width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line);
-  background: var(--surface); color: var(--ink); font-size: 16px; line-height: 1.45;
+  width: 100%; padding: 12px 14px; border-radius: 10px; border: 0;
+  background: var(--fill); color: var(--ink); font-size: 17px; line-height: 1.45;
+  -webkit-appearance: none; appearance: none;
+}
+.field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2379736A' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 18px; padding-right: 38px;
 }
 .field textarea { resize: vertical; min-height: 96px; }
-.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-.field.bad input { border-color: var(--danger); }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+.field input::placeholder, .field textarea::placeholder { color: #A29C93; }
+.field.bad input { box-shadow: 0 0 0 2px var(--danger); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-@media (max-width: 380px) { .row3 { grid-template-columns: 1fr 1fr; } .row3 .field:first-child { grid-column: 1 / -1; } }
 
-.cover-edit { display: grid; gap: 10px; }
-.cover-prev { aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: var(--accent-soft); }
+.cover-edit { display: grid; gap: 8px; }
+.cover-prev { aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--accent-soft); }
 .cover-prev img { width: 100%; height: 100%; object-fit: cover; }
-.cover-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pick-cover { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+.cover-prev .ph .ic { width: 40px; height: 40px; stroke-width: 1.4; }
+.cover-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-left: -12px; }
+.paste-row { display: flex; gap: 8px; }
+.paste-row input { flex: 1; min-width: 0; }
+.paste-row .btn { min-height: 0; align-self: stretch; border-radius: 10px; }
+.pick-cover { display: grid; gap: 6px; font-size: 15px; color: var(--muted); }
 
 /* Detail */
-.detail { display: grid; gap: 18px; padding-top: 4px; }
-.hero { aspect-ratio: 16 / 10; max-height: 340px; width: 100%; border-radius: 20px; overflow: hidden; background: var(--accent-soft); }
+.detail { display: grid; gap: 22px; padding-top: 6px; }
+.hero { aspect-ratio: 4 / 3; max-height: 420px; margin: -6px -16px 0; overflow: hidden; background: var(--accent-soft); }
+@media (min-width: 700px) { .hero { margin: 0; border-radius: 14px; } }
 .hero img { width: 100%; height: 100%; object-fit: cover; }
-.hero .ph span { font-size: 72px; }
-.d-title { font-size: 30px; line-height: 1.12; }
-.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -6px; }
-.pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
-  background: var(--surface); border: 1px solid var(--line); font-size: 14px; font-weight: 600;
-}
-.pill .ic { width: 16px; height: 16px; color: var(--muted); }
-.pill.cat { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
-.src { font-size: 14px; color: var(--muted); margin-top: -8px; overflow-wrap: anywhere; }
-.src a { color: var(--accent); font-weight: 600; }
-.sec { display: grid; gap: 10px; }
-.sec h2 { font-size: 21px; }
-.sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.scaler {
-  display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden;
-}
-.scaler button { width: 42px; height: 40px; border: 0; background: none; font-size: 20px; font-weight: 600; color: var(--accent); }
-.scaler span { padding: 0 6px; font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
-.seg button { border: 0; background: none; padding: 8px 12px; font-weight: 600; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.seg button.on { background: var(--accent); color: var(--accent-ink); }
-.ings { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-.ings li + li { border-top: 1px solid var(--line); }
+.hero .ph .ic { width: 48px; height: 48px; stroke-width: 1.4; }
+.d-head { display: grid; gap: 4px; }
+.d-title { font-size: 28px; line-height: 1.15; }
+.info { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: -8px 0 0; font-size: 16px; }
+.info dt { color: var(--muted); }
+.info dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.info a { color: var(--accent); text-decoration: none; }
+.src { margin: 0; font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
+.src a { color: var(--accent); text-decoration: none; }
+.sec { display: grid; gap: 6px; }
+.sec h2 { font-size: 21px; color: var(--accent); }
+.sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 36px; }
+.scaler { display: inline-flex; align-items: center; background: var(--fill); border-radius: 9px; padding: 2px; }
+.scaler button { width: 38px; height: 32px; border: 0; border-radius: 7px; background: none; font-size: 21px; line-height: 1; color: var(--ink); }
+.scaler button:active { background: var(--bg); }
+.scaler span { padding: 0 6px; font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.seg { display: inline-flex; background: var(--fill); border-radius: 9px; padding: 2px; }
+.seg button { border: 0; background: none; border-radius: 7px; padding: 5px 12px; font-weight: 500; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.seg button.on { background: var(--bg); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.ings { list-style: none; margin: 0; padding: 0; }
 .ing {
-  width: 100%; display: flex; align-items: flex-start; gap: 12px; text-align: left;
-  padding: 11px 14px; border: 0; background: none; font-size: 16px; line-height: 1.4;
+  position: relative; width: 100%; display: flex; align-items: flex-start; gap: 12px; text-align: left;
+  padding: 10px 0; border: 0; background: none; font-size: 17px; line-height: 1.4; color: var(--ink);
 }
+.ings li + li > .ing::before { content: ""; position: absolute; top: 0; left: 34px; right: 0; border-top: 1px solid var(--line); }
 .ing .box {
-  width: 22px; height: 22px; flex: none; margin-top: 1px; border-radius: 7px; border: 2px solid var(--line);
+  width: 22px; height: 22px; flex: none; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--faint);
   display: grid; place-items: center; color: transparent;
 }
-.ing .box .ic { width: 14px; height: 14px; stroke-width: 3; }
-.ing b { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.ing .box .ic { width: 13px; height: 13px; stroke-width: 3; }
+.ing b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .ing.done { color: var(--muted); }
 .ing.done .ing-t { text-decoration: line-through; }
-.ing.done b { color: var(--muted); }
 .ing.done .box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.ing-h { padding: 12px 14px 6px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface)); }
-.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ing-h, .step-h { padding: 14px 0 2px; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .step {
-  width: 100%; display: flex; gap: 12px; text-align: left; padding: 13px 14px; border-radius: 16px;
-  border: 1px solid var(--line); background: var(--surface); font-size: 16px; line-height: 1.5;
+  width: 100%; display: flex; gap: 12px; text-align: left; padding: 8px 0;
+  border: 0; background: none; font-size: 17px; line-height: 1.5; color: var(--ink);
 }
-.step .no {
-  width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center;
-  background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums;
-}
+.step .no { width: 22px; flex: none; text-align: right; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .step.done { color: var(--muted); }
-.step.done .no { background: var(--accent); color: var(--accent-ink); }
-.step-h { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 2px 0; }
-.notes { margin: 0; white-space: pre-wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 13px 14px; }
+.step.done .no { color: var(--faint); }
+.notes { margin: 0; white-space: pre-wrap; }
 .muted { color: var(--muted); margin: 0; }
 
 /* Layer: sheet, modal */
 #layer { position: fixed; inset: 0; z-index: 20; display: none; }
 #layer.open { display: block; }
-.scrim { position: absolute; inset: 0; background: rgba(10, 16, 12, .45); }
+.scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .35); }
 .sheet {
-  position: absolute; left: 0; right: 0; bottom: 0; max-width: 720px; margin: 0 auto;
-  background: var(--bg); border-radius: 22px 22px 0 0; padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
-  display: grid; gap: 12px; max-height: 90%; overflow-y: auto;
+  position: absolute; left: 0; right: 0; bottom: 0; max-width: 680px; margin: 0 auto;
+  background: var(--group); border-radius: 14px 14px 0 0; padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  display: grid; gap: 14px; max-height: 90%; overflow-y: auto;
 }
-.grip { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 4px; }
-.sheet h2 { font-size: 21px; }
+.grip { width: 36px; height: 5px; border-radius: 3px; background: #D6D1C9; margin: 0 auto; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.sheet h2 { font-size: 20px; padding-left: 2px; }
+.sheet .tbtn { margin-right: -10px; }
 .modal {
-  position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); max-width: 400px; margin: 0 auto;
-  background: var(--surface); border-radius: 18px; padding: 20px; display: grid; gap: 10px; box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  position: absolute; left: 24px; right: 24px; top: 50%; transform: translateY(-50%); max-width: 320px; margin: 0 auto;
+  background: var(--bg); border-radius: 14px; padding: 20px 16px 14px; display: grid; gap: 6px; text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,.22);
 }
-.modal h2 { font-size: 20px; }
-.modal p { margin: 0; color: var(--muted); }
-.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.modal h2 { font-size: 17px; }
+.modal p { margin: 0; color: var(--muted); font-size: 15px; }
+.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.modal .btn { min-height: 44px; }
 @media (prefers-reduced-motion: no-preference) {
-  #layer.open .sheet { animation: up .22s ease-out; }
+  #layer.open .sheet { animation: up .25s cubic-bezier(.2, .8, .2, 1); }
   #layer.open .scrim { animation: fade .2s ease-out; }
-  @keyframes up { from { transform: translateY(40px); opacity: .4; } }
+  @keyframes up { from { transform: translateY(100%); } }
   @keyframes fade { from { opacity: 0; } }
 }
 
-.login { display: grid; gap: 16px; max-width: 440px; margin: 0 auto; padding: calc(44px + env(safe-area-inset-top)) 0 40px; }
-.login.boot { justify-items: center; padding-top: calc(120px + env(safe-area-inset-top)); }
-.login .brand { font-size: 44px; }
-.lg-h { font-size: 20px; }
-.gbtn { gap: 10px; min-height: 50px; font-size: 16px; }
-.gbtn .ic { width: 20px; height: 20px; }
-.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 14px; }
+/* Login */
+.login { display: grid; gap: 14px; max-width: 420px; margin: 0 auto; padding: calc(56px + env(safe-area-inset-top)) 0 40px; }
+.login.boot { justify-items: center; padding-top: calc(140px + env(safe-area-inset-top)); }
+.login-logo { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+.login .brand { margin: 4px 0 0; }
+.login .lead { margin-top: -8px; }
+.gbtn { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); gap: 10px; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 15px; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin-top: -6px; }
-.login-links .btn { padding: 8px 4px; font-size: 15px; }
-.card.job .cover img { filter: saturate(.6) brightness(1.05); }
-.job-spin { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(251, 246, 236, .55); }
-.job-spin .spinner { width: 30px; height: 30px; }
-.card.job.err { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
-.job-err { font-size: 13px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
-.job-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.job-actions .btn { min-height: 34px; padding: 5px 10px; font-size: 14px; }
-.ver-box { display: flex; align-items: baseline; gap: 8px; padding: 11px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 15px; }
-.ver-box b { font-size: 17px; color: var(--accent); font-variant-numeric: tabular-nums; }
-.ver-box .ver-date { margin-left: auto; color: var(--muted); font-size: 14px; }
-.rc-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 6px 0 0; }
-.rc-note a { color: var(--muted); }
-.login .btn.primary { min-height: 50px; }
+.lg-h { font-size: 20px; }
+.login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin: -6px -12px 0; }
+.login-links .btn { padding: 8px 12px; font-size: 15px; min-height: 44px; }
+.rc-note { font-size: 13px; color: var(--muted); margin: 8px 0 0; text-align: center; }
+
 .toast {
-  position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+  position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translate(-50%, 12px);
   z-index: 30; max-width: calc(100% - 32px); padding: 11px 16px; border-radius: 12px;
-  background: var(--ink); color: var(--bg); font-weight: 600; font-size: 15px; text-align: center;
+  background: rgba(29, 27, 24, .92); color: #fff; font-weight: 500; font-size: 15px; text-align: center;
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -410,7 +400,10 @@ const ICONS = {
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   user: '<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
   logout: '<path d="M14 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H14"/><path d="M10 12h10M16.5 8.5L20 12l-3.5 3.5"/>',
-  people: '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17 19a5.5 5.5 0 0 0-2-4.2"/>'
+  people: '<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17 19a5.5 5.5 0 0 0-2-4.2"/>',
+  pot: '<path d="M5 11.5h14V16a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M5 13.5H3M19 13.5h2"/><path d="M3.5 11.5h17"/><path d="M6.5 11.5c0-1.9 2.5-3.2 5.5-3.2s5.5 1.3 5.5 3.2"/><path d="M10.4 6.2h3.2M12 6.2v2"/>',
+  chev: '<path d="M9.5 5.5L16 12l-6.5 6.5"/>',
+  paste: '<rect x="6" y="5" width="12" height="15.5" rx="2"/><path d="M9.5 5V3.8h5V5"/><path d="M9 11h6M9 14.5h4"/>'
 };
 const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 
@@ -443,7 +436,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "V16";
+const APP_VERSION = "V17";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -712,8 +705,9 @@ function renderLogin() {
   const btn = L.mode === "new" ? "Konto erstellen" : L.mode === "reset" ? "Link zum Zurücksetzen senden" : "Anmelden";
   app.innerHTML = `
     <main class="login">
+      <img class="login-logo" src="icon-192.png?v=2" alt="">
       <h1 class="brand">Rezepte</h1>
-      <p class="lead">Fotografier Rezepte und hab sie auf jedem Gerät dabei. Mit deinem Konto bleibt alles gespeichert.</p>
+      <p class="lead">Deine Rezepte, auf allen Geräten gespeichert.</p>
       <button class="btn block gbtn" data-action="login-google">${GOOGLE_G}Mit Google anmelden</button>
       <div class="or"><span>oder mit E-Mail</span></div>
       <form id="login-form" class="stack" style="padding:0" novalidate>
@@ -731,7 +725,7 @@ function renderLogin() {
              <button class="btn quiet" data-action="lg-mode" data-m="reset">Passwort vergessen?</button>`
           : `<button class="btn quiet" data-action="lg-mode" data-m="in">Zurück zur Anmeldung</button>`}
       </div>
-      <p class="rc-note">Version ${APP_VERSION} · Stand ${APP_DATE}</p>
+      <p class="rc-note">Version ${APP_VERSION}</p>
     </main>`;
 }
 function renderBoot() {
@@ -739,16 +733,19 @@ function renderBoot() {
     ? `<main class="login"><h1 class="brand">Rezepte</h1>
         <div class="status err"><div><b>Die App konnte nicht laden.</b><span class="d">Prüf deine Internetverbindung und versuch es nochmal.</span></div></div>
         <button class="btn primary block" data-action="reload">Nochmal versuchen</button></main>`
-    : `<main class="login boot"><h1 class="brand">Rezepte</h1><span class="spinner"></span></main>`;
+    : `<main class="login boot"><img class="login-logo" src="icon-192.png?v=2" alt=""><span class="spinner"></span></main>`;
 }
 function openAccount() {
   const mail = authUser ? (authUser.email || authUser.displayName || "") : "";
   layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="a-t">
-      <div class="grip"></div><h2 id="a-t">Dein Konto</h2>
-      <p class="muted">Angemeldet als <b>${esc(mail)}</b>. Deine Rezepte werden automatisch online gespeichert.</p>
-      <div class="ver-box"><span>Version</span><b>${APP_VERSION}</b><span class="ver-date">Stand ${APP_DATE}</span></div>
-      <button class="btn block" data-action="logout">${icon("logout")}Abmelden</button>
+      <div class="grip"></div>
+      <div class="sheet-head"><h2 id="a-t">Konto</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
+      <div class="group">
+        <div class="cell col"><small>Angemeldet als</small><span class="v">${esc(mail)}</span></div>
+        <div class="cell ver-box"><span>Version</span><span class="v">${APP_VERSION}</span></div>
+      </div>
+      <div class="group"><button class="cell danger" data-action="logout">Abmelden</button></div>
     </div>`;
   layer.classList.add("open");
 }
@@ -766,14 +763,14 @@ function coverSrc(cover) {
   if (typeof cover.dataUrl === "string" && cover.dataUrl.startsWith("data:image/")) return cover.dataUrl;
   return null;
 }
-const placeholder = emoji => `<div class="ph"><span>${esc(emoji || "🍽️")}</span></div>`;
+const placeholder = (ic = "pot") => `<div class="ph">${icon(ic)}</div>`;
 function coverHtml(r) {
   const src = coverSrc(r.cover);
-  return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="${esc(r.emoji || "")}">` : placeholder(r.emoji);
+  return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="">` : placeholder();
 }
 document.addEventListener("error", e => {
   const t = e.target;
-  if (t && t.tagName === "IMG" && t.dataset && "ph" in t.dataset) t.outerHTML = placeholder(t.dataset.ph);
+  if (t && t.tagName === "IMG" && t.dataset && "ph" in t.dataset) t.outerHTML = placeholder();
 }, true);
 
 function parseMin(s) {
@@ -897,21 +894,22 @@ function confirmDialog({ title, text, yes, danger }) {
   });
 }
 const ADD_OPTIONS = [
-  { mode: "photo", icon: "camera", t: "Rezept fotografieren", d: "Kochbuch, Zeitschrift, Zettel oder Handschrift" },
-  { mode: "link", icon: "link", t: "Link einfügen", d: "Rezept von einer Website, z. B. Chefkoch" },
-  { mode: "manual", icon: "pen", t: "Selbst eintippen", d: "Leeres Rezept anlegen" }
+  { mode: "photo", icon: "camera", t: "Foto oder Screenshot" },
+  { mode: "link", icon: "link", t: "Link einfügen" },
+  { mode: "manual", icon: "pen", t: "Selbst eintippen" }
 ];
-const addOptions = () => ADD_OPTIONS.filter(o => o.mode !== "link" || useClaude()).map(o =>
-  `<button class="opt" data-action="start" data-mode="${o.mode}"><span class="tile">${icon(o.icon)}</span><span><b>${o.t}</b><small>${o.d}</small></span></button>`
+const addOptions = () => ADD_OPTIONS.filter(o => o.mode !== "link" || useClaude()).map(o => o.mode === "photo"
+  ? `<label class="opt" for="quick-pick">${icon(o.icon)}<span>${o.t}</span>${icon("chev", "chev")}</label>`
+  : `<button class="opt" data-action="start" data-mode="${o.mode}">${icon(o.icon)}<span>${o.t}</span>${icon("chev", "chev")}</button>`
 ).join("");
 function openSheet() {
   layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="s-t">
-      <div class="grip"></div><h2 id="s-t">Rezept hinzufügen</h2>
+      <div class="grip"></div>
+      <div class="sheet-head"><h2 id="s-t">Neues Rezept</h2><button class="tbtn" data-action="close-layer">Abbrechen</button></div>
       <div class="options">${addOptions()}</div>
     </div>`;
   layer.classList.add("open");
-  const f = $(".sheet .opt"); if (f) f.focus();
 }
 function autosize(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight + 2, 640) + "px"; }
 
@@ -943,14 +941,12 @@ function renderList() {
   lastBanner = bannerKey();
   app.innerHTML = `
     <header class="home-head">
-      <div><h1 class="brand">Rezepte</h1><p class="sub" id="count"></p></div>
-      <div style="display:flex;gap:8px">
-        ${useClaude() ? `<button class="icon-btn" data-action="open-add" aria-label="Rezept hinzufügen">${icon("plus")}</button>` : ""}
-        <button class="icon-btn" data-action="account" aria-label="Dein Konto">${icon("user")}</button>
-      </div>
+      ${useClaude() ? `<button class="icon-btn" data-action="open-add" aria-label="Rezept hinzufügen">${icon("plus")}</button>` : ""}
+      <button class="icon-btn" data-action="account" aria-label="Konto">${icon("user")}</button>
     </header>
-    <div class="stack" style="padding:0;gap:12px">${banner()}</div>
-    <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="Rezept oder Zutat suchen" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
+    <h1 class="brand">Rezepte</h1>
+    <div class="stack" style="padding:0 0 10px;gap:12px">${banner()}</div>
+    <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="Suchen" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
     <div id="chips" class="chips"></div>
     <div id="grid"></div>
     <label class="fab" id="fab" for="quick-pick">${icon("camera")}<span>Rezept fotografieren</span></label>`;
@@ -966,32 +962,33 @@ function filtered() {
     return q.split(/\s+/).every(t => hay.includes(t));
   });
 }
-function chip(f, label, n) {
-  return `<button class="chip ${state.filter === f ? "on" : ""}" data-action="filter" data-f="${esc(f)}" aria-pressed="${state.filter === f}">${esc(label)} <span class="n">${n}</span></button>`;
+function chip(f, label) {
+  return `<button class="chip ${state.filter === f ? "on" : ""}" data-action="filter" data-f="${esc(f)}" aria-pressed="${state.filter === f}">${esc(label)}</button>`;
 }
 function card(r) {
   const meta = [r.category, totalTime(r)].filter(Boolean).join(" · ");
-  return `<button class="card" data-action="open-recipe" data-id="${esc(r.id)}">
-    <div class="cover">${coverHtml(r)}${r.favorite ? `<span class="fav-badge">${icon("heart", "filled")}</span>` : ""}</div>
-    <div class="card-body"><span class="card-title">${esc(r.title || "Ohne Titel")}</span><span class="card-meta">${esc(meta || " ")}</span></div>
-  </button>`;
+  return `<li><button class="row" data-action="open-recipe" data-id="${esc(r.id)}">
+    <span class="thumb-sm">${coverHtml(r)}</span>
+    <span class="row-b"><span class="row-t">${esc(r.title || "Ohne Titel")}</span>
+      <span class="row-m">${r.favorite ? icon("heart", "filled") : ""}<span>${esc(meta || " ")}</span></span></span>
+    ${icon("chev", "chev")}
+  </button></li>`;
 }
 function renderListBody() {
-  const count = $("#count"), chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab");
+  const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab");
   if (!grid) return;
   const rs = state.recipes;
   if (!state.loaded) {
-    count.textContent = "Lädt …";
     chips.innerHTML = ""; sw.hidden = true; fab.hidden = true;
-    grid.innerHTML = `<div class="grid">${Array.from({ length: 4 }, () => `<div class="skel"><div class="cover"></div><div class="bar"></div></div>`).join("")}</div>`;
+    grid.innerHTML = `<ul class="list">${Array.from({ length: 4 }, () => `<li><div class="row skel"><span class="thumb-sm"></span><span class="row-b"><span class="bar"></span><span class="bar s"></span></span></div></li>`).join("")}</ul>`;
     return;
   }
-  count.textContent = rs.length === 1 ? "1 Rezept" : rs.length + " Rezepte";
   if (!rs.length && !state.jobs.length) {
     chips.innerHTML = ""; sw.hidden = true; fab.hidden = true;
     grid.innerHTML = `<section class="empty">
-      <h2>Dein erstes Rezept</h2>
-      <p>Fotografier eine Kochbuchseite oder einen Rezeptzettel. Zutaten und Schritte werden automatisch erkannt und hier gespeichert.</p>
+      <div class="empty-ic">${icon("pot")}</div>
+      <h2>Noch keine Rezepte</h2>
+      <p>Fotografier ein Rezept aus dem Kochbuch, einen Zettel oder einen Screenshot. Oder füg einen Link ein.</p>
       <div class="options">${addOptions()}</div>
     </section>`;
     return;
@@ -1000,12 +997,12 @@ function renderListBody() {
   const cats = CATEGORIES.filter(c => rs.some(r => r.category === c));
   const favN = rs.filter(r => r.favorite).length;
   if ((state.filter === "fav" && !favN) || (state.filter.startsWith("cat:") && !cats.includes(state.filter.slice(4)))) state.filter = "all";
-  chips.innerHTML = !rs.length ? "" : [chip("all", "Alle", rs.length), favN ? chip("fav", "Favoriten", favN) : "",
-    ...cats.map(c => chip("cat:" + c, c, rs.filter(r => r.category === c).length))].join("");
+  chips.innerHTML = rs.length < 2 ? "" : [chip("all", "Alle"), favN ? chip("fav", "Favoriten") : "",
+    ...cats.map(c => chip("cat:" + c, c))].join("");
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
   grid.innerHTML = (jobsHtml || list.length)
-    ? `<div class="grid">${jobsHtml}${list.map(card).join("")}</div>`
+    ? `<ul class="list">${jobsHtml}${list.map(card).join("")}</ul>`
     : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`;
 }
 
@@ -1025,21 +1022,18 @@ function renderDetail() {
   const ings = Array.isArray(r.ingredients) ? r.ingredients : [];
   const steps = Array.isArray(r.steps) ? r.steps : [];
 
-  const pills = [];
-  if (r.category) pills.push(`<span class="pill cat">${esc(r.category)}</span>`);
-  if (r.prepTime) pills.push(`<span class="pill">${icon("clock")}Vorbereitung ${esc(r.prepTime)}</span>`);
-  if (r.cookTime) pills.push(`<span class="pill">${icon("clock")}Kochen ${esc(r.cookTime)}</span>`);
-
-  let src = "";
-  const link = typeof r.link === "string" && /^https?:\/\//i.test(r.link) ? r.link : "";
-  if (r.source || link) {
-    src = `<p class="src">Quelle: ${esc(r.source || "")}${r.source && link ? " · " : ""}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${/instagram\.com/i.test(link) ? "Reel öffnen" : "Link öffnen"}</a>` : ""}</p>`;
-  }
+  let link = typeof r.link === "string" && /^https?:\/\//i.test(r.link) ? r.link : "";
+  const info = [];
+  if (r.category) info.push(["Kategorie", esc(r.category)]);
+  if (r.source || link) info.push(["Quelle", esc(r.source || "") + (r.source && link ? " · " : "") +
+    (link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${/instagram\.com/i.test(link) ? "Reel öffnen" : "Link öffnen"}</a>` : "")]);
+  if (r.prepTime) info.push(["Vorbereitung", esc(r.prepTime)]);
+  if (r.cookTime) info.push(["Kochzeit", esc(r.cookTime)]);
 
   const scaler = base
     ? `<div class="scaler" role="group" aria-label="Portionen anpassen">
          <button data-action="serv" data-d="-1" aria-label="Weniger Portionen">−</button>
-         <span><b>${fmtNum(state.servings)}</b> ${state.servings === 1 ? "Portion" : "Portionen"}</span>
+         <span>${fmtNum(state.servings)} ${state.servings === 1 ? "Portion" : "Portionen"}</span>
          <button data-action="serv" data-d="1" aria-label="Mehr Portionen">+</button>
        </div>`
     : `<div class="seg" role="group" aria-label="Menge anpassen">${[.5, 1, 2, 3].map(f =>
@@ -1059,25 +1053,25 @@ function renderDetail() {
     if (/^#/.test(s)) { stepHtml += `<li class="step-h">${esc(headText(s))}</li>`; return; }
     n++;
     const done = state.doneSteps.has(i);
-    stepHtml += `<li><button class="step ${done ? "done" : ""}" data-action="toggle-step" data-i="${i}" aria-pressed="${done}"><span class="no">${done ? icon("check") : n}</span><span>${esc(s)}</span></button></li>`;
+    stepHtml += `<li><button class="step ${done ? "done" : ""}" data-action="toggle-step" data-i="${i}" aria-pressed="${done}"><span class="no">${n}</span><span>${esc(s)}</span></button></li>`;
   });
 
+  const hasCover = !!coverSrc(r.cover);
   app.innerHTML = `
     <div class="topbar">
       <button class="back" data-action="back">${icon("back")}Rezepte</button>
       <span class="grow"></span>
       <button class="icon-btn ${r.favorite ? "on" : ""}" data-action="fav" aria-pressed="${!!r.favorite}" aria-label="${r.favorite ? "Aus Favoriten entfernen" : "Zu Favoriten"}">${icon("heart", r.favorite ? "filled" : "")}</button>
-      <button class="btn small" data-action="edit">Bearbeiten</button>
+      <button class="tbtn" data-action="edit">Bearbeiten</button>
     </div>
     <article class="detail">
-      <div class="hero">${coverHtml(r)}</div>
+      ${hasCover ? `<div class="hero">${coverHtml(r)}</div>` : ""}
       <h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>
-      ${pills.length ? `<div class="meta">${pills.join("")}</div>` : ""}
-      ${src}
+      ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
       <section class="sec">
         <div class="sec-head"><h2>Zutaten</h2>${ings.length ? scaler : ""}</div>
         ${ings.length ? `<ul class="ings">${ingHtml}</ul>
-          <div><button class="btn small quiet" data-action="copy-ings">${icon("copy")}Zutaten kopieren</button></div>`
+          <div><button class="btn small quiet" data-action="copy-ings" style="margin-left:-13px">${icon("copy")}Zutaten kopieren</button></div>`
           : `<p class="muted">Noch keine Zutaten eingetragen.</p>`}
       </section>
       <section class="sec">
@@ -1085,7 +1079,7 @@ function renderDetail() {
         ${steps.length ? `<ol class="steps">${stepHtml}</ol>` : `<p class="muted">Noch keine Schritte eingetragen.</p>`}
       </section>
       ${r.notes ? `<section class="sec"><h2>Notizen</h2><p class="notes">${esc(r.notes)}</p></section>` : ""}
-      <button class="btn danger quiet block" data-action="delete">${icon("trash")}Rezept löschen</button>
+      <button class="btn danger quiet block" data-action="delete">Rezept löschen</button>
     </article>`;
 }
 
@@ -1111,8 +1105,8 @@ function openEditor(opts) {
 function hasEditCover(ed) { return !!ed.coverBlob || (!ed.removeCover && !!coverSrc(ed.data.cover)); }
 function editCoverHtml(ed) {
   if (ed.coverBlob && ed.coverUrl) return `<img src="${esc(ed.coverUrl)}" alt="Titelbild">`;
-  if (!ed.removeCover && coverSrc(ed.data.cover)) return `<img src="${esc(coverSrc(ed.data.cover))}" alt="Titelbild" data-ph="${esc(ed.data.emoji)}">`;
-  return placeholder(ed.data.emoji);
+  if (!ed.removeCover && coverSrc(ed.data.cover)) return `<img src="${esc(coverSrc(ed.data.cover))}" alt="Titelbild" data-ph="">`;
+  return placeholder("image");
 }
 function renderCoverSec() {
   const ed = state.edit, el = $("#cover-sec");
@@ -1121,7 +1115,7 @@ function renderCoverSec() {
   el.innerHTML = `
     <div class="cover-prev">${editCoverHtml(ed)}</div>
     <div class="cover-actions">
-      <label class="btn small" for="cover-file">${icon("image")}${has ? "Foto ändern" : "Foto vom Gericht hinzufügen"}</label>
+      <label class="btn small quiet" for="cover-file">${icon("image")}${has ? "Foto ändern" : "Foto vom Gericht hinzufügen"}</label>
       ${has ? `<button class="btn small quiet" data-action="remove-cover">Foto entfernen</button>` : ""}
     </div>
     ${ed.importImages.length ? `<div class="pick-cover"><span>Oder eins deiner Bilder als Titelbild:</span>
@@ -1142,12 +1136,11 @@ function renderEdit() {
   if (!ed) { go("list"); return; }
   app.innerHTML = `
     <div class="topbar">
-      <button class="back" data-action="back">${icon("back")}${ed.isNew ? "Abbrechen" : "Zurück"}</button>
+      <button class="tbtn" data-action="back">Abbrechen</button>
       <h2 class="bar-title">${ed.isNew ? "Neues Rezept" : "Bearbeiten"}</h2>
-      <button class="btn primary small" data-action="save">Speichern</button>
+      <button class="tbtn bold" data-action="save">Speichern</button>
     </div>
     <main class="stack">
-      ${ed.fromImport ? `<div class="status ok">${icon("check")}<div><b>Rezept erkannt</b><span class="d">Schau kurz über Mengen und Schritte, dann tippst du auf Speichern.</span></div></div>` : ""}
       <div class="cover-edit" id="cover-sec"></div>
       <input class="vh" id="cover-file" type="file" accept="image/*" data-file="cover">
       ${fieldHtml("title", "Titel", "text", { ph: "z. B. Linsen-Dal mit Kokosmilch", attrs: 'autocomplete="off"' })}
@@ -1253,9 +1246,9 @@ function renderImport() {
 
   app.innerHTML = `
     <div class="topbar">
-      <button class="back" data-action="back">${icon("back")}Zurück</button>
+      <button class="tbtn" data-action="back">Abbrechen</button>
       <h2 class="bar-title">${titles[imp.mode]}</h2>
-      <span style="width:64px"></span>
+      <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
     </div>
     <main class="stack">
       ${intro}${noAi}${noImg}${pickers}
@@ -1275,19 +1268,21 @@ function renderLinkImport() {
   const imp = state.imp;
   app.innerHTML = `
     <div class="topbar">
-      <button class="back" data-action="back">${icon("back")}Zurück</button>
+      <button class="tbtn" data-action="back">Abbrechen</button>
       <h2 class="bar-title">Link einfügen</h2>
-      <span style="width:64px"></span>
+      <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
     </div>
     <main class="stack">
-      <p class="lead">Kopier den Link zu einem Rezept, zum Beispiel von Chefkoch oder einem Kochblog, und füg ihn hier ein. Das Rezept wird gelesen, ins Deutsche übersetzt und gespeichert.</p>
-      <div class="field"><label for="imp-link">Link zum Rezept</label>
-        <input id="imp-link" type="url" inputmode="url" autocomplete="off" autocapitalize="off" placeholder="https://www.chefkoch.de/rezepte/…" value="${esc(imp.link)}"></div>
+      <p class="lead">Füg den Link zu einem Rezept ein, zum Beispiel von Chefkoch oder einem Kochblog.</p>
+      <div class="field"><label for="imp-link">Link</label>
+        <div class="paste-row">
+          <input id="imp-link" type="url" inputmode="url" autocomplete="off" autocapitalize="off" placeholder="https://…" value="${esc(imp.link)}">
+          <button class="btn small" data-action="paste-link">${icon("paste")}Einfügen</button>
+        </div></div>
       <div id="imp-status" aria-live="polite"></div>
       <button class="btn primary block" id="recognize" data-action="recognize">Rezept holen</button>
-      <p class="muted" style="font-size:14px">Instagram-Links klappen meist nicht, weil Instagram ohne Anmeldung nichts zeigt. Dafür lieber Screenshots machen.</p>
+      <p class="note">Instagram-Links klappen meist nicht. Mach dort lieber Screenshots vom Rezept.</p>
     </main>`;
-  const f = $("#imp-link"); if (f && !imp.link) f.focus();
 }
 function renderThumbs() {
   const el = $("#thumbs"), imp = state.imp;
@@ -1419,7 +1414,7 @@ function aiErrorText(e) {
     no_key: ["Der Claude-Schlüssel fehlt", "In Cloudflare beim Worker das Secret ANTHROPIC_API_KEY eintragen."],
     page_failed: ["Die Seite ließ sich nicht öffnen", (e && e.message) || "Prüf den Link oder mach einen Screenshot vom Rezept."],
     empty_completion: ["Keine Antwort erhalten", "Tipp auf „Nochmal“."],
-    rate_limited: ["Gerade zu viele Anfragen", "Das kostenlose Limit ist kurz erreicht. Versuch es in einer Minute nochmal."],
+    rate_limited: ["Gerade zu viel los", "Claude ist kurz ausgelastet. Tipp gleich auf „Nochmal“."],
     image_rejected: ["Ein Bild ließ sich nicht lesen", "Nimm ein anderes Foto."],
     refused: ["Das Foto wurde abgelehnt", "Versuch ein anderes Foto."],
     invalid_json: ["Die Antwort kam unvollständig an", "Tipp auf „Nochmal“."],
@@ -1515,23 +1510,22 @@ async function runJob(job) {
 }
 function jobCard(j) {
   const im = j.src.images[0];
-  const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder(j.src.mode === "link" ? "🔗" : "🍽️");
+  const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder(j.src.mode === "link" ? "link" : "pot");
   if (j.status === "error") {
-    return `<div class="card job err">
-      <div class="cover">${pic}</div>
-      <div class="card-body"><span class="card-title">${esc(j.error[0] || "Lesen hat nicht geklappt")}</span>
+    return `<li><div class="row job err">
+      <span class="thumb-sm">${pic}</span>
+      <span class="row-b"><span class="row-t">${esc(j.error[0] || "Hat nicht geklappt")}</span>
         <span class="job-err">${esc(j.error[1] || "")}</span>
-        <div class="job-actions"><button class="btn small" data-action="job-retry" data-id="${j.id}">Nochmal</button>
-        <button class="btn small quiet" data-action="job-drop" data-id="${j.id}">Verwerfen</button></div></div></div>`;
+        <span class="job-actions"><button class="btn small primary" data-action="job-retry" data-id="${j.id}">Nochmal</button>
+        <button class="btn small" data-action="job-drop" data-id="${j.id}">Entfernen</button></span></span></div></li>`;
   }
-  return `<div class="card job">
-    <div class="cover">${pic}<span class="job-spin"><span class="spinner"></span></span></div>
-    <div class="card-body"><span class="card-title">${esc(j.title || "Wird gelesen …")}</span>
-      <span class="card-meta">Wird gelesen · <span class="job-time" data-t0="${j.t0}">${Math.round((Date.now() - j.t0) / 1000)} s</span></span></div></div>`;
+  let meta = j.src.images.length === 1 ? "1 Foto" : j.src.images.length + " Fotos";
+  if (j.src.mode === "link") { try { meta = new URL(j.src.link).hostname.replace(/^www\./, ""); } catch (e) { meta = "Link"; } }
+  return `<li><div class="row job">
+    <span class="thumb-sm">${pic}<span class="job-spin"><span class="spinner"></span></span></span>
+    <span class="row-b"><span class="row-t">${esc(j.title || "Rezept wird eingelesen …")}</span>
+      <span class="row-m"><span>${esc(meta)}</span></span></span></div></li>`;
 }
-setInterval(() => {
-  $$(".job-time").forEach(el => { el.textContent = Math.round((Date.now() - Number(el.dataset.t0)) / 1000) + " s"; });
-}, 1000);
 
 async function recognize() {
   const imp = state.imp;
@@ -1551,7 +1545,6 @@ async function recognize() {
   }
   state.imp = null;
   go("list");
-  toast("Wird gelesen. Du kannst schon weitermachen.");
 }
 
 /* ---------- Actions ---------- */
@@ -1663,6 +1656,14 @@ const actions = {
     renderThumbs();
   },
   recognize: () => recognize(),
+  "paste-link": async () => {
+    let t = "";
+    try { t = (await navigator.clipboard.readText()) || ""; } catch (e) { t = ""; }
+    const m = t.match(/https?:\/\/\S+/);
+    const f = $("#imp-link");
+    if (!m || !f || !state.imp) { toast("Kein Link kopiert. Halte lange ins Feld und tipp auf „Einfügen“."); if (f) f.focus(); return; }
+    f.value = m[0]; state.imp.link = m[0];
+  },
   stop: () => { if (state.imp && state.imp.ctl) state.imp.ctl.abort(); },
   "manual-from-import": () => {
     const imp = state.imp;
@@ -1716,6 +1717,7 @@ document.addEventListener("change", async e => {
     const list = Array.from(files || []).slice(0, maxImages());
     t.value = "";
     if (!list.length) return;
+    closeLayer();
     // Direkt im Hintergrund lesen: man bleibt in der Liste und kann weitermachen
     const images = [];
     for (const f of list) {
@@ -1725,7 +1727,6 @@ document.addEventListener("change", async e => {
     if (!images.length) { toast("Das Foto ließ sich nicht öffnen. Versuch ein anderes."); return; }
     startJob({ mode: "photo", text: "", link: "", images });
     if (state.view !== "list") go("list"); else renderListBody();
-    toast("Wird gelesen. Du kannst schon weitermachen.");
     return;
   }
   if (t.dataset.file === "import") { await addImportFiles(files); if (state.view === "import") renderImport(); }
