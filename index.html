@@ -113,7 +113,8 @@ html.dim.drag .statusfill { transition: none; }
   min-height: 50px; padding: 12px 18px; border-radius: 12px; border: 0;
   background: var(--fill); color: var(--ink); font-size: 17px; font-weight: 600; text-decoration: none;
 }
-.btn:active, .opt:active, .cell:active { opacity: .65; }
+.btn:active { opacity: .65; }
+.opt.pressed, .cell.pressed { background: #EEEBE6; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); }
 .btn.quiet { background: transparent; color: var(--accent); font-weight: 500; }
 .btn.danger { color: var(--danger); }
@@ -165,7 +166,7 @@ body.typing .fab { display: none; }
   padding: 10px 0; border: 0; background: none; text-align: left; color: inherit;
 }
 .list > li + li > .row::before { content: ""; position: absolute; top: 0; left: 78px; right: 0; border-top: 1px solid var(--line); }
-button.row:active { opacity: .6; }
+button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; background: rgba(0, 0, 0, .05); pointer-events: none; }
 .thumb-sm { position: relative; width: 64px; height: 64px; flex: none; border-radius: 10px; overflow: hidden; background: var(--accent-soft); }
 .thumb-sm img { width: 100%; height: 100%; object-fit: cover; }
 .ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 45%, var(--accent-soft)); }
@@ -530,7 +531,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "26";
+const APP_VERSION = "27";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -662,6 +663,8 @@ function subscribe() {
     if (uid !== myUid) return;
     // Leerer Zwischenspeicher beim ersten Start: noch kurz warten, der Server antwortet gleich
     if (!state.loaded && snap.empty && snap.metadata && snap.metadata.fromCache) return;
+    const changes = typeof snap.docChanges === "function" ? snap.docChanges() : null;
+    if (state.loaded && !state.slow && state.storage === "ok" && changes && !changes.length) return; // nichts Neues: nicht neu zeichnen
     state.recipes = snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     state.loaded = true; state.storage = "ok";
@@ -954,6 +957,26 @@ function blobUrl(d, key) {
   return u;
 }
 const placeholder = (ic = "pot") => `<div class="ph">${icon(ic)}</div>`;
+// Neu zeichnen, ohne fertig geladene Bilder wegzuwerfen: sonst blitzen die Titelbilder bei jeder Änderung kurz weiß auf
+const imgPool = new Map(); // fertig geladene Bilder, auch über Seitenwechsel hinweg (Liste ↔ Rezept)
+function keepImgs(el) {
+  el.querySelectorAll("img[src]").forEach(i => {
+    if (!(i.complete && i.naturalWidth)) return;
+    const src = i.getAttribute("src");
+    imgPool.delete(src); imgPool.set(src, i);
+  });
+  while (imgPool.size > 400) imgPool.delete(imgPool.keys().next().value);
+  return imgPool;
+}
+function reuseImgs(el, pool) {
+  if (!pool.size) return;
+  el.querySelectorAll("img[src]").forEach(n => {
+    const o = pool.get(n.getAttribute("src"));
+    if (!o || o === n || o.isConnected) return;
+    o.className = n.className; n.replaceWith(o);
+  });
+}
+function setHTMLKeepImgs(el, html) { const old = keepImgs(el); el.innerHTML = html; reuseImgs(el, old); }
 function coverHtml(r) {
   const src = coverSrc(r.cover, r.id + ":" + (r.updatedAt || 0));
   return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="">` : placeholder();
@@ -1225,6 +1248,26 @@ if (window.visualViewport) {
   document.addEventListener("focusout", () => setTimeout(sch, 60));
 }
 
+/* Antippen sichtbar machen wie in iOS: erst nach kurzem Halten grau, beim Wischen über die Liste gar nicht */
+const PRESSABLE = "button.row, .opt, .cell";
+let pressEl = null, pressT = 0, pressX = 0, pressY = 0;
+function clearPress() { clearTimeout(pressT); if (pressEl) pressEl.classList.remove("pressed"); pressEl = null; }
+document.addEventListener("pointerdown", e => {
+  const el = e.target.closest && e.target.closest(PRESSABLE);
+  clearPress();
+  if (!el || el.disabled) return;
+  pressEl = el; pressX = e.clientX; pressY = e.clientY;
+  pressT = setTimeout(() => { if (pressEl === el) el.classList.add("pressed"); }, 90);
+}, { passive: true });
+document.addEventListener("pointermove", e => { if (pressEl && (Math.abs(e.clientX - pressX) > 8 || Math.abs(e.clientY - pressY) > 8)) clearPress(); }, { passive: true });
+document.addEventListener("pointercancel", clearPress, { passive: true });
+document.addEventListener("pointerup", () => {
+  const el = pressEl; clearTimeout(pressT); pressEl = null;
+  if (!el) return;
+  el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 140); // kurzer Tipp: kurz grau
+}, { passive: true });
+window.addEventListener("scroll", clearPress, { passive: true });
+
 let sheetDrag = null, suppressClick = false;
 layer.addEventListener("pointerdown", e => {
   const sh = e.target.closest(".sheet");
@@ -1348,6 +1391,7 @@ function banner() {
 }
 function renderList() {
   lastBanner = bannerKey();
+  const oldImgs = keepImgs(app); // zurück aus dem Rezept: Bilder nicht neu laden
   app.innerHTML = `
     <header class="home-head">
       <h1 class="brand">Rezepte</h1>
@@ -1363,6 +1407,7 @@ function renderList() {
     <div id="grid"></div>
     <button class="fab" id="fab" data-action="open-add">${icon("plus")}<span>Neues Rezept</span></button>`;
   renderListBody();
+  reuseImgs(app, oldImgs);
 }
 const SORTS = [["added", "Zuletzt hinzugefügt"], ["viewed", "Zuletzt angesehen"], ["az", "Name A–Z"], ["rating", "Beste Bewertung"]];
 function sorted(list) {
@@ -1438,9 +1483,9 @@ function renderListBody() {
     ...cats.map(c => chip("cat:" + c, c))].join("");
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
-  grid.innerHTML = (jobsHtml || list.length)
+  setHTMLKeepImgs(grid, (jobsHtml || list.length)
     ? `<ul class="list">${jobsHtml}${list.map(card).join("")}</ul>`
-    : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`;
+    : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`);
 }
 
 /* ---------- Detail view ---------- */
@@ -1506,7 +1551,7 @@ function renderDetail() {
   });
 
   const hasCover = !!coverSrc(r.cover);
-  app.innerHTML = `
+  const html = `
     <div class="topbar">
       <button class="back" data-action="back">${icon("back")}Rezepte</button>
       <span class="grow"></span>
@@ -1533,6 +1578,7 @@ function renderDetail() {
       ${nutritionHtml(r)}
       <button class="btn danger quiet block" data-action="delete">Rezept löschen</button>
     </article>`;
+  setHTMLKeepImgs(app, html); // auch beim Öffnen aus der Liste: das Bild ist schon geladen
 }
 
 function checkHtml(uns, r) {
