@@ -378,8 +378,11 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 /* Layer: sheet, modal */
 #layer { position: fixed; inset: 0; z-index: 20; display: none; }
 #layer.open { display: block; }
-/* Schließen: Fenster gleitet nach unten, Abdunklung blendet aus (Skript) */
-#layer.closing { pointer-events: none; }
+/* Schließen: Fenster gleitet nach unten, Abdunklung blendet aus (Skript).
+   Die Abdunklung liegt dann am #layer selbst und die .scrim ist weg: iOS färbt die Leiste mit der Uhr nach dem, was oben antippbar ist,
+   und schaut erst wieder hin, wenn sich etwas am Aufbau ändert. So wird die Leiste gleich zu Beginn wieder hell, zusammen mit der Seite. */
+#layer.closing { pointer-events: none; background: rgba(0, 0, 0, calc(.35 * var(--dimo, 0))); }
+#layer.closing .scrim { display: none; }
 #layer.closing .sheet { transform: translateY(105%); transition: transform .2s ease-in; }
 #layer.closing .modal { opacity: 0; transition: opacity .15s ease-in; }
 .scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .35); }
@@ -579,7 +582,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "32";
+const APP_VERSION = "33";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1404,7 +1407,7 @@ function closeLayer() {
   if (!layer.classList.contains("open")) { hardCloseLayer(); return; }
   if (!layer.querySelector(".scrim") || noMotion()) { hardCloseLayer(); return; }
   layer.classList.add("closing");
-  animDim(0, 180);
+  animDim(0, 110); // so lange, wie iOS die Leiste oben wieder aufhellt
   closeT = setTimeout(() => { if (layer.classList.contains("closing")) hardCloseLayer(); }, 200);
 }
 /* Fenster (Sheets) mit dem Finger nach unten wegwischen, wie in iOS */
@@ -1433,6 +1436,7 @@ function stopDim() { if (dimRaf) cancelAnimationFrame(dimRaf); dimRaf = 0; }
 function applyDim(o) {
   const sc = layer.querySelector(".scrim");
   if (sc) sc.style.opacity = String(o);
+  layer.style.setProperty("--dimo", String(o));
   setDim(o <= 0 && !layer.classList.contains("open") ? null : o);
 }
 function animDim(to, ms) {
@@ -1452,7 +1456,7 @@ new MutationObserver(recs => {
   const on = layer.classList.contains("open") && !!sc;
   // Neuer Inhalt, während das alte Fenster noch ausblendet (z. B. Name eingeben → zurück zur Liste): nicht mehr schließen
   if (layer.classList.contains("closing") && recs.some(r => r.type === "childList" && r.addedNodes.length)) { clearTimeout(closeT); layer.classList.remove("closing"); }
-  if (on && sc !== lastScrim) { lastScrim = sc; sc.style.opacity = String(dimNow); if (!layer.classList.contains("closing")) animDim(1, 200); }
+  if (on && sc !== lastScrim) { lastScrim = sc; sc.style.opacity = String(dimNow); if (!layer.classList.contains("closing")) animDim(1, 70); } // iOS macht die Leiste oben sofort dunkel: Seite gleich mit
   else if (!on) { lastScrim = null; if (document.documentElement.classList.contains("dim")) { stopDim(); setDim(null); } }
 }).observe(layer, { attributes: true, attributeFilter: ["class"], childList: true });
 
@@ -1509,8 +1513,7 @@ layer.addEventListener("pointermove", e => {
   if (d.moved) {
     d.sh.style.transform = `translateY(${d.dy}px)`;
     const op = Math.max(0.2, 1 - d.dy / 500);
-    const sc = layer.querySelector(".scrim"); if (sc) sc.style.opacity = String(op);
-    document.documentElement.classList.add("drag"); setDim(op);
+    document.documentElement.classList.add("drag"); applyDim(op);
   }
 });
 function endSheetDrag(e) {
@@ -1524,11 +1527,11 @@ function endSheetDrag(e) {
   if (d.dy > 90 || (v > 0.5 && d.dy > 30)) {
     d.sh.style.transition = "transform .2s ease-in"; d.sh.style.transform = "translateY(105%)";
     layer.classList.add("closing");
-    animDim(0, 190);
+    animDim(0, 110);
     clearTimeout(closeT); closeT = setTimeout(() => { if (layer.classList.contains("closing")) hardCloseLayer(); }, 200);
   } else {
     d.sh.style.transition = "transform .22s cubic-bezier(.2,.8,.2,1)"; d.sh.style.transform = "";
-    animDim(1, 200);
+    animDim(1, 120);
   }
 }
 layer.addEventListener("pointerup", endSheetDrag);
