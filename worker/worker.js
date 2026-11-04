@@ -9,7 +9,7 @@
 
 const PROJECT_ID = "rezepte-d507e";
 const ALLOWED_ORIGINS = ["https://nlaupp02.github.io"];
-const MODEL = "claude-sonnet-5-5";
+const MODELS = ["claude-sonnet-5-5", "claude-haiku-5-5"]; // Sonnet liest Rezepte, Haiku schätzt Nährwerte und Merkmale
 const MAX_TOKENS_LIMIT = 8000;
 const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 
@@ -60,7 +60,7 @@ async function scan(request, env, cors) {
   // Günstige Prüfung ohne das (große) JSON zu zerlegen: Modell und max_tokens stehen ganz vorne
   const head = body.slice(0, 80);
   const m = head.match(/^\{"model":"([a-z0-9.-]+)","max_tokens":(\d+),"messages":/);
-  if (!m || m[1] !== MODEL || Number(m[2]) > MAX_TOKENS_LIMIT) return json({ error: "bad_request", message: "Modell oder Länge nicht erlaubt." }, 400, cors);
+  if (!m || !MODELS.includes(m[1]) || Number(m[2]) > MAX_TOKENS_LIMIT) return json({ error: "bad_request", message: "Modell oder Länge nicht erlaubt." }, 400, cors);
   // Diese Schlüssel dürfen nur einmal vorkommen (in Texten stehen Anführungszeichen immer als \" – das zählt hier nicht mit)
   for (const key of ['"model":', '"max_tokens":', '"messages":', '"system":', '"tools":', '"stream":']) {
     const n = body.split(key).length - 1;
@@ -71,6 +71,8 @@ async function scan(request, env, cors) {
     headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
     body
   });
+  // 401 von Anthropic heißt: der Schlüssel im Worker stimmt nicht (nicht die Anmeldung des Nutzers)
+  if (r.status === 401) return json({ error: "upstream_auth", message: "Anthropic lehnt den API-Schlüssel ab." }, 502, cors);
   return new Response(r.body, { status: r.status, headers: { ...cors, "content-type": "application/json" } });
 }
 
@@ -233,6 +235,16 @@ async function page(request, cors) {
   let target;
   try { target = new URL((await request.json()).url); } catch (e) { return json({ error: "bad_url" }, 400, cors); }
   if (!publicWebUrl(target)) return json({ error: "bad_url", message: "Das ist keine normale Webadresse." }, 400, cors);
+  // Neuere Instagram-Versionen geben „Teilen → Link kopieren“ als instagram.com/share/… heraus: erst zur echten Adresse weiterleiten lassen
+  if (/instagram\.com$/i.test(target.hostname) && /^\/share\//i.test(target.pathname)) {
+    try {
+      const r0 = await fetch(target.toString(), { method: "GET", redirect: "manual", headers: { "user-agent": UA_MOBILE }, signal: AbortSignal.timeout(10000) });
+      const loc = r0.headers.get("location");
+      const next = loc ? new URL(loc, target) : null;
+      if (next && publicWebUrl(next) && instagramCode(next)) { next.search = ""; target = next; }
+      else return json({ error: "instagram_blocked", message: "Der Teilen-Link ließ sich nicht auflösen (" + r0.status + ")." }, 502, cors);
+    } catch (e) { return json({ error: "instagram_blocked", message: "Der Teilen-Link ließ sich nicht auflösen: " + String(e.message || e) }, 502, cors); }
+  }
   const ig = instagramCode(target);
   if (ig) return instagram(ig, target.toString(), cors);
   let res;
