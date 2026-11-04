@@ -390,10 +390,17 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 #layer.open { display: block; }
 #layer2 { position: fixed; inset: 0; z-index: 21; display: none; }
 #layer2.open { display: block; }
+/* Dialog über einem offenen Fenster: nicht noch einmal alles abdunkeln (oben unter der Uhr bliebe es heller als die Seite),
+   sondern nur das Fenster dahinter etwas dunkler. Die durchsichtige Fläche fängt weiter das Tippen daneben ab. */
+#layer2 .scrim { background: transparent; }
+#layer:has(+ #layer2.open) .sheet { filter: brightness(.8); }
 /* Schließen: Fenster gleitet nach unten, Abdunklung blendet aus (Skript).
-   Die Abdunklung liegt dann am #layer selbst und die .scrim ist weg: iOS färbt die Leiste mit der Uhr nach dem, was oben antippbar ist,
-   und schaut erst wieder hin, wenn sich etwas am Aufbau ändert. So wird die Leiste gleich zu Beginn wieder hell, zusammen mit der Seite. */
-#layer.closing { pointer-events: none; background: rgba(0, 0, 0, calc(.35 * var(--dimo, 0))); }
+   iOS färbt die Leiste mit der Uhr nach dem, was ganz oben liegt und eine Farbe hat (auch wenn man es nicht antippen kann),
+   und schaut erst wieder hin, wenn sich am Aufbau etwas ändert. Darum liegt beim Schließen oben nichts Dunkles mehr:
+   die ausblendende Abdunklung beginnt erst unter der Uhr, der Streifen oben ist sofort weiß. So hellt iOS die Leiste
+   gleich zu Beginn auf (dauert bei iOS gut 0,1 s), im gleichen Takt wie die Seite – und nicht erst, wenn das Fenster ganz weg ist. */
+#layer.closing { pointer-events: none; }
+#layer.closing::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top); background: rgba(0, 0, 0, calc(.35 * var(--dimo, 0))); }
 #layer.closing .scrim { display: none; }
 #layer.closing .sheet { transform: translateY(105%); transition: transform .2s ease-in; }
 #layer.closing .modal { opacity: 0; transition: opacity .15s ease-in; }
@@ -598,7 +605,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "34";
+const APP_VERSION = "35";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1439,24 +1446,28 @@ function toast(msg) {
 }
 // Fenster zu: mit Abdunklung kurz ausblenden (oben am Bildschirmrand blendet iOS dann im gleichen Takt mit), sonst sofort
 let closeT = 0;
-function hardCloseLayer() { clearTimeout(closeT); stopDim(); layer.classList.remove("open", "closing"); layer.innerHTML = ""; layer2.classList.remove("open"); layer2.innerHTML = ""; }
+function hardCloseLayer() { clearTimeout(closeT); stopDim(); dimNow = 0; layer.classList.remove("open", "closing"); layer.innerHTML = ""; layer2.classList.remove("open"); layer2.innerHTML = ""; }
+// Ausblenden beginnen (Knopf, daneben tippen, wegwischen): Leiste oben sofort hell, Seite blendet im gleichen Takt aus
+function beginClose() {
+  layer.classList.add("closing");
+  setDim(null); // oben nichts Dunkles mehr: iOS hellt die Leiste jetzt selbst auf
+  animDim(0, 110); // so lange, wie iOS die Leiste oben wieder aufhellt
+  clearTimeout(closeT); closeT = setTimeout(() => { if (layer.classList.contains("closing")) hardCloseLayer(); }, 200);
+}
 function closeLayer() {
   if (layer.classList.contains("closing")) return; // schließt schon
   clearTimeout(closeT);
   if (!layer.classList.contains("open")) { hardCloseLayer(); return; }
   if (!layer.querySelector(".scrim") || noMotion()) { hardCloseLayer(); return; }
-  layer.classList.add("closing");
-  animDim(0, 110); // so lange, wie iOS die Leiste oben wieder aufhellt
-  closeT = setTimeout(() => { if (layer.classList.contains("closing")) hardCloseLayer(); }, 200);
+  beginClose();
 }
 /* Fenster (Sheets) mit dem Finger nach unten wegwischen, wie in iOS */
 /* Streifen unter der Uhr (und Safari-Leiste oben) mit abdunkeln, solange ein Fenster mit Abdunklung offen ist */
 const statusFill = document.querySelector(".statusfill"), themeMeta = document.querySelector('meta[name="theme-color"]');
-function setDim(o) {
+function setDim(o) { // nur der Streifen oben (und Safari-Leiste); wie hell die Seite ist, steht in dimNow
   const root = document.documentElement;
-  dimNow = o == null ? 0 : o;
   if (o == null) {
-    root.classList.remove("dim", "drag");
+    root.classList.remove("dim");
     if (statusFill) statusFill.style.backgroundColor = "";
     if (themeMeta) themeMeta.content = "#FFFFFF";
     return;
@@ -1473,9 +1484,11 @@ let dimNow = 0, dimRaf = 0, lastScrim = null;
 const noMotion = () => !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
 function stopDim() { if (dimRaf) cancelAnimationFrame(dimRaf); dimRaf = 0; }
 function applyDim(o) {
+  dimNow = o;
   const sc = layer.querySelector(".scrim");
   if (sc) sc.style.opacity = String(o);
   layer.style.setProperty("--dimo", String(o));
+  if (layer.classList.contains("closing")) return; // beim Schließen ist der Streifen oben schon hell
   setDim(o <= 0 && !layer.classList.contains("open") ? null : o);
 }
 function animDim(to, ms) {
@@ -1495,8 +1508,8 @@ new MutationObserver(recs => {
   const on = layer.classList.contains("open") && !!sc;
   // Neuer Inhalt, während das alte Fenster noch ausblendet (z. B. Name eingeben → zurück zur Liste): nicht mehr schließen
   if (layer.classList.contains("closing") && recs.some(r => r.type === "childList" && r.addedNodes.length)) { clearTimeout(closeT); layer.classList.remove("closing"); }
-  if (on && sc !== lastScrim) { lastScrim = sc; sc.style.opacity = String(dimNow); if (!layer.classList.contains("closing")) animDim(1, 70); } // iOS macht die Leiste oben sofort dunkel: Seite gleich mit
-  else if (!on) { lastScrim = null; if (document.documentElement.classList.contains("dim")) { stopDim(); setDim(null); } }
+  if (on && sc !== lastScrim) { lastScrim = sc; sc.style.opacity = String(dimNow); if (!layer.classList.contains("closing")) { stopDim(); applyDim(1); } } // iOS macht die Leiste oben sofort dunkel: Seite im selben Bild mit
+  else if (!on) { lastScrim = null; if (document.documentElement.classList.contains("dim")) { stopDim(); setDim(null); } dimNow = 0; }
 }).observe(layer, { attributes: true, attributeFilter: ["class"], childList: true });
 
 /* Tastatur auf dem iPhone: schiebt iOS die ganze Ansicht hoch, rückt die Kopfleiste mit nach, damit sie oben sichtbar bleibt */
@@ -1550,12 +1563,9 @@ layer.addEventListener("pointermove", e => {
   const d = sheetDrag;
   if (!d || e.pointerId !== d.id) return;
   d.dy = Math.max(0, e.clientY - d.y0);
-  if (!d.moved && d.dy > 6) { d.moved = true; stopDim(); try { d.sh.setPointerCapture(d.id); } catch (x) { /* egal */ } d.sh.style.transition = "none"; }
-  if (d.moved) {
-    d.sh.style.transform = `translateY(${d.dy}px)`;
-    const op = Math.max(0.2, 1 - d.dy / 500);
-    document.documentElement.classList.add("drag"); applyDim(op);
-  }
+  if (!d.moved && d.dy > 6) { d.moved = true; try { d.sh.setPointerCapture(d.id); } catch (x) { /* egal */ } d.sh.style.transition = "none"; }
+  // Abdunklung bleibt beim Ziehen gleich: die Leiste mit der Uhr kann iOS nicht stufenlos mitziehen, sonst wäre sie dunkler als die Seite
+  if (d.moved) d.sh.style.transform = `translateY(${d.dy}px)`;
 });
 function endSheetDrag(e) {
   const d = sheetDrag;
@@ -1564,12 +1574,9 @@ function endSheetDrag(e) {
   if (!d.moved) return;
   suppressClick = true; setTimeout(() => { suppressClick = false; }, 80);
   const v = d.dy / Math.max(1, performance.now() - d.t0);
-  document.documentElement.classList.remove("drag");
   if (d.dy > 90 || (v > 0.5 && d.dy > 30)) {
     d.sh.style.transition = "transform .2s ease-in"; d.sh.style.transform = "translateY(105%)";
-    layer.classList.add("closing");
-    animDim(0, 110);
-    clearTimeout(closeT); closeT = setTimeout(() => { if (layer.classList.contains("closing")) hardCloseLayer(); }, 200);
+    clearTimeout(closeT); beginClose();
   } else {
     d.sh.style.transition = "transform .22s cubic-bezier(.2,.8,.2,1)"; d.sh.style.transform = "";
     animDim(1, 120);
