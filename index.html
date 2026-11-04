@@ -534,7 +534,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "28";
+const APP_VERSION = "29";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1195,6 +1195,26 @@ async function toJpeg(blob, maxSide, q) {
 }
 const blobToDataUrl = b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });
 
+// Titelbild aus einem Foto: nur den Ausschnitt mit dem Gericht nehmen (ohne Text, Seitenrand, App-Knöpfe)
+function cleanBox(box) {
+  if (!Array.isArray(box) || box.length !== 4 || !box.every(n => Number.isFinite(Number(n)))) return null;
+  let b = box.map(Number);
+  if (b.every(n => n >= 0 && n <= 1)) b = b.map(n => n * 100);
+  b = b.map(n => Math.min(100, Math.max(0, n)));
+  return b[2] - b[0] >= 20 && b[3] - b[1] >= 12 ? b : null;
+}
+async function cropBox(blob, b) {
+  const { img, url } = await loadImg(blob);
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const sx = Math.round(W * b[0] / 100), sy = Math.round(H * b[1] / 100);
+  const sw = Math.max(1, Math.round(W * (b[2] - b[0]) / 100)), sh = Math.max(1, Math.round(H * (b[3] - b[1]) / 100));
+  URL.revokeObjectURL(url);
+  if (sw < 160 || sh < 120) return null; // zu klein für ein schönes Titelbild: lieber das normale Symbol
+  const c = document.createElement("canvas"); c.width = sw; c.height = sh;
+  c.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+  return await new Promise((res, rej) => c.toBlob(x => x ? res(x) : rej(new Error("encode")), "image/jpeg", 0.88));
+}
+
 async function storeCover(blob) {
   const small = await toJpeg(blob, 640, 0.72);
   return { dataUrl: await blobToDataUrl(small) };
@@ -1627,10 +1647,17 @@ const RENAME = {
   "schoko-bananen-hafer-brownie": "Bananen-Brownie mit Schoko und Hafer"
 };
 const renamed = new Set();
+// Einmalig: bei den Käsespätzle war ein Text-Screenshot das Titelbild. Nur solange das Rezept nie bearbeitet wurde.
+const DROP_COVER = ["käsespätzle mit ofenkäse und röstzwiebeln"];
 function fixOldNames() {
   if (!col) return;
   const key = t => String(t || "").toLowerCase().replace(/[‐‑–—]/g, "-").replace(/\s+/g, " ").trim();
   for (const r of state.recipes) {
+    if (DROP_COVER.includes(key(r.title)) && r.cover && r.cover.dataUrl && r.updatedAt && r.updatedAt === r.createdAt && !renamed.has(r.id + ":cover")) {
+      renamed.add(r.id + ":cover");
+      patchLocal(r.id, { cover: null });
+      withRetry(() => col.doc(r.id).update({ cover: null })).catch(e => console.warn("Titelbild", e));
+    }
     const t = RENAME[key(r.title)];
     if (!t || renamed.has(r.id)) continue;
     renamed.add(r.id);
@@ -1908,8 +1935,9 @@ Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern
 - "steps": Liste von Strings, ein Arbeitsschritt pro Eintrag, ohne Nummerierung
 - "notes": Tipps oder Hinweise aus dem Rezept, sonst ""
 - "source": Buchtitel, Website oder Instagram-Kanal (z. B. "@kanalname"), falls erkennbar, sonst ""
-- "coverImage": Nummer des Bildes (ab 1), das das fertige Gericht gut zeigt, sonst null
-- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
+- "coverImage": Nummer des Bildes (ab 1), das als Titelbild taugt, weil darauf ein echtes Foto des fertigen Gerichts zu sehen ist. Bilder, die vor allem Text zeigen (Rezeptseite, Zettel, Handschrift, Screenshot einer Beschreibung oder App), nimmst du nicht. Gibt es kein solches Bild, null
+${imp.mode === "photo" ? `- "coverBox": Ist auf dem gewählten Bild außer dem Gericht noch anderes zu sehen (Text, Seitenrand, Knöpfe einer App), dann der Ausschnitt nur mit dem Gericht als [links, oben, rechts, unten] in Prozent der Bildbreite bzw. -höhe, so groß wie möglich. Zeigt fast das ganze Bild das Gericht, null
+` : ""}- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
 - "tags": Liste der Merkmale, die sicher zutreffen, nur aus: ${TAGS.join(", ")} (${TAG_RULES}). Leere Liste, wenn keins passt.
 - "unsure": Liste der Stellen, bei denen du dir beim Lesen nicht sicher bist, z. B. schwer lesbare Handschrift, verwischte, verdeckte oder abgeschnittene Mengen, geratene Wörter. Je ein Objekt {"in": "title" | "ingredients" | "steps" | "servings" | "time", "n": Nummer des Eintrags in "ingredients" bzw. "steps" (ab 1, sonst weglassen), "note": kurz auf Deutsch, was unsicher ist, z. B. "250 oder 350 g?"}. Nur echte Unsicherheiten beim Lesen, keine Umrechnungen und keine Schätzungen, die schon „ca.“ haben. Leere Liste, wenn alles gut lesbar ist.
 - "nutrition": Nährwerte pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm; Salz auf 0,1 g, sonst ganze Zahlen). Stehen Nährwerte im Material, übernimm sie nur, wenn sie pro Portion gelten und zur Zahl in "servings" passen (pro Person, bei Backen pro Stück, bei Getränken pro Glas); Angaben pro 100 g oder für andere Portionen rechnest du um. Sonst schätze sie aus Zutaten und Mengen. Ist "servings" null, gilt der Wert für das ganze Rezept. null, wenn nichts Sinnvolles geht.
@@ -2155,6 +2183,10 @@ async function runJob(job) {
     if (!linesOf(conv.data.ingredientsText).length && !linesOf(conv.data.stepsText).length) throw noRec(str(res.problem));
     if (insta && igUser && (!conv.data.source || /^instagram$/i.test(conv.data.source))) conv.data.source = igUser;
     if (job.src.mode === "link" && !conv.data.source) { try { conv.data.source = new URL(job.src.link).hostname.replace(/^www\./, ""); } catch (e) { /* egal */ } }
+    if (src.mode === "photo" && conv.coverBlob) {
+      const box = cleanBox(res.coverBox);
+      if (box) { try { conv.coverBlob = await cropBox(conv.coverBlob, box); } catch (e) { conv.coverBlob = null; } }
+    }
     if (!conv.coverBlob && thumb) conv.coverBlob = thumb;
     if (!conv.coverBlob && pageImage && !insta) conv.coverUrl = pageImage;
     job.conv = conv;
