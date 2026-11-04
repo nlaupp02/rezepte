@@ -395,12 +395,15 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 #layer2 .scrim { background: transparent; }
 #layer:has(+ #layer2.open) .sheet { filter: brightness(.8); }
 /* Schließen: Fenster gleitet nach unten, Abdunklung blendet aus (Skript).
-   iOS färbt die Leiste mit der Uhr nach dem, was ganz oben liegt und eine Farbe hat (auch wenn man es nicht antippen kann),
-   und schaut erst wieder hin, wenn sich am Aufbau etwas ändert. Darum liegt beim Schließen oben nichts Dunkles mehr:
-   die ausblendende Abdunklung beginnt erst unter der Uhr, der Streifen oben ist sofort weiß. So hellt iOS die Leiste
-   gleich zu Beginn auf (dauert bei iOS gut 0,1 s), im gleichen Takt wie die Seite – und nicht erst, wenn das Fenster ganz weg ist. */
+   So färbt iOS die Leiste mit der Uhr (WebKit, fixedContainerEdges): es prüft einen Punkt 4 px unter der Oberkante,
+   erst ohne Rücksicht auf pointer-events; ist der Treffer durchsichtig und nicht antippbar, ein zweites Mal normal.
+   Nimmt nur Elemente mit position: fixed – sonst behält iOS die alte Farbe. Neu geschaut wird nur, wenn ein fixed-Element
+   dazukommt oder wegfällt (Farbe oder Klassen ändern reicht nicht – so in beiden Videos vom 4.11.).
+   Darum beim Schließen: der Streifen unter der Uhr bleibt ganz oben (html.dim) und wird sofort weiß, und die ausblendende
+   Abdunklung kommt als neues fixed-Element dazu – iOS schaut dadurch sofort neu, trifft den weißen Streifen und hellt die
+   Leiste gleich zu Beginn auf (erst ein großer Schritt, dann gut 0,1 s), die Seite blendet im gleichen Takt aus. */
 #layer.closing { pointer-events: none; }
-#layer.closing::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top); background: rgba(0, 0, 0, calc(.35 * var(--dimo, 0))); }
+#layer.closing::before { content: ""; position: fixed; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top); background: rgba(0, 0, 0, calc(.35 * var(--dimo, 0))); }
 #layer.closing .scrim { display: none; }
 #layer.closing .sheet { transform: translateY(105%); transition: transform .2s ease-in; }
 #layer.closing .modal { opacity: 0; transition: opacity .15s ease-in; }
@@ -605,7 +608,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "35";
+const APP_VERSION = "36";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1450,8 +1453,9 @@ function hardCloseLayer() { clearTimeout(closeT); stopDim(); dimNow = 0; layer.c
 // Ausblenden beginnen (Knopf, daneben tippen, wegwischen): Leiste oben sofort hell, Seite blendet im gleichen Takt aus
 function beginClose() {
   layer.classList.add("closing");
-  setDim(null); // oben nichts Dunkles mehr: iOS hellt die Leiste jetzt selbst auf
-  animDim(0, 110); // so lange, wie iOS die Leiste oben wieder aufhellt
+  setDim(0); // Streifen oben bleibt ganz oben, wird aber sofort weiß: iOS hellt die Leiste jetzt selbst auf
+  renewStatusFill();
+  animDim(0, 110, "ios"); // gleicher Verlauf wie iOS beim Aufhellen der Leiste
   clearTimeout(closeT); closeT = setTimeout(() => { if (layer.classList.contains("closing")) hardCloseLayer(); }, 200);
 }
 function closeLayer() {
@@ -1463,7 +1467,10 @@ function closeLayer() {
 }
 /* Fenster (Sheets) mit dem Finger nach unten wegwischen, wie in iOS */
 /* Streifen unter der Uhr (und Safari-Leiste oben) mit abdunkeln, solange ein Fenster mit Abdunklung offen ist */
-const statusFill = document.querySelector(".statusfill"), themeMeta = document.querySelector('meta[name="theme-color"]');
+let statusFill = document.querySelector(".statusfill");
+const themeMeta = document.querySelector('meta[name="theme-color"]');
+// Streifen unter der Uhr durch einen neuen ersetzen: neues fixed-Element genau an der Stelle, die iOS prüft → iOS schaut sicher neu hin
+function renewStatusFill() { if (!statusFill) return; const n = statusFill.cloneNode(false); statusFill.replaceWith(n); statusFill = n; }
 function setDim(o) { // nur der Streifen oben (und Safari-Leiste); wie hell die Seite ist, steht in dimNow
   const root = document.documentElement;
   if (o == null) {
@@ -1491,12 +1498,14 @@ function applyDim(o) {
   if (layer.classList.contains("closing")) return; // beim Schließen ist der Streifen oben schon hell
   setDim(o <= 0 && !layer.classList.contains("open") ? null : o);
 }
-function animDim(to, ms) {
+function animDim(to, ms, curve) {
   stopDim();
   const from = dimNow, t0 = performance.now();
   if (ms <= 0 || noMotion() || Math.abs(to - from) < 0.01) { applyDim(to); return; }
   const step = now => {
-    const k = Math.min(1, (now - t0) / ms), e = 1 - (1 - k) * (1 - k); // langsam auslaufend
+    const k = Math.min(1, (now - t0) / ms);
+    // "ios": wie iOS die Leiste aufhellt (im Video gemessen: erstes Bild schon gut 60 %, dann gleichmäßig); sonst langsam auslaufend
+    const e = curve === "ios" ? Math.min(1, 0.6 + 0.4 * k) : 1 - (1 - k) * (1 - k);
     applyDim(from + (to - from) * e);
     dimRaf = k < 1 ? requestAnimationFrame(step) : 0;
   };
