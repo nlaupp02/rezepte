@@ -324,6 +324,10 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .hero img { width: 100%; height: 100%; object-fit: cover; }
 .hero .ph .ic { width: 48px; height: 48px; stroke-width: 1.4; }
 .d-head { display: grid; gap: 4px; }
+/* Kategorie und Zeit direkt unter dem Titel, Merkmale als kleine Etiketten */
+.d-meta { margin: 0; font-size: 16px; line-height: 1.35; color: var(--muted); }
+.d-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.tag { padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: #7A5209; font-size: 14px; font-weight: 500; line-height: 1.3; }
 .d-title { font-size: 28px; line-height: 1.15; overflow-wrap: anywhere; }
 .info { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: -8px 0 0; font-size: 16px; }
 .info dt { color: var(--muted); }
@@ -389,6 +393,16 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .nutri div:first-child dd { font-weight: 700; }
 .nutri .sub dt { color: var(--muted); padding-left: 14px; }
 .nutri .sub dd { font-weight: 500; color: var(--muted); }
+/* Nährwerte: vier große Werte im Raster, darunter der Rest in einer Zeile */
+.nutri2 { margin: 0; display: grid; grid-template-columns: 1fr 1fr; background: var(--group); border-radius: 12px; overflow: hidden; }
+.nutri2 div { padding: 11px 14px 12px; display: grid; gap: 1px; }
+.nutri2 div:nth-child(2n) { border-left: 1px solid var(--line); }
+.nutri2 div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+.nutri2 dt { font-size: 14px; color: var(--muted); }
+.nutri2 dd { margin: 0; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
+.nutri-more { margin: 10px 0 0; padding: 0 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; font-size: 15px; color: var(--muted); }
+.nutri-more span { white-space: nowrap; }
+.nutri-more b { color: var(--ink); font-weight: 600; }
 .opt .chev.on { color: var(--accent); width: 20px; height: 20px; stroke-width: 2.6; }
 .muted { color: var(--muted); margin: 0; }
 
@@ -607,7 +621,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "38";
+const APP_VERSION = "39";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1279,6 +1293,17 @@ function scaleBrackets(rest, factor) { // Mengen in Klammern rechnen mit, z. B. 
     const q = fmtCount(v, EGG.test(w));
     return sp + "(" + p2 + q + " " + numWord(" " + w, toNum(q)).trim() + ")";
   });
+}
+// Gewürz ohne Menge? (für die gemeinsame Zeile „Gewürze: …“ im Rezept)
+const SPICE_RE = /^(salz|meersalz|steinsalz|kräutersalz|pfeffer|schwarzer pfeffer|weißer pfeffer|cayennepfeffer|chili|chiliflocken|chilipulver|paprika (edelsüß|rosenscharf|geräuchert)|oregano|basilikum|thymian|rosmarin|majoran|kreuzkümmel|kümmel|kurkuma|curry|garam masala|zimt|muskat|muskatnuss|lorbeerblatt|lorbeerblätter|italienische kräuter|kräuter der provence|getrocknete kräuter|[a-zäöüß-]*gewürz|[a-zäöüß-]*gewürzmischung|[a-zäöüß-]*pulver|[a-zäöüß-]*granulat)$/;
+const NOT_SPICE = /protein|backpulver|kakao|pudding|eiweiß|milchpulver|espresso|kaffee/;
+function isSpice(line) {
+  const t = String(line).toLowerCase().trim()
+    .replace(/\(\s*(optional|nach geschmack|nach belieben|zum abschmecken|zum würzen)\s*\)/g, "")
+    .replace(/[,;]?\s*(optional|nach geschmack|nach belieben|zum abschmecken|zum würzen)\s*$/g, "")
+    .replace(/^(etwas|eine prise|prise)\s+/, "").trim();
+  if (!t || t.length > 50 || NOT_SPICE.test(t)) return false;
+  return t.split(/\s*(?:,|\bund\b|&|\+)\s*/).filter(Boolean).every(x => SPICE_RE.test(x.trim()));
 }
 function splitQty(line, factor) {
   const m = line.match(QTY2_RE);
@@ -1990,16 +2015,18 @@ function renderDetail() {
 
   let link = typeof r.link === "string" && /^https?:\/\//i.test(r.link) ? r.link : "";
   const info = [];
-  if (r.category) info.push(["Kategorie", esc(r.category)]);
   const orig = Number(r.orig) > 0;
   if (r.source || link || orig) info.push(["Quelle", [esc(r.source || ""),
     link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${/instagram\.com\/(?:[\w.]+\/)?(reels?|tv)\//i.test(link) ? "Reel öffnen" : /instagram\.com/i.test(link) ? "Auf Instagram öffnen" : "Link öffnen"}</a>` : "",
     orig ? `<button class="linkbtn" data-action="orig">${Number(r.orig) > 1 ? "Originalfotos ansehen" : "Original ansehen"}</button>` : ""].filter(Boolean).join(" · ")]);
-  if (r.prepTime) info.push(["Vorbereitung", esc(r.prepTime)]);
   const sw = servWords(r.category);
-  if (r.cookTime) info.push([sw.time, esc(r.cookTime)]);
+  // Kategorie und Zeit in einer Zeile unter dem Titel, z. B. „Hauptgericht · 1 Std. (15 Min. vorbereiten + 45 Min. kochen)“
+  const verb = sw.time === "Backzeit" ? "backen" : "kochen", tot = totalTime(r);
+  const both = !!(r.prepTime && r.cookTime);
+  const timeTxt = both ? (tot || `${r.prepTime} vorbereiten · ${r.cookTime} ${verb}`) : (tot || r.prepTime || r.cookTime || "");
+  const timeDetail = both && tot ? `(${r.prepTime} vorbereiten + ${r.cookTime} ${verb})` : ""; // bricht nur als Ganzes um
+  const metaHtml = [r.category, timeTxt].filter(Boolean).map(esc).join(" · ") + (timeDetail ? ` <span class="nw">${esc(timeDetail)}</span>` : "");
   const tg = cleanTags(r.tags);
-  if (tg.length) info.push(["Merkmale", esc(tg.join(" · "))]);
   const rs = setsOf(r);
   info.push([rs.length > 1 ? "Sammlungen" : "Sammlung", (rs.length ? esc(rs.join(" · ")) + " · " : "") +
     `<button class="linkbtn" data-action="sets">${rs.length ? "Ändern" : "Hinzufügen"}</button>`]);
@@ -2015,14 +2042,34 @@ function renderDetail() {
 
   const uns = cleanUnsure(r.unsure);
   const unsLine = (where, line) => uns.some(u => u.in === where && u.line && u.line === line);
-  let ingHtml = "";
+  // Gewürze ohne Menge (Salz, Pfeffer, Paprikapulver …) stehen zusammen in einer Zeile, je Abschnitt
+  const items = []; let grp = null;
   ings.forEach((line, i) => {
-    if (isHead(line)) { ingHtml += `<li class="ing-h">${esc(headText(line))}</li>`; return; }
-    const { qty, rest } = splitQty(line, factor);
-    const done = state.checked.has(i);
-    ingHtml += `<li><button class="ing ${done ? "done" : ""}${unsLine("ingredients", line) ? " unsure" : ""}" data-action="toggle-ing" data-i="${i}" aria-pressed="${done}">
-      <span class="box">${icon("check")}</span><span class="ing-t">${qty ? `<b>${esc(qty)}</b>` : ""}${esc(rest)}</span></button></li>`;
+    if (isHead(line)) { items.push({ head: line }); grp = null; return; }
+    const sq = splitQty(line, factor);
+    if (!sq.qty && isSpice(line)) {
+      if (!grp) { grp = { spices: [], idx: [] }; items.push(grp); }
+      grp.spices.push(line.trim()); grp.idx.push(i); return;
+    }
+    items.push({ i, line, qty: sq.qty, rest: sq.rest });
   });
+  const ingRow = (i, unsure, inner) => {
+    const done = state.checked.has(i);
+    return `<li><button class="ing ${done ? "done" : ""}${unsure ? " unsure" : ""}" data-action="toggle-ing" data-i="${i}" aria-pressed="${done}">
+      <span class="box">${icon("check")}</span><span class="ing-t">${inner}</span></button></li>`;
+  };
+  let ingHtml = "";
+  for (const it of items) {
+    if (it.head) { ingHtml += `<li class="ing-h">${esc(headText(it.head))}</li>`; continue; }
+    if (it.spices) {
+      const uns1 = it.spices.some(l => unsLine("ingredients", l));
+      ingHtml += it.spices.length > 1
+        ? ingRow(it.idx[0], uns1, `<b>Gewürze:</b> ${esc(it.spices.join(", "))}`)
+        : ingRow(it.idx[0], uns1, esc(it.spices[0]));
+      continue;
+    }
+    ingHtml += ingRow(it.i, unsLine("ingredients", it.line), `${it.qty ? `<b>${esc(it.qty)}</b>` : ""}${esc(it.rest)}`);
+  }
 
   let stepHtml = "", n = 0;
   steps.forEach((s, i) => {
@@ -2043,7 +2090,10 @@ function renderDetail() {
     </div>
     <article class="detail">
       ${hasCover ? `<div class="hero">${coverHtml(r)}</div>` : ""}
-      <div class="d-head"><h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>${starsHtml(r)}</div>
+      <div class="d-head"><h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>
+        ${metaHtml.trim() ? `<p class="d-meta">${metaHtml}</p>` : ""}
+        ${tg.length ? `<div class="d-tags">${tg.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
+        ${starsHtml(r)}</div>
       ${uns.length ? checkHtml(uns, r) : ""}
       ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
       <section class="sec">
@@ -2227,11 +2277,14 @@ function nutritionHtml(r) {
       : `Ließen sich gerade nicht schätzen. <button class="btn small quiet" data-action="nutri" style="margin-left:-8px">Nochmal</button>`}</p></section>`;
   }
   const g = x => String(x).replace(".", ",");
-  const rows = [["Brennwert", n.kcal, " kcal", ""], ["Fett", n.fat, " g", ""], ["davon gesättigte Fettsäuren", n.satFat, " g", "sub"],
-    ["Kohlenhydrate", n.carbs, " g", ""], ["davon Zucker", n.sugar, " g", "sub"], ["Ballaststoffe", n.fiber, " g", ""], ["Eiweiß", n.protein, " g", ""], ["Salz", n.salt, " g", ""]]
-    .filter(r => r[1] != null).map(([l, v, u, c]) => `<div class="${c}"><dt>${l}</dt><dd>ca. ${g(v)}${u}</dd></div>`).join("");
+  // Das Wichtigste groß (2 × 2), der Rest klein in einer Zeile darunter
+  const big = [["Brennwert", n.kcal, " kcal"], ["Eiweiß", n.protein, " g"], ["Kohlenhydrate", n.carbs, " g"], ["Fett", n.fat, " g"]]
+    .filter(x => x[1] != null).map(([l, v, u]) => `<div><dt>${l}</dt><dd>${g(v)}${u}</dd></div>`).join("");
+  const small = [["Zucker", n.sugar], ["gesättigte Fette", n.satFat], ["Ballaststoffe", n.fiber], ["Salz", n.salt]]
+    .filter(x => x[1] != null).map(([l, v]) => `<span>${l} <b>${g(v)} g</b></span>`).join("");
   return `<section class="sec"><h2>Nährwerte</h2>
-    <dl class="nutri">${rows}</dl>
+    <dl class="nutri2">${big}</dl>
+    ${small ? `<p class="nutri-more">${small}</p>` : ""}
     <p class="note">${per[0].toUpperCase() + per.slice(1)}, geschätzt.${busy ? " Wird gerade ergänzt …" : ""}</p></section>`;
 }
 // Fehlen Nährwerte (alte Rezepte) oder wurden Zutaten geändert: einmal von selbst schätzen
