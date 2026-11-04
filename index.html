@@ -401,7 +401,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .modal h2 { font-size: 17px; }
 .modal p { margin: 0; color: var(--muted); font-size: 15px; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-.modal .btn { min-height: 44px; }
+.modal .btn { min-height: 44px; padding-left: 6px; padding-right: 6px; font-size: 16px; }
 @media (prefers-reduced-motion: no-preference) {
   #layer.open .sheet { animation: up .25s cubic-bezier(.2, .8, .2, 1); }
   #layer.open .scrim { animation: fade .2s ease-out; }
@@ -430,6 +430,46 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Sammlungen */
+.chip .ic { width: 15px; height: 15px; vertical-align: -2px; margin-right: 4px; stroke-width: 2.2; }
+.chip.add { background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--accent); }
+.chip.add .ic { margin-right: 2px; }
+.setbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 -4px; font-size: 15px; color: var(--muted); }
+.setbar .btn { margin-right: -13px; }
+.picklist { list-style: none; margin: 0; padding: 0; background: var(--bg); border-radius: 12px; overflow: hidden; }
+.picklist .opt { gap: 12px; min-height: 48px; padding: 9px 16px; }
+.picklist .opt + .opt::before, .picklist li + li .opt::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 1px solid var(--line); }
+.picklist .opt span.t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.picklist .opt .chev.on { margin-left: auto; flex: none; }
+.picklist .opt.add { color: var(--accent); }
+.picklist .opt.add > .ic { width: 20px; height: 20px; }
+.sheet .lbl-row { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; font-size: 15px; padding: 0 2px; margin-bottom: -6px; }
+.sheet .lbl-row span { font-weight: 400; color: var(--muted); }
+.cell .v .chev { vertical-align: -3px; margin-left: 2px; }
+.info .linkbtn { border: 0; background: none; padding: 6px 0; margin: -6px 0; color: var(--accent); font-size: inherit; }
+
+/* Doppelt / Foto-Prüfung */
+.row.dup { align-items: flex-start; }
+.row.dup .row-t { color: var(--ink); }
+.modal.top { top: calc(env(safe-area-inset-top) + 64px); transform: none; }
+.modal .p-in { margin-top: 8px; width: 100%; padding: 11px 12px; border-radius: 10px; border: 0; background: var(--fill); font-size: 17px; color: var(--ink); text-align: left; }
+.modal .p-in:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+.modal .qprev { width: 120px; height: 96px; border-radius: 10px; object-fit: cover; margin: 0 auto 6px; display: block; background: var(--fill); }
+
+/* Originalfoto ansehen */
+.viewer { position: absolute; inset: 0; background: #111; color: #fff; display: flex; flex-direction: column; touch-action: none; }
+.vbar { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: calc(env(safe-area-inset-top) + 4px) 6px 4px 16px; font-size: 17px; }
+.vbar b { font-weight: 600; }
+.vbar .tbtn { color: #E7B45A; font-weight: 600; }
+.vimg { position: relative; flex: 1; overflow: hidden; }
+.vimg img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; transform-origin: 0 0; will-change: transform; }
+.vimg .spinner { position: absolute; left: 50%; top: 50%; margin: -11px 0 0 -11px; border-color: rgba(255,255,255,.25); border-top-color: #fff; }
+.vimg .vmsg { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: #bbb; }
+.vfoot { text-align: center; color: #aaa; font-size: 14px; padding: 10px 16px calc(env(safe-area-inset-bottom) + 12px); }
+.vdots { display: flex; justify-content: center; gap: 7px; margin-bottom: 8px; }
+.vdots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.3); }
+.vdots i.on { background: #fff; }
 </style>
 </head>
 <body>
@@ -501,7 +541,8 @@ const ICONS = {
   sort: '<path d="M8 4v16M4.5 16.5L8 20l3.5-3.5M16 20V4M12.5 7.5L16 4l3.5 3.5"/>',
   addsq: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/>',
   menu: '<path d="M4 6.5h16M4 12h16M4 17.5h10.5"/>',
-  more: '<path d="M6 9.5l6 6 6-6"/>'
+  more: '<path d="M6 9.5l6 6 6-6"/>',
+  folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>'
 };
 const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 
@@ -536,8 +577,8 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "30";
-const APP_DATE = "03.11.2026";
+const APP_VERSION = "31";
+const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
 const CLAUDE_MODEL = "claude-sonnet-5-5";      // liest Rezepte
@@ -632,7 +673,8 @@ function makeCol(id) {
       return {
         set: (d, merge) => fsWrite(merge ? F.setDoc(ref, d, { merge: true }) : F.setDoc(ref, d)),
         update: d => fsWrite(F.updateDoc(ref, d)),
-        delete: () => fsWrite(F.deleteDoc(ref))
+        delete: () => fsWrite(F.deleteDoc(ref)),
+        get: () => F.getDoc(ref)
       };
     }
   };
@@ -657,6 +699,26 @@ function mapFsErr(e) {
   return { code, message: String((e && e.message) || "") };
 }
 
+// Einmal pro Gerät: Hat ein altes Rezept kein createdAt, bekommt es eins, sonst fehlt es in der Liste.
+// Nur solange noch keine Originalfotos gespeichert sind (sonst würde das alle Fotos mit herunterladen).
+const repairTried = new Set();
+async function repairCreatedAt(myUid) {
+  if (repairTried.has(myUid)) return; repairTried.add(myUid);
+  const key = "rezepte-ca-" + myUid;
+  try { if (localStorage.getItem(key)) return; } catch (e) { return; }
+  const done = () => { try { localStorage.setItem(key, "1"); } catch (e) { /* egal */ } };
+  if (state.recipes.some(r => Number(r.orig) > 0)) { done(); return; }
+  try {
+    const { F } = fb;
+    const all = await F.getDocs(F.collection(fb.db, "recipes", myUid, "list"));
+    if (uid !== myUid) return;
+    const miss = all.docs.filter(d => { const v = d.data(); return v && v.createdAt === undefined && !v.orig; });
+    for (const d of miss) { const v = d.data(); await col.doc(d.id).update({ createdAt: Number(v.updatedAt) || Number(v.viewedAt) || 1 }); }
+    if (miss.length) console.warn("createdAt nachgetragen:", miss.length);
+    done();
+  } catch (e) { console.warn("createdAt prüfen", e); }
+}
+
 function subscribe() {
   const { F } = fb;
   clearTimeout(loadTimer);
@@ -664,7 +726,10 @@ function subscribe() {
   const myUid = uid;
   // includeMetadataChanges: Sonst meldet Firestore ein leeres Konto nie als „fertig geladen“ (vom Server bestätigt ändert sich nur das Metadatum),
   // und die App wartet 10 Sekunden auf Rezepte, die es gar nicht gibt.
-  unsub = F.onSnapshot(F.collection(fb.db, "recipes", uid, "list"), { includeMetadataChanges: true }, snap => {
+  // Nur Rezepte (haben immer createdAt). Originalfotos liegen im selben Ordner, aber ohne createdAt: die lädt die Liste nicht mit,
+  // erst beim Ansehen. So braucht es keine neue Firebase-Regel.
+  const q = F.query(F.collection(fb.db, "recipes", uid, "list"), F.orderBy("createdAt", "desc"));
+  unsub = F.onSnapshot(q, { includeMetadataChanges: true }, snap => {
     if (uid !== myUid) return;
     // Leerer Zwischenspeicher beim ersten Start: noch kurz warten, der Server antwortet gleich
     if (!state.loaded && snap.empty && snap.metadata && snap.metadata.fromCache) return;
@@ -677,6 +742,7 @@ function subscribe() {
     fixOldNames();
     onDataChanged();
     setTimeout(queueTags, 3000);
+    if (snap.metadata && !snap.metadata.fromCache) repairCreatedAt(myUid);
   }, err => {
     if (uid !== myUid) return;
     clearTimeout(loadTimer);
@@ -939,6 +1005,43 @@ function patchLocal(id, patch) {
 const isHead = s => /^#/.test(s) || (/:\s*$/.test(s) && !/\d/.test(s) && s.length < 60);
 const headText = s => s.replace(/^#+\s*/, "").replace(/:\s*$/, "");
 const newId = () => "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* Doppelte erkennen: gleicher Link (bei Instagram gleiches Reel) oder fast gleiches Rezept */
+function linkKey(u) {
+  let x; try { x = new URL(String(u || "").trim()); } catch (e) { return ""; }
+  const host = x.hostname.toLowerCase().replace(/^(www|m)\./, "");
+  if (/(^|\.)instagram\.com$|^instagr\.am$/.test(host)) {
+    const m = x.pathname.match(/\/(?:reels?|p|tv)\/([\w-]{5,})/i);
+    return m ? "ig:" + m[1] : "";
+  }
+  const path = x.pathname.replace(/\/+$/, "").toLowerCase();
+  return path.length > 1 || x.search ? host + path : ""; // nur die Startseite einer Website zählt nicht
+}
+const STOP = new Set("und oder mit ohne nach etwas evtl frisch frische frischer gehackt gehackte gewürfelt gewürfelte klein kleine große groß fein feine gemahlen gemahlener zum für die der das ein eine einer geschmack prise prisen stück stk packung päckchen dose dosen glas tasse tassen bund handvoll zehe zehen scheibe scheiben".split(" "));
+const ingWords = r => new Set((r.ingredients || []).filter(l => !isHead(l)).flatMap(l =>
+  norm(l).replace(/\([^)]*\)/g, " ").split(/[^a-zß]+/).filter(w => w.length >= 3 && !STOP.has(w) && !/^(kg|ml|el|tl|cl|dl|msp|ca)$/.test(w))));
+const titleWords = t => new Set(norm(t).split(/[^a-z0-9ß]+/).filter(w => w.length >= 3 && !STOP.has(w)));
+const jac = (a, b) => { if (!a.size || !b.size) return 0; let k = 0; a.forEach(x => { if (b.has(x)) k++; }); return k / (a.size + b.size - k); };
+function findSimilar(d) {
+  const lk = linkKey(d.link);
+  if (lk) { const r = state.recipes.find(x => linkKey(x.link) === lk); if (r) return r; }
+  const tk = [...titleWords(d.title)].join(" ");
+  const iw = ingWords(d), tw = titleWords(d.title);
+  return state.recipes.find(r => {
+    if (tk && [...titleWords(r.title)].join(" ") === tk) return true;
+    const ri = ingWords(r);
+    return iw.size >= 4 && ri.size >= 4 && jac(iw, ri) >= 0.8 && jac(tw, titleWords(r.title)) > 0;
+  }) || null;
+}
+
+/* Eigene Sammlungen: stehen als Namen am Rezept (sets). Eine Sammlung gibt es, solange ein Rezept darin ist. */
+const setsOf = r => Array.isArray(r && r.sets) ? r.sets.filter(s => typeof s === "string" && s.trim()) : [];
+const cleanSetName = s => String(s || "").replace(/\s+/g, " ").trim().slice(0, 30);
+function allSets() {
+  const m = new Map();
+  state.recipes.forEach(r => setsOf(r).forEach(s => m.set(s, (m.get(s) || 0) + 1)));
+  return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], "de", { sensitivity: "base" }));
+}
 
 function coverSrc(cover, key) {
   if (!cover) return null;
@@ -1222,6 +1325,67 @@ async function storeCover(blob) {
   return { dataUrl: await blobToDataUrl(small) };
 }
 
+/* Originalfoto: etwas verkleinert, damit es in ein Firestore-Dokument passt (höchstens 1 MB) */
+async function origDataUrl(blob) {
+  for (const [side, q] of [[1600, 0.72], [1300, 0.66], [1050, 0.6], [800, 0.55]]) {
+    const u = await blobToDataUrl(await toJpeg(blob, side, q));
+    if (u.length < 880000) return u;
+  }
+  return null;
+}
+const origKey = (rid, i) => "o_" + rid + "_" + i;
+async function storeOriginals(rid, blobs) {
+  let n = 0;
+  for (const b of blobs.slice(0, 6)) {
+    const img = await origDataUrl(b).catch(() => null);
+    if (!img) continue;
+    try { await withRetry(() => col.doc(origKey(rid, n)).set({ orig: true, rid, n, img })); n++; }
+    catch (e) { console.warn("Original speichern", e); break; }
+  }
+  return n;
+}
+
+// Foto vor dem Lesen prüfen: zu dunkel oder unscharf? Läuft nur auf dem Handy, kostet kein Guthaben.
+// Schärfe: Das Bild wird in Kacheln geteilt. Ist irgendwo Schrift scharf, hat diese Kachel harte Kanten (im Verhältnis zum Kontrast),
+// und zwar in allen vier Richtungen. Verwackelt ist mindestens eine Richtung weich. Kacheln ohne Kontrast (Papier, Tisch) zählen nicht.
+async function photoCheck(blob) {
+  const { img, url } = await loadImg(blob);
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const s = Math.min(1, 1000 / Math.max(W, H));
+  const w = Math.max(3, Math.round(W * s)), h = Math.max(3, Math.round(H * s));
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, w, h);
+  URL.revokeObjectURL(url);
+  const px = ctx.getImageData(0, 0, w, h).data, n = w * h;
+  const g = new Float32Array(n), hist = new Uint32Array(256);
+  let sat = 0;
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    const r = px[j], gg = px[j + 1], b = px[j + 2], v = 0.299 * r + 0.587 * gg + 0.114 * b;
+    g[i] = v; hist[v | 0]++; sat += Math.max(r, gg, b) - Math.min(r, gg, b);
+  }
+  const pct = (hst, total, p) => { const k = total * p; let a = 0; for (let i = 0; i < hst.length; i++) { a += hst[i]; if (a >= k) return i; } return hst.length - 1; };
+  const p95 = pct(hist, n, 0.95), conAll = pct(hist, n, 0.98) - pct(hist, n, 0.02);
+  const T = Math.max(48, Math.round(Math.max(w, h) / 8)), scores = [];
+  const th = new Uint32Array(256), lh = [0, 1, 2, 3].map(() => new Uint32Array(512)), D = [1, w, w + 1, w - 1];
+  for (let ty = 1; ty < h - 1; ty += T) for (let tx = 1; tx < w - 1; tx += T) {
+    const y1 = Math.min(h - 1, ty + T), x1 = Math.min(w - 1, tx + T);
+    th.fill(0); lh.forEach(a => a.fill(0)); let m = 0;
+    for (let y = ty; y < y1; y++) for (let x = tx, i = y * w + tx; x < x1; x++, i++) {
+      const v2 = 2 * g[i]; th[g[i] | 0]++; m++;
+      for (let k = 0; k < 4; k++) { const L = Math.abs(v2 - g[i - D[k]] - g[i + D[k]]); lh[k][L > 511 ? 511 : L | 0]++; }
+    }
+    if (m < 400) continue;
+    const con = pct(th, m, 0.98) - pct(th, m, 0.02);
+    if (con < 40) continue; // fast einfarbig: sagt nichts über die Schärfe
+    scores.push(Math.min(...lh.map(a => pct(a, m, 0.99))) / Math.max(con, conAll * 0.5));
+  }
+  scores.sort((a, b) => b - a);
+  const sharp = scores.length ? scores[Math.min(1, scores.length - 1)] : null; // zweitbeste Kachel: ein einzelner Fleck zählt nicht
+  // Bunte Fotos (das fertige Gericht) dürfen weich sein, gewarnt wird nur bei Seiten, Zetteln und Karten
+  return { dark: p95 < 80, blurry: sharp != null && sharp < 0.15 && sat / n < 60 };
+}
+
 /* ---------- UI helpers ---------- */
 let toastT;
 function toast(msg) {
@@ -1335,6 +1499,54 @@ function endSheetDrag(e) {
 layer.addEventListener("pointerup", endSheetDrag);
 layer.addEventListener("pointercancel", endSheetDrag);
 document.addEventListener("click", e => { if (suppressClick) { e.preventDefault(); e.stopPropagation(); } }, true);
+// Unscharfes oder dunkles Foto: fragen, bevor die KI liest (kostet sonst Guthaben und klappt meist nicht)
+let photoResolve = null;
+function photoDialog(weak, images, pickId) {
+  const n = images.length, many = weak.length > 1;
+  const dark = weak.some(w => w.dark), blurry = weak.some(w => w.blurry);
+  const what = dark && blurry ? "unscharf und dunkel" : dark ? "zu dunkel" : "unscharf";
+  const title = many ? `${weak.length} Fotos sind ${what}` : n > 1 ? `Foto ${weak[0].k + 1} von ${n} ist ${what}` : `Foto ist ${what}`;
+  const tip = dark && blurry ? "Mach lieber ein neues Foto, mit mehr Licht und ruhig gehalten." : dark ? "Mach lieber ein neues Foto mit mehr Licht." : "Mach lieber ein neues Foto und halt das Handy dabei ruhig.";
+  const again = pickId === "cam-pick" ? "Neues Foto" : n > 1 ? "Neu auswählen" : "Anderes Foto";
+  return new Promise(res => {
+    photoResolve = res;
+    layer.innerHTML = `<div class="scrim"></div>
+      <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="q-t">
+        <img class="qprev" src="${esc(images[weak[0].k].url)}" alt="">
+        <h2 id="q-t">${esc(title)}</h2>
+        <p>Die KI kann ${many ? "sie" : "es"} wahrscheinlich nicht gut lesen. ${tip}</p>
+        <div class="modal-actions">
+          <button class="btn" data-action="q-read">Trotzdem lesen</button>
+          <button class="btn primary" data-action="q-again" data-pick="${esc(pickId || "quick-pick")}">${again}</button>
+        </div>
+      </div>`;
+    layer.classList.add("open");
+  });
+}
+// Name eingeben (Sammlung anlegen oder umbenennen). Steht oben, damit die Tastatur es nicht verdeckt.
+let promptResolve = null;
+function promptDialog({ title, text, value, yes }) {
+  return new Promise(res => {
+    promptResolve = res;
+    layer.innerHTML = `<div class="scrim" data-action="prompt-no"></div>
+      <div class="modal top" role="dialog" aria-modal="true" aria-labelledby="p-t">
+        <h2 id="p-t">${esc(title)}</h2>${text ? `<p>${esc(text)}</p>` : ""}
+        <input id="p-in" class="p-in" type="text" maxlength="30" autocomplete="off" enterkeyhint="done" placeholder="z. B. Von Oma" value="${esc(value || "")}" aria-label="Name">
+        <div class="modal-actions">
+          <button class="btn" data-action="prompt-no">Abbrechen</button>
+          <button class="btn primary" data-action="prompt-yes">${esc(yes || "Fertig")}</button>
+        </div>
+      </div>`;
+    layer.classList.add("open");
+    const i = $("#p-in"); if (i) { i.focus(); i.select(); }
+  });
+}
+function endPrompt(v) {
+  const r = promptResolve; promptResolve = null;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  closeLayer();
+  if (r) r(v);
+}
 function confirmDialog({ title, text, yes, danger }) {
   return new Promise(res => {
     layer.innerHTML = `<div class="scrim" data-action="modal-no"></div>
@@ -1459,13 +1671,14 @@ function filtered() {
   return sorted(state.recipes).filter(r => {
     if (state.filter === "fav" && !r.favorite) return false;
     if (state.filter.startsWith("cat:") && r.category !== state.filter.slice(4)) return false;
+    if (state.filter.startsWith("set:") && !setsOf(r).includes(state.filter.slice(4))) return false;
     if (!q) return true;
-    const hay = norm([r.title, r.category, r.source, ...(r.ingredients || []), ...cleanTags(r.tags)].join(" "));
+    const hay = norm([r.title, r.category, r.source, ...(r.ingredients || []), ...cleanTags(r.tags), ...setsOf(r)].join(" "));
     return q.split(/\s+/).every(t => hay.includes(t));
   });
 }
-function chip(f, label) {
-  return `<button class="chip ${state.filter === f ? "on" : ""}" data-action="filter" data-f="${esc(f)}" aria-pressed="${state.filter === f}">${esc(label)}</button>`;
+function chip(f, label, ic) {
+  return `<button class="chip ${state.filter === f ? "on" : ""}" data-action="filter" data-f="${esc(f)}" aria-pressed="${state.filter === f}">${ic ? icon(ic) : ""}${esc(label)}</button>`;
 }
 function card(r) {
   const meta = [r.category, totalTime(r)].filter(Boolean).join(" · ");
@@ -1503,14 +1716,108 @@ function renderListBody() {
   sw.hidden = !rs.length; fab.hidden = false;
   const cats = CATEGORIES.filter(c => rs.some(r => r.category === c));
   const favN = rs.filter(r => r.favorite).length;
-  if ((state.filter === "fav" && !favN) || (state.filter.startsWith("cat:") && !cats.includes(state.filter.slice(4)))) state.filter = "all";
+  const sets = allSets(), curSet = state.filter.startsWith("set:") ? state.filter.slice(4) : null;
+  if ((state.filter === "fav" && !favN) || (state.filter.startsWith("cat:") && !cats.includes(state.filter.slice(4))) ||
+    (curSet != null && !sets.some(([s]) => s === curSet))) state.filter = "all";
+  const keepX = chips.scrollLeft;
   chips.innerHTML = rs.length < 2 ? "" : [chip("all", "Alle"), favN ? chip("fav", "Favoriten") : "",
+    ...sets.map(([s]) => chip("set:" + s, s, "folder")),
+    `<button class="chip add" data-action="new-set">${icon("plus")}Sammlung</button>`,
     ...cats.map(c => chip("cat:" + c, c))].join("");
+  chips.scrollLeft = keepX;
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
-  setHTMLKeepImgs(grid, (jobsHtml || list.length)
+  const setN = state.filter.startsWith("set:") ? (sets.find(([s]) => s === state.filter.slice(4)) || [0, 0])[1] : 0;
+  const setBar = setN ? `<div class="setbar"><span>${setN === 1 ? "1 Rezept" : setN + " Rezepte"}</span><button class="btn small quiet" data-action="edit-set">Bearbeiten</button></div>` : "";
+  setHTMLKeepImgs(grid, setBar + ((jobsHtml || list.length)
     ? `<ul class="list">${jobsHtml}${list.map(card).join("")}</ul>`
-    : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`);
+    : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`));
+}
+
+/* ---------- Sammlungen ---------- */
+async function writeSets(changes) { // [{ id, sets }]
+  const old = changes.map(c => ({ id: c.id, sets: setsOf(state.recipes.find(r => r.id === c.id)) }));
+  changes.forEach(c => patchLocal(c.id, { sets: c.sets }));
+  refreshSets();
+  try { await Promise.all(changes.map(c => withRetry(() => col.doc(c.id).update({ sets: c.sets })))); return true; }
+  catch (e) { old.forEach(c => patchLocal(c.id, { sets: c.sets })); refreshSets(); toast(dbErrorText(e)); return false; }
+}
+function refreshSets() {
+  if (state.view === "list") renderListBody();
+  else if (state.view === "detail") renderDetail();
+  if (layer.querySelector("#sets-for")) openSetsFor(current(), true);
+}
+// Im Rezept: in welchen Sammlungen ist es?
+function openSetsFor(r, keep) {
+  if (!r) return;
+  const mine = setsOf(r), names = allSets().map(([s]) => s);
+  // Beim Abhaken bleibt die Zeile stehen, auch wenn die Sammlung dadurch gerade leer ist
+  if (keep && state.sheetSets) state.sheetSets.forEach(s => { if (!names.includes(s)) names.push(s); });
+  mine.forEach(s => { if (!names.includes(s)) names.push(s); });
+  state.sheetSets = names.slice();
+  const html = `<div class="grip"></div>
+      <div class="sheet-head"><h2 id="st-t">Sammlungen</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
+      <ul class="picklist" id="sets-for">${names.map(s => `<li><button class="opt" data-action="toggle-set" data-s="${esc(s)}" aria-pressed="${mine.includes(s)}">${icon("folder")}<span class="t">${esc(s)}</span>${mine.includes(s) ? icon("check", "chev on") : ""}</button></li>`).join("")}
+        <li><button class="opt add" data-action="new-set-for">${icon("plus")}<span class="t">Neue Sammlung</span></button></li></ul>
+      ${names.length ? "" : `<p class="note" style="padding:0 4px">Zum Beispiel „Von Oma“, „Weihnachten“ oder „Für Gäste“. In der Liste oben tippst du dann auf die Sammlung.</p>`}`;
+  const sh = keep && layer.querySelector(".sheet");
+  if (sh) { sh.innerHTML = html; return; }
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="st-t">${html}</div>`;
+  layer.classList.add("open");
+}
+async function newSetFor() {
+  const r = current(); if (!r) return;
+  const v = cleanSetName(await promptDialog({ title: "Neue Sammlung", text: `„${r.title || "Rezept"}“ kommt gleich hinein.`, yes: "Anlegen" }));
+  if (!v) { openSetsFor(current()); return; }
+  const now = current(); if (!now) return;
+  const known = allSets().map(([s]) => s).find(s => s.toLowerCase() === v.toLowerCase()) || v; // gleicher Name: dieselbe Sammlung
+  const mine = setsOf(now);
+  openSetsFor(now);
+  if (!mine.includes(known)) await writeSets([{ id: now.id, sets: [...mine, known].slice(0, 20) }]);
+}
+// In der Liste: Sammlung anlegen oder bearbeiten (Name, welche Rezepte, löschen)
+function openSetEdit() {
+  const se = state.setEdit; if (!se) return;
+  const list = state.recipes.slice().sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "de", { sensitivity: "base" }));
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="se-t">
+      <div class="grip"></div>
+      <div class="sheet-head"><button class="tbtn" data-action="close-layer" style="margin:0 0 0 -10px">Abbrechen</button><h2 id="se-t">${se.isNew ? "Neue Sammlung" : "Sammlung"}</h2><button class="tbtn bold" data-action="set-save">Fertig</button></div>
+      <div class="group"><button class="cell" data-action="set-rename"><span>Name</span><span class="v">${esc(se.name)} ${icon("chev", "chev")}</span></button></div>
+      <div class="lbl-row">Rezepte <span id="se-n">${se.sel.size} ausgewählt</span></div>
+      <ul class="picklist">${list.map(r => `<li><button class="opt" data-action="set-pick" data-id="${esc(r.id)}" aria-pressed="${se.sel.has(r.id)}"><span class="t">${esc(r.title || "Ohne Titel")}</span>${se.sel.has(r.id) ? icon("check", "chev on") : ""}</button></li>`).join("")}</ul>
+      ${se.isNew ? "" : `<button class="btn danger quiet block" data-action="set-delete">Sammlung löschen</button>`}
+    </div>`;
+  layer.classList.add("open");
+}
+async function startNewSet() {
+  const v = cleanSetName(await promptDialog({ title: "Neue Sammlung", text: "Danach wählst du die Rezepte aus.", yes: "Weiter" }));
+  if (!v) return;
+  const known = allSets().map(([s]) => s).find(s => s.toLowerCase() === v.toLowerCase());
+  if (known) { editSet(known); return; } // gibt es schon: einfach bearbeiten
+  state.setEdit = { isNew: true, orig: null, name: v, sel: new Set() };
+  openSetEdit();
+}
+function editSet(name) {
+  state.setEdit = { isNew: false, orig: name, name, sel: new Set(state.recipes.filter(r => setsOf(r).includes(name)).map(r => r.id)) };
+  openSetEdit();
+}
+async function saveSetEdit() {
+  const se = state.setEdit; if (!se) return;
+  if (se.isNew && !se.sel.size) { toast("Wähl mindestens ein Rezept aus."); return; }
+  const changes = [];
+  state.recipes.forEach(r => {
+    const cur = setsOf(r), want = se.sel.has(r.id);
+    let next = cur.filter(s => s !== se.orig && s !== se.name);
+    if (want) next.push(se.name);
+    next = next.slice(0, 20);
+    if (JSON.stringify(next) !== JSON.stringify(cur)) changes.push({ id: r.id, sets: next });
+  });
+  state.setEdit = null; closeLayer();
+  state.filter = se.sel.size ? "set:" + se.name : "all";
+  if (!changes.length) { renderListBody(); return; }
+  const ok = await writeSets(changes);
+  if (ok && !se.sel.size) toast("Sammlung entfernt. Die Rezepte bleiben.");
 }
 
 /* ---------- Detail view ---------- */
@@ -1539,13 +1846,18 @@ function renderDetail() {
   let link = typeof r.link === "string" && /^https?:\/\//i.test(r.link) ? r.link : "";
   const info = [];
   if (r.category) info.push(["Kategorie", esc(r.category)]);
-  if (r.source || link) info.push(["Quelle", esc(r.source || "") + (r.source && link ? " · " : "") +
-    (link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${/instagram\.com\/(?:[\w.]+\/)?(reels?|tv)\//i.test(link) ? "Reel öffnen" : /instagram\.com/i.test(link) ? "Auf Instagram öffnen" : "Link öffnen"}</a>` : "")]);
+  const orig = Number(r.orig) > 0;
+  if (r.source || link || orig) info.push(["Quelle", [esc(r.source || ""),
+    link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${/instagram\.com\/(?:[\w.]+\/)?(reels?|tv)\//i.test(link) ? "Reel öffnen" : /instagram\.com/i.test(link) ? "Auf Instagram öffnen" : "Link öffnen"}</a>` : "",
+    orig ? `<button class="linkbtn" data-action="orig">${Number(r.orig) > 1 ? "Originalfotos ansehen" : "Original ansehen"}</button>` : ""].filter(Boolean).join(" · ")]);
   if (r.prepTime) info.push(["Vorbereitung", esc(r.prepTime)]);
   const sw = servWords(r.category);
   if (r.cookTime) info.push([sw.time, esc(r.cookTime)]);
   const tg = cleanTags(r.tags);
   if (tg.length) info.push(["Merkmale", esc(tg.join(" · "))]);
+  const rs = setsOf(r);
+  info.push([rs.length > 1 ? "Sammlungen" : "Sammlung", (rs.length ? esc(rs.join(" · ")) + " · " : "") +
+    `<button class="linkbtn" data-action="sets">${rs.length ? "Ändern" : "Hinzufügen"}</button>`]);
 
   const scaler = base
     ? `<div class="scaler" role="group" aria-label="Menge anpassen">
@@ -1616,6 +1928,140 @@ function checkHtml(uns, r) {
     <div class="check-btns"><button class="btn small primary" data-action="unsure-ok">Passt so</button><button class="btn small" data-action="edit">Korrigieren</button></div>
   </div>`;
 }
+/* ---------- Originalfoto ansehen (zum Vergrößern mit zwei Fingern) ---------- */
+let viewer = null;
+function openViewer(r) {
+  const n = Math.max(0, Math.min(6, Number(r && r.orig) || 0));
+  if (!n || !col) return;
+  viewer = { rid: r.id, n, i: 0, src: String(r.source || "").trim(), s: 1, x: 0, y: 0, pts: new Map(), g: null, tap: 0 };
+  layer.innerHTML = `<div class="viewer" role="dialog" aria-modal="true" aria-labelledby="v-t">
+      <div class="vbar"><b id="v-t">Original</b><button class="tbtn" data-action="viewer-close">Fertig</button></div>
+      <div class="vimg" id="vimg"></div>
+      <div class="vfoot">${n > 1 ? `<div class="vdots">${Array.from({ length: n }, (_, k) => `<i data-k="${k}"></i>`).join("")}</div>` : ""}<span id="vcap"></span></div>
+    </div>`;
+  layer.classList.add("open");
+  if (themeMeta) themeMeta.content = "#111111";
+  const box = $("#vimg");
+  box.addEventListener("pointerdown", vDown);
+  box.addEventListener("pointermove", vMove);
+  box.addEventListener("pointerup", vUp);
+  box.addEventListener("pointercancel", vUp);
+  box.addEventListener("wheel", vWheel, { passive: false });
+  showOrig(0);
+}
+function closeViewer() {
+  if (!viewer) return;
+  viewer = null;
+  if (themeMeta) themeMeta.content = "#FFFFFF";
+  closeLayer();
+}
+const origUrls = new Map();
+async function loadOrig(rid, i) {
+  const k = origKey(rid, i);
+  if (origUrls.has(k)) return origUrls.get(k);
+  const snap = await col.doc(k).get();
+  const d = snap && snap.exists() ? snap.data() : null;
+  const u = d && typeof d.img === "string" && d.img.startsWith("data:image/") ? blobUrl(d.img, "orig") : null;
+  if (u) origUrls.set(k, u);
+  return u;
+}
+async function showOrig(i) {
+  const v = viewer; if (!v) return;
+  v.i = i; v.s = 1; v.x = 0; v.y = 0;
+  $$(".vdots i").forEach(d => d.classList.toggle("on", Number(d.dataset.k) === i));
+  const cap = $("#vcap");
+  if (cap) cap.textContent = [v.src, v.n > 1 ? `Foto ${i + 1} von ${v.n}` : "", "zum Vergrößern mit zwei Fingern"].filter(Boolean).join(" · ");
+  const box = $("#vimg"); if (!box) return;
+  box.innerHTML = `<span class="spinner"></span>`;
+  let u = null;
+  try { u = await loadOrig(v.rid, i); } catch (e) { console.warn("Original laden", e); }
+  if (viewer !== v || v.i !== i) return;
+  if (!u) { box.innerHTML = `<div class="vmsg">Das Foto lässt sich gerade nicht laden. Prüf die Internetverbindung und versuch es nochmal.</div>`; return; }
+  const img = new Image();
+  img.alt = "Originalfoto"; img.draggable = false;
+  img.onload = () => { if (viewer === v && v.i === i) { box.innerHTML = ""; box.appendChild(img); v.img = img; vApply(); } };
+  img.onerror = () => { if (viewer === v) box.innerHTML = `<div class="vmsg">Das Foto lässt sich nicht öffnen.</div>`; };
+  img.src = u;
+}
+// Bildgröße im Fenster (ganz zu sehen) und Grenzen beim Verschieben
+function vFit() {
+  const v = viewer, box = $("#vimg"); if (!v || !box || !v.img) return null;
+  const W = box.clientWidth, H = box.clientHeight, nw = v.img.naturalWidth || 1, nh = v.img.naturalHeight || 1;
+  const f = Math.min(W / nw, H / nh), iw = nw * f, ih = nh * f;
+  return { W, H, iw, ih, ox: (W - iw) / 2, oy: (H - ih) / 2 };
+}
+function vClamp() {
+  const v = viewer, f = vFit(); if (!f) return;
+  const ax = (W, o, len, t) => len * v.s <= W ? (W - len * v.s) / 2 - o * v.s : Math.min(-o * v.s, Math.max(W - (o + len) * v.s, t));
+  v.x = ax(f.W, f.ox, f.iw, v.x); v.y = ax(f.H, f.oy, f.ih, v.y);
+}
+function vApply(anim) {
+  const v = viewer; if (!v || !v.img) return;
+  v.img.style.transition = anim ? "transform .2s ease-out" : "none";
+  v.img.style.transform = `translate(${v.x}px, ${v.y}px) scale(${v.s})`;
+}
+function vZoomAt(px, py, s) {
+  const v = viewer; if (!v) return;
+  s = Math.min(6, Math.max(1, s));
+  const cx = (px - v.x) / v.s, cy = (py - v.y) / v.s; // dieser Punkt bleibt unter dem Finger
+  v.s = s; v.x = px - cx * s; v.y = py - cy * s;
+  vClamp();
+}
+const vPos = e => { const b = $("#vimg").getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+function vDown(e) {
+  const v = viewer; if (!v) return;
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) { /* egal */ }
+  v.pts.set(e.pointerId, vPos(e));
+  const p = [...v.pts.values()];
+  if (p.length === 2) v.g = { d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, s: v.s, m: { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 }, x: v.x, y: v.y, pinch: true };
+  else if (p.length === 1) v.g = { p0: p[0], x: v.x, y: v.y, t: performance.now(), moved: false };
+}
+function vMove(e) {
+  const v = viewer; if (!v || !v.pts.has(e.pointerId) || !v.g) return;
+  v.pts.set(e.pointerId, vPos(e));
+  const p = [...v.pts.values()], g = v.g;
+  if (g.pinch && p.length >= 2) {
+    const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), m = { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
+    const s = Math.min(6, Math.max(1, g.s * d / g.d));
+    const cx = (g.m.x - g.x) / g.s, cy = (g.m.y - g.y) / g.s;
+    v.s = s; v.x = m.x - cx * s; v.y = m.y - cy * s; vClamp(); vApply();
+  } else if (!g.pinch && p.length === 1) {
+    const dx = p[0].x - g.p0.x, dy = p[0].y - g.p0.y;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) g.moved = true;
+    if (v.s > 1.01) { v.x = g.x + dx; v.y = g.y + dy; vClamp(); vApply(); }
+    else if (v.img) v.img.style.transform = `translate(${v.x + (v.n > 1 ? dx : 0)}px, ${v.y + Math.max(0, dy) * .6}px) scale(1)`; // blättern oder nach unten wegwischen
+  }
+}
+function vUp(e) {
+  const v = viewer; if (!v || !v.pts.has(e.pointerId)) return;
+  const end = vPos(e); v.pts.delete(e.pointerId);
+  const g = v.g;
+  if (v.pts.size === 1 && g && g.pinch) { const p = [...v.pts.values()][0]; v.g = { p0: p, x: v.x, y: v.y, t: performance.now(), moved: true }; return; }
+  if (v.pts.size) return;
+  v.g = null;
+  if (!g || g.pinch) return;
+  const dx = end.x - g.p0.x, dy = end.y - g.p0.y;
+  if (!g.moved) { // Doppeltippen: vergrößern oder zurück
+    const now = performance.now();
+    if (now - v.tap < 320) { v.tap = 0; if (v.s > 1.05) { v.s = 1; vClamp(); } else vZoomAt(end.x, end.y, 2.5); vApply(true); }
+    else v.tap = now;
+    return;
+  }
+  if (v.s <= 1.01) {
+    if (v.n > 1 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) { showOrig((v.i + (dx < 0 ? 1 : v.n - 1)) % v.n); return; }
+    if (dy > 110 && dy > Math.abs(dx)) { closeViewer(); return; }
+    vApply(true);
+  }
+}
+function vWheel(e) {
+  const v = viewer; if (!v || !v.img) return;
+  e.preventDefault();
+  const p = vPos(e);
+  vZoomAt(p.x, p.y, v.s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002)));
+  vApply();
+}
+window.addEventListener("resize", () => { if (viewer && viewer.img) { vClamp(); vApply(); } });
+
 function starsHtml(r) {
   const v = Number(r.rating) || 0;
   return `<div class="stars" role="group" aria-label="Bewertung">${[1, 2, 3, 4, 5].map(i =>
@@ -1864,6 +2310,7 @@ async function saveRecipe() {
       doc.tags = null; tagDone.delete(id); // werden im Hintergrund neu bestimmt
     }
     if (!existing) Object.assign(doc, { link: d.link.trim(), favorite: false, createdAt: now, rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null });
+    else doc.createdAt = existing.createdAt || now; // ohne createdAt taucht ein Rezept nicht in der Liste auf (z. B. wenn es parallel auf dem anderen Handy gelöscht wurde)
     await withRetry(() => col.doc(id).set(doc, true));
     const i = state.recipes.findIndex(r => r.id === id);
     const local = Object.assign({ id }, existing || {}, doc);
@@ -2050,7 +2497,7 @@ function aiErrorText(e) {
 }
 
 /* Rezept direkt speichern (ohne Editor) */
-async function saveData(d, coverBlob, coverUrl) {
+async function saveData(d, coverBlob, coverUrl, origBlobs) {
   if (!col) throw { code: "permission", message: "nicht angemeldet" };
   let cover = null;
   if (coverBlob) { try { cover = await storeCover(coverBlob); } catch (e) { cover = null; } }
@@ -2070,6 +2517,16 @@ async function saveData(d, coverBlob, coverUrl) {
   const id = newId();
   await withRetry(() => col.doc(id).set(doc));
   if (!state.recipes.some(r => r.id === id)) state.recipes.unshift(Object.assign({ id }, doc));
+  // Fotos vom Rezept zusätzlich aufheben (im Hintergrund, das Rezept ist schon gespeichert)
+  if (origBlobs && origBlobs.length) {
+    const myUid = uid;
+    storeOriginals(id, origBlobs).then(n => {
+      if (!n || uid !== myUid || !state.recipes.some(r => r.id === id)) return;
+      patchLocal(id, { orig: n });
+      col.doc(id).update({ orig: n }).catch(e => console.warn("Original", e));
+      if (state.view === "detail" && state.currentId === id) renderDetail();
+    });
+  }
   return id;
 }
 
@@ -2103,7 +2560,11 @@ async function jobStore(op, arg) {
 }
 function jobRecord(job) {
   const src = job.src;
-  return { id: job.id, uid: job.uid, t0: job.t0, src: { mode: src.mode, text: src.text || "", link: src.link || "", images: (src.images || []).map(i => i.blob) } };
+  const rec = { id: job.id, uid: job.uid, t0: job.t0, src: { mode: src.mode, text: src.text || "", link: src.link || "", images: (src.images || []).map(i => i.blob) } };
+  if (job.dup) rec.dup = job.dup;
+  if (job.force) rec.force = true;
+  if (job.conv) rec.conv = job.conv; // schon gelesen: nach einem Neustart nicht nochmal lesen
+  return rec;
 }
 async function resumeJobs() {
   const myUid = uid;
@@ -2113,9 +2574,10 @@ async function resumeJobs() {
     if (rec.uid !== uid) continue;
     if (state.jobs.some(j => j.id === rec.id)) continue;
     const src = Object.assign({}, rec.src, { images: (rec.src.images || []).map(b => ({ blob: b, url: URL.createObjectURL(b) })) });
-    const job = { id: rec.id, src, status: "busy", title: "", error: [], t0: rec.t0 || Date.now(), ctl: null, uid: rec.uid, conv: null };
+    const job = { id: rec.id, src, status: "busy", title: "", error: [], t0: rec.t0 || Date.now(), ctl: null, uid: rec.uid, conv: rec.conv || null, dup: rec.dup || null, force: !!rec.force };
     state.jobs.push(job);
-    runJob(job);
+    if (job.dup && !job.force) job.status = "dup"; // wartet auf „Ansehen“, „Trotzdem speichern“ oder „Entfernen“
+    else runJob(job);
   }
   if (all.some(r => r.uid === uid)) refreshJobs();
 }
@@ -2145,7 +2607,15 @@ async function runJob(job) {
   if (!sample) { job.status = "error"; job.error = ["Lesen geht gerade nicht", "Lade die App neu und versuch es nochmal."]; refreshJobs(); return; }
   const done = async conv => {
     if (job.dead || job.uid !== uid) return;
-    await saveData(conv.data, conv.coverBlob, conv.coverUrl);
+    if (!job.force) { // gibt es das Rezept schon? Dann erst fragen
+      const sim = findSimilar(conv.data);
+      if (sim) {
+        job.status = "dup"; job.dup = { id: sim.id, title: sim.title || "" }; job.conv = conv;
+        jobStore("put", jobRecord(job)); refreshJobs();
+        return;
+      }
+    }
+    await saveData(conv.data, conv.coverBlob, conv.coverUrl, conv.orig);
     removeJob(job);
     toast(`„${conv.data.title}“ gespeichert`);
   };
@@ -2195,6 +2665,7 @@ async function runJob(job) {
     }
     if (!conv.coverBlob && thumb) conv.coverBlob = thumb;
     if (!conv.coverBlob && pageImage && !insta) conv.coverUrl = pageImage;
+    if (src.mode === "photo" && imgs.length) conv.orig = imgs; // Originalfotos mit aufheben
     job.conv = conv;
     await done(conv);
   } catch (e) {
@@ -2208,6 +2679,19 @@ async function runJob(job) {
 function jobCard(j) {
   const im = (j.src.images || [])[0];
   const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder({ link: "link", text: "text" }[j.src.mode] || "pot");
+  if (j.status === "dup") {
+    const r = j.dup && state.recipes.find(x => x.id === j.dup.id);
+    const t = esc((r && r.title) || (j.dup && j.dup.title) || "");
+    const lk = j.src.mode === "link" && !j.conv ? linkKey(j.src.link) : "";
+    const why = lk ? `${lk.startsWith("ig:") ? "Dieses Reel ist" : "Dieser Link ist"} schon gespeichert als „${t}“.` : `Ein sehr ähnliches Rezept ist schon gespeichert: „${t}“.`;
+    return `<li><div class="row job dup">
+      <span class="thumb-sm">${r ? coverHtml(r) : pic}</span>
+      <span class="row-b"><span class="row-t">Hast du schon</span>
+        <span class="job-err">${r ? why : "Das ähnliche Rezept wurde inzwischen gelöscht."}</span>
+        <span class="job-actions">${r ? `<button class="btn small primary" data-action="job-open" data-id="${j.id}">Ansehen</button>` : ""}
+        <button class="btn small${r ? "" : " primary"}" data-action="job-force" data-id="${j.id}">${r ? "Trotzdem speichern" : "Speichern"}</button>
+        <button class="btn small" data-action="job-drop" data-id="${j.id}">Entfernen</button></span></span></div></li>`;
+  }
   if (j.status === "error") {
     return `<li><div class="row job err">
       <span class="thumb-sm">${pic}</span>
@@ -2237,7 +2721,17 @@ async function recognize() {
   const rest = m ? raw.replace(m[0], "").trim() : raw;
   if (!raw) { showError(imp.mode === "insta" ? "Füg zuerst den Link zum Reel ein." : "Füg zuerst einen Link oder Text ein.", imp.mode === "insta" ? "Im Reel: Teilen → Link kopieren." : ""); return; }
   if (imp.mode === "insta" && !m) { showError("Das ist kein Link.", "Im Reel: Teilen → Link kopieren, dann hier auf „Einfügen“ tippen."); return; }
-  if (m && rest.length < 100 && !/\n/.test(rest)) startJob({ mode: "link", text: "", link: m[0], images: [] });
+  if (m && rest.length < 100 && !/\n/.test(rest)) {
+    const src = { mode: "link", text: "", link: m[0], images: [] }, lk = linkKey(m[0]);
+    if (lk && state.jobs.some(j => j.status !== "error" && linkKey(j.src.link) === lk)) toast("Ist schon oben in der Liste.");
+    else {
+      const sim = lk && state.recipes.find(r => linkKey(r.link) === lk);
+      if (sim) { // schon gespeichert: nicht lesen (spart Guthaben), erst fragen
+        const job = newJob(src, "dup"); job.dup = { id: sim.id, title: sim.title || "" };
+        jobStore("put", jobRecord(job));
+      } else startJob(src);
+    }
+  }
   else if (raw.length < 40) { showError("Das ist zu wenig für ein Rezept.", "Füg den ganzen Rezepttext oder einen Link ein."); return; }
   else startJob({ mode: "text", text: raw.slice(0, 20000), link: m ? m[0] : "", images: [] });
   state.imp = null;
@@ -2312,7 +2806,61 @@ const actions = {
   reload: () => location.reload(),
   "job-retry": el => { const j = state.jobs.find(x => x.id === el.dataset.id); if (j) runJob(j); },
   "job-drop": el => { const j = state.jobs.find(x => x.id === el.dataset.id); if (j) removeJob(j); },
+  "job-open": el => {
+    const j = state.jobs.find(x => x.id === el.dataset.id); if (!j) return;
+    const id = j.dup && j.dup.id; removeJob(j);
+    if (id && state.recipes.some(r => r.id === id)) openDetail(id);
+  },
+  "job-force": el => {
+    const j = state.jobs.find(x => x.id === el.dataset.id); if (!j) return;
+    j.force = true; jobStore("put", jobRecord(j));
+    runJob(j);
+  },
   "close-layer": () => closeLayer(),
+  orig: () => openViewer(current()),
+  "viewer-close": () => closeViewer(),
+  "prompt-yes": () => endPrompt((($("#p-in") || {}).value) || ""),
+  "prompt-no": () => endPrompt(null),
+  sets: () => openSetsFor(current()),
+  "toggle-set": async el => {
+    const r = current(); if (!r || !col) return;
+    const s = el.dataset.s, mine = setsOf(r);
+    await writeSets([{ id: r.id, sets: mine.includes(s) ? mine.filter(x => x !== s) : [...mine, s].slice(0, 20) }]);
+  },
+  "new-set-for": () => newSetFor(),
+  "new-set": () => { if (col) startNewSet(); },
+  "edit-set": () => { if (state.filter.startsWith("set:")) editSet(state.filter.slice(4)); },
+  "set-pick": el => {
+    const se = state.setEdit; if (!se) return;
+    const id = el.dataset.id, on = !se.sel.has(id);
+    if (on) se.sel.add(id); else se.sel.delete(id);
+    el.setAttribute("aria-pressed", on);
+    const c = el.querySelector(".chev"); if (c) c.remove();
+    if (on) el.insertAdjacentHTML("beforeend", icon("check", "chev on"));
+    const n = $("#se-n"); if (n) n.textContent = se.sel.size + " ausgewählt";
+  },
+  "set-rename": async () => {
+    const se = state.setEdit; if (!se) return;
+    const v = cleanSetName(await promptDialog({ title: "Name der Sammlung", value: se.name, yes: "Fertig" }));
+    if (state.setEdit !== se) return;
+    if (v) se.name = v;
+    openSetEdit();
+  },
+  "set-save": () => saveSetEdit(),
+  "set-delete": async () => {
+    const se = state.setEdit; if (!se || !se.orig) return;
+    const ok = await confirmDialog({ title: "Sammlung löschen?", text: `„${se.orig}“ wird entfernt. Die Rezepte selbst bleiben erhalten.`, yes: "Löschen", danger: true });
+    if (!ok) { openSetEdit(); return; }
+    state.setEdit = null; state.filter = "all";
+    const changes = state.recipes.filter(r => setsOf(r).includes(se.orig)).map(r => ({ id: r.id, sets: setsOf(r).filter(s => s !== se.orig) }));
+    if (await writeSets(changes)) toast("Sammlung gelöscht");
+  },
+  "q-read": () => { closeLayer(); if (photoResolve) { photoResolve("read"); photoResolve = null; } },
+  "q-again": el => {
+    closeLayer();
+    const p = document.getElementById(el.dataset.pick); if (p) p.click(); // direkt beim Tippen öffnen, sonst blockt iOS die Auswahl
+    if (photoResolve) { photoResolve("again"); photoResolve = null; }
+  },
   "modal-yes": () => { closeLayer(); if (modalResolve) { modalResolve(true); modalResolve = null; } },
   "modal-no": () => { closeLayer(); if (modalResolve) { modalResolve(false); modalResolve = null; } },
   start: el => {
@@ -2359,6 +2907,7 @@ const actions = {
     if (!ok) return;
     try {
       await withRetry(() => col.doc(r.id).delete());
+      for (let i = 0; i < Math.min(6, Number(r.orig) || 0); i++) col.doc(origKey(r.id, i)).delete().catch(() => {}); // Originalfotos mit weg
       state.recipes = state.recipes.filter(x => x.id !== r.id);
       go("list"); toast("Rezept gelöscht");
     } catch (e) { toast(dbErrorText(e)); }
@@ -2421,7 +2970,11 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && layer.classList.contains("open")) {
     closeLayer();
     if (modalResolve) { modalResolve(false); modalResolve = null; }
+    if (photoResolve) { photoResolve("cancel"); photoResolve = null; }
+    if (promptResolve) endPrompt(null);
+    if (viewer) closeViewer();
   }
+  if (e.key === "Enter" && e.target && e.target.id === "p-in") { e.preventDefault(); endPrompt(e.target.value || ""); }
 });
 let searchT = 0;
 document.addEventListener("input", e => {
@@ -2456,14 +3009,24 @@ document.addEventListener("change", async e => {
     // Direkt im Hintergrund lesen: man bleibt in der Liste und kann weitermachen
     const job = newJob({ mode: "photo", text: "", link: "", images: [] }, "prep");
     if (state.view !== "list") go("list"); else renderListBody();
-    const images = []; let bad = 0;
+    const images = [], weak = []; let bad = 0;
     for (const f of list) {
-      try { const blob = await toJpeg(f, 1568, 0.86); images.push({ blob, url: URL.createObjectURL(blob) }); }
-      catch (err) { bad++; }
+      try {
+        const blob = await toJpeg(f, 1568, 0.86);
+        images.push({ blob, url: URL.createObjectURL(blob) });
+        // Screenshots (PNG) sind immer scharf, nur echte Fotos prüfen
+        const q = /png/i.test(f.type || "") ? null : await photoCheck(blob).catch(() => null);
+        if (q && (q.dark || q.blurry)) weak.push(Object.assign({ k: images.length - 1 }, q));
+      } catch (err) { bad++; }
     }
     if (bad) toast(bad === 1 ? "Ein Foto ließ sich nicht öffnen." : bad + " Fotos ließen sich nicht öffnen.");
     if (!images.length) { removeJob(job); return; }
     if (job.dead) { images.forEach(i => URL.revokeObjectURL(i.url)); return; }
+    if (weak.length && await photoDialog(weak, images, t.id) !== "read") {
+      job.dead = true; removeJob(job); images.forEach(i => URL.revokeObjectURL(i.url));
+      return;
+    }
+    if (job.dead) return;
     startJob({ mode: "photo", text: "", link: "", images }, job);
     return;
   }
