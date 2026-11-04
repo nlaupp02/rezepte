@@ -318,6 +318,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .scaler { display: inline-flex; align-items: center; background: var(--fill); border-radius: 9px; padding: 2px; }
 .scaler button { width: 44px; height: 36px; border: 0; border-radius: 7px; background: none; font-size: 21px; line-height: 1; color: var(--ink); }
 .scaler button:active { background: var(--bg); }
+.scaler button:disabled { opacity: .3; }
 .scaler span { padding: 0 6px; font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .seg { display: inline-flex; background: var(--fill); border-radius: 9px; padding: 2px; }
 .seg button { border: 0; background: none; border-radius: 7px; padding: 9px 14px; font-weight: 500; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -466,6 +467,8 @@ function cleanTags(t) {
   if (out.includes("vegan") && !out.includes("vegetarisch")) out.unshift("vegetarisch"); // „vegetarisch“ suchen findet auch Veganes
   return TAGS.filter(k => out.includes(k));
 }
+// Höchstens 30 Personen bzw. das Vierfache des Rezepts, wenn das mehr ist (z. B. Kuchen mit 12 Stück: bis 48)
+const servMax = base => Math.min(200, Math.max(30, Math.round(base * 4)));
 const servText = (n, cat) => { const w = servWords(cat); return fmtNum(n) + " " + (n === 1 ? w.one : w.many); };
 
 const ICONS = {
@@ -531,7 +534,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "27";
+const APP_VERSION = "28";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1524,9 +1527,9 @@ function renderDetail() {
 
   const scaler = base
     ? `<div class="scaler" role="group" aria-label="Menge anpassen">
-         <button data-action="serv" data-d="-1" aria-label="Weniger ${sw.many}">−</button>
+         <button data-action="serv" data-d="-1" aria-label="Weniger ${sw.many}" ${state.servings <= 1 ? "disabled" : ""}>−</button>
          <span>${servText(state.servings, r.category)}</span>
-         <button data-action="serv" data-d="1" aria-label="Mehr ${sw.many}">+</button>
+         <button data-action="serv" data-d="1" aria-label="Mehr ${sw.many}" ${state.servings >= servMax(base) ? "disabled" : ""}>+</button>
        </div>`
     : `<div class="seg" role="group" aria-label="Menge anpassen">${[.5, 1, 2, 3].map(f =>
         `<button class="${state.factor === f ? "on" : ""}" data-action="factor" data-f="${f}">${f === .5 ? "½" : f}×</button>`).join("")}</div>`;
@@ -2323,8 +2326,8 @@ const actions = {
     } catch (e) { toast(dbErrorText(e)); }
   },
   serv: el => {
-    const d = Number(el.dataset.d);
-    state.servings = Math.max(1, Math.round((state.servings || 1) + d));
+    const d = Number(el.dataset.d), r = current(), base = r && Number(r.servings) > 0 ? Number(r.servings) : 1;
+    state.servings = Math.min(servMax(base), Math.max(1, Math.round((state.servings || 1) + d)));
     renderDetail();
   },
   factor: el => { state.factor = Number(el.dataset.f); renderDetail(); },
