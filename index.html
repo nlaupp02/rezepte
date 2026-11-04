@@ -530,7 +530,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "25";
+const APP_VERSION = "26";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -666,6 +666,7 @@ function subscribe() {
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     state.loaded = true; state.storage = "ok";
     clearTimeout(loadTimer); state.slow = false;
+    fixOldNames();
     onDataChanged();
     setTimeout(queueTags, 3000);
   }, err => {
@@ -1569,6 +1570,25 @@ function nutritionHtml(r) {
 }
 // Fehlen Nährwerte (alte Rezepte) oder wurden Zutaten geändert: einmal von selbst schätzen
 const nutriTried = new Set();
+// Einmalig: die vier Reel-Rezepte von Nico bekommen die neuen Namen (nur wenn der Name noch genau der alte ist)
+const RENAME = {
+  "hackfleisch-pasta one pot": "One-Pot-Pasta mit Hackfleisch",
+  "spinat-tomaten-ofenpasta": "Ofenpasta mit Spinat und Tomaten",
+  "chipotle-hähnchen mac and cheese": "Mac and Cheese mit Chipotle-Hähnchen",
+  "schoko-bananen-hafer-brownie": "Bananen-Brownie mit Schoko und Hafer"
+};
+const renamed = new Set();
+function fixOldNames() {
+  if (!col) return;
+  const key = t => String(t || "").toLowerCase().replace(/[‐‑–—]/g, "-").replace(/\s+/g, " ").trim();
+  for (const r of state.recipes) {
+    const t = RENAME[key(r.title)];
+    if (!t || renamed.has(r.id)) continue;
+    renamed.add(r.id);
+    patchLocal(r.id, { title: t });
+    withRetry(() => col.doc(r.id).update({ title: t })).catch(e => console.warn("Umbenennen", e));
+  }
+}
 let tagBusy = false;
 const tagDone = new Set();
 function queueTags() {
@@ -1830,7 +1850,7 @@ function buildPrompt(imp, n) {
 Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern:
 - "isRecipe": true oder false
 - "problem": leer, oder kurz auf Deutsch, warum kein Rezept erkennbar ist (z. B. unscharf, abgeschnitten, nur ein Video-Standbild ohne Text)
-- "title": kurzer, klarer Rezeptname auf Deutsch wie in einem Kochbuch, höchstens etwa 4 Wörter bzw. 35 Zeichen. Nur das Gericht selbst, ohne Werbewörter wie „High-Protein“, „einfach“, „lecker“, „schnell“, „gesund“ oder „aus dem Ofen“, ohne Hashtags und Emojis. Beispiel: „Schoko-Bananen-Brownie“ statt „Schoko-Bananen-Haferflocken-Brownie aus dem Ofen“, „Chipotle-Hähnchen Mac and Cheese“ statt „High-Protein Honey-Chipotle-Hähnchen Mac 'n' Cheese Meal Prep“.
+- "title": Rezeptname auf Deutsch, wie er in einem deutschen Kochbuch stehen würde: zuerst das Gericht, dann mit „mit“ die wichtigsten Zutaten, z. B. „Ofenpasta mit Spinat und Tomaten“ oder „Bananen-Brownie mit Schoko und Hafer“. Keine langen Bindestrich-Ketten wie „Spinat-Tomaten-Ofenpasta“. Höchstens etwa 6 Wörter. Ohne Werbewörter wie „High-Protein“, „einfach“, „lecker“, „schnell“, „gesund“ oder „aus dem Ofen“, ohne Hashtags und Emojis. Englische Gerichtsnamen schreibst du richtig, z. B. „Mac and Cheese“, „One-Pot-Pasta“ (nicht „Pasta One Pot“).
 - "category": genau eins von: ${CATEGORIES.join(", ")}
 - "servings": für wie viele Personen bzw. Portionen das Rezept ist, als Zahl, oder null. Bei Kuchen, Torten, Gebäck und Brot (Kategorie Backen) ist es die Anzahl der Stücke, z. B. 12 für einen Kuchen in der Springform; steht nichts dabei, nimm die übliche Stückzahl. Bei Getränken die Anzahl Gläser, bei Snacks wie Energy Balls oder Riegeln und bei Sonstigem (z. B. Pesto, Gewürzmischung) die Anzahl Portionen
 - "prepTime": Vorbereitungszeit wie "15 Min." oder "1 Std. 10 Min.", sonst "". Ruhe-, Geh-, Kühl- und Marinierzeiten gehören weder hierher noch in "cookTime", sondern in die Schritte
