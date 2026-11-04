@@ -48,6 +48,8 @@ body {
   /* Wie eine echte App: kein Markieren von Text (keine Lupe), kein Zoomen (weder Doppeltipp noch zwei Finger) */
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-x pan-y;
 }
+/* Keine Lupe und kein Markieren, auch nicht bei schnellem Tippen auf + und − (iOS erbt das nicht überall zuverlässig) */
+*, *::before, *::after { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea, select { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button, label[for] { cursor: pointer; }
@@ -534,7 +536,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "29";
+const APP_VERSION = "30";
 const APP_DATE = "03.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1695,6 +1697,10 @@ ${(r.steps || []).map(l => "- " + l).join("\n")}`;
   })();
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(queueTags, 2000); });
+// Lupe und Markieren verhindern: Auswahl darf nur in Eingabefeldern starten, langes Drücken öffnet kein Menü
+const editable = t => !!(t && t.closest && t.closest("input, textarea, select, [contenteditable]"));
+document.addEventListener("selectstart", e => { if (!editable(e.target)) e.preventDefault(); });
+document.addEventListener("contextmenu", e => { if (!editable(e.target)) e.preventDefault(); });
 // Zoomen mit zwei Fingern verhindern (Safari hält sich nicht immer an user-scalable=no)
 ["gesturestart", "gesturechange"].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
 document.addEventListener("touchmove", e => { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
