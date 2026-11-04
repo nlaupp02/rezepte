@@ -148,6 +148,13 @@ html.dim .statusfill { z-index: 25; }
 .fab .ic { width: 22px; height: 22px; stroke-width: 2.4; }
 .fab:active { opacity: .85; }
 body.typing .fab { display: none; }
+/* Weicher Übergang hinter „Neues Rezept“: die Liste verschwindet nach unten hin, statt unter dem Knopf angeschnitten zu werden */
+.fab-fade {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; pointer-events: none;
+  height: calc(74px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(255, 255, 255, 1) 0, rgba(255, 255, 255, 1) 30%, rgba(255, 255, 255, .75) 58%, rgba(255, 255, 255, 0) 100%);
+}
+.fab[hidden] ~ .fab-fade, body.typing .fab-fade { display: none; }
 
 /* Search + chips */
 .search {
@@ -600,7 +607,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "37";
+const APP_VERSION = "38";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1776,7 +1783,8 @@ function renderList() {
     <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="Suchen" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
     <div id="chips" class="chips"></div>
     <div id="grid"></div>
-    <button class="fab" id="fab" data-action="open-add">${icon("plus")}<span>Neues Rezept</span></button>`;
+    <button class="fab" id="fab" data-action="open-add">${icon("plus")}<span>Neues Rezept</span></button>
+    <div class="fab-fade" aria-hidden="true"></div>`;
   renderListBody();
   reuseImgs(app, oldImgs);
   if (y) window.scrollTo(0, y);
@@ -1859,8 +1867,8 @@ function renderListBody() {
   const keepX = chips.scrollLeft;
   chips.innerHTML = rs.length < 2 ? "" : [chip("all", "Alle"), favN ? chip("fav", "Favoriten") : "",
     ...sets.map(([s]) => chip("set:" + s, s, "folder")),
-    `<button class="chip add" data-action="new-set">${icon("plus")}Sammlung</button>`,
-    ...cats.map(c => chip("cat:" + c, c))].join("");
+    ...cats.map(c => chip("cat:" + c, c)),
+    `<button class="chip add" data-action="new-set">${icon("plus")}Sammlung</button>`].join(""); // erst die Filter, das Anlegen ganz am Ende
   chips.scrollLeft = keepX;
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
