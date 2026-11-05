@@ -359,7 +359,12 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .ing .box .ic { width: 13px; height: 13px; stroke-width: 3; }
 .ing b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .ing.done { color: var(--muted); }
-.ing.done .ing-t { text-decoration: line-through; }
+.ing.done .ing-t, .ing.done .ing-q, .ing.done .ing-n { text-decoration: line-through; }
+/* Mengen als eigene Spalte, die Zutaten stehen bündig daneben */
+.ing-t.cols { display: flex; gap: 10px; min-width: 0; }
+.ing-q { flex: none; min-width: var(--qw, 4ch); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ing-n { flex: 1; min-width: 0; }
+
 .ing.done .box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .ing-h, .step-h { padding: 14px 0 2px; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
@@ -621,7 +626,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "39";
+const APP_VERSION = "40";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -867,7 +872,7 @@ function makeClaude() {
     content.push({ type: "text", text: prompt });
     // Modell und max_tokens müssen ganz vorne stehen (der Worker prüft das)
     // temperature 0: gleiche Vorlage, gleiches Ergebnis (Lesen ist keine Kreativaufgabe). Modell und max_tokens bleiben vorne, der Worker prüft das.
-    const send = model => workerPost("/scan", JSON.stringify({ model, max_tokens: model === CLAUDE_FAST ? 1500 : 6000, messages: [{ role: "user", content }], temperature: 0 }), opts.signal, 120000);
+    const send = model => workerPost("/scan", JSON.stringify({ model, max_tokens: model === CLAUDE_FAST ? 3000 : 8000, messages: [{ role: "user", content }], temperature: 0 }), opts.signal, 120000);
     let data;
     const fast = opts.fast && !s.fastOff;
     try { data = await send(fast ? CLAUDE_FAST : CLAUDE_MODEL); }
@@ -890,7 +895,7 @@ async function fetchPage(url, signal) {
 // Vorschaubild über den eigenen Server laden und verkleinern (Instagram-Bildlinks laufen nach ein paar Tagen ab)
 async function fetchImage(url, signal) {
   const blob = await workerPost("/img", JSON.stringify({ url }), signal, 25000, true);
-  return await toJpeg(blob, 1568, 0.86);
+  return await toJpeg(blob, AI_SIDE, 0.85, AI_PX);
 }
 
 let lastBanner = null, lastDetailSig = "";
@@ -1294,6 +1299,23 @@ function scaleBrackets(rest, factor) { // Mengen in Klammern rechnen mit, z. B. 
     return sp + "(" + p2 + q + " " + numWord(" " + w, toNum(q)).trim() + ")";
   });
 }
+// Zutaten für die Anzeige: Überschriften, Gewürze ohne Menge zusammen (je Abschnitt), sonst Menge (mit Einheit) und Name getrennt
+function ingItems(ings, factor) {
+  const items = []; let grp = null;
+  ings.forEach((line, i) => {
+    if (isHead(line)) { items.push({ head: line }); grp = null; return; }
+    const sq = splitQty(line, factor);
+    if (!sq.qty && isSpice(line)) {
+      if (!grp) { grp = { spices: [], idx: [] }; items.push(grp); }
+      grp.spices.push(line.trim()); grp.idx.push(i); return;
+    }
+    let q = sq.qty.trim(), name = sq.rest;
+    const um = q ? name.match(UNIT_RE) : null;
+    if (um) { q += " " + um[1]; name = name.slice(um[0].length); }
+    items.push({ i, line, qty: q, name: name.trim(), full: (sq.qty + sq.rest).trim() });
+  });
+  return items;
+}
 // Gewürz ohne Menge? (für die gemeinsame Zeile „Gewürze: …“ im Rezept)
 const SPICE_RE = /^(salz|meersalz|steinsalz|kräutersalz|pfeffer|schwarzer pfeffer|weißer pfeffer|cayennepfeffer|chili|chiliflocken|chilipulver|paprika (edelsüß|rosenscharf|geräuchert)|oregano|basilikum|thymian|rosmarin|majoran|kreuzkümmel|kümmel|kurkuma|curry|garam masala|zimt|muskat|muskatnuss|lorbeerblatt|lorbeerblätter|italienische kräuter|kräuter der provence|getrocknete kräuter|[a-zäöüß-]*gewürz|[a-zäöüß-]*gewürzmischung|[a-zäöüß-]*pulver|[a-zäöüß-]*granulat)$/;
 const NOT_SPICE = /protein|backpulver|kakao|pudding|eiweiß|milchpulver|espresso|kaffee/;
@@ -1356,13 +1378,15 @@ function loadImg(blob) {
     img.src = url;
   });
 }
-async function toJpeg(blob, maxSide, q) {
+async function toJpeg(blob, maxSide, q, maxPx) {
   const { img, url } = await loadImg(blob);
-  try { return await toJpegImg(img, maxSide, q); } finally { URL.revokeObjectURL(url); }
+  try { return await toJpegImg(img, maxSide, q, maxPx); } finally { URL.revokeObjectURL(url); }
 }
-async function toJpegImg(img, maxSide, q) { // aus einem schon dekodierten Bild
+// Für die KI: so groß, wie das Modell es ohne eigenes Verkleinern nimmt (lange Seite 2576 px, etwa 3,75 Megapixel)
+const AI_SIDE = 2576, AI_PX = 3600000;
+async function toJpegImg(img, maxSide, q, maxPx) { // aus einem schon dekodierten Bild; maxPx: höchstens so viele Pixel
   const w0 = img.naturalWidth, h0 = img.naturalHeight;
-  const s = Math.min(1, maxSide / Math.max(w0, h0));
+  const s = Math.min(1, maxSide / Math.max(w0, h0), maxPx ? Math.sqrt(maxPx / (w0 * h0)) : 1);
   const w = Math.max(1, Math.round(w0 * s)), h = Math.max(1, Math.round(h0 * s));
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
@@ -2042,21 +2066,13 @@ function renderDetail() {
 
   const uns = cleanUnsure(r.unsure);
   const unsLine = (where, line) => uns.some(u => u.in === where && u.line && u.line === line);
-  // Gewürze ohne Menge (Salz, Pfeffer, Paprikapulver …) stehen zusammen in einer Zeile, je Abschnitt
-  const items = []; let grp = null;
-  ings.forEach((line, i) => {
-    if (isHead(line)) { items.push({ head: line }); grp = null; return; }
-    const sq = splitQty(line, factor);
-    if (!sq.qty && isSpice(line)) {
-      if (!grp) { grp = { spices: [], idx: [] }; items.push(grp); }
-      grp.spices.push(line.trim()); grp.idx.push(i); return;
-    }
-    items.push({ i, line, qty: sq.qty, rest: sq.rest });
-  });
+  // Gewürze ohne Menge (Salz, Pfeffer, Paprikapulver …) stehen zusammen in einer Zeile; Mengen in einer eigenen Spalte
+  const items = ingItems(ings, factor);
+  const qw = Math.min(7.5, Math.max(3, ...items.filter(x => x.qty).map(x => x.qty.length * 0.92)));
   const ingRow = (i, unsure, inner) => {
     const done = state.checked.has(i);
     return `<li><button class="ing ${done ? "done" : ""}${unsure ? " unsure" : ""}" data-action="toggle-ing" data-i="${i}" aria-pressed="${done}">
-      <span class="box">${icon("check")}</span><span class="ing-t">${inner}</span></button></li>`;
+      <span class="box">${icon("check")}</span><span class="ing-t${/^<span class="ing-q">/.test(inner) ? " cols" : ""}">${inner}</span></button></li>`;
   };
   let ingHtml = "";
   for (const it of items) {
@@ -2068,7 +2084,8 @@ function renderDetail() {
         : ingRow(it.idx[0], uns1, esc(it.spices[0]));
       continue;
     }
-    ingHtml += ingRow(it.i, unsLine("ingredients", it.line), `${it.qty ? `<b>${esc(it.qty)}</b>` : ""}${esc(it.rest)}`);
+    ingHtml += ingRow(it.i, unsLine("ingredients", it.line), it.qty
+      ? `<span class="ing-q">${esc(it.qty)}</span><span class="ing-n">${esc(it.name)}</span>` : esc(it.full));
   }
 
   let stepHtml = "", n = 0;
@@ -2098,7 +2115,7 @@ function renderDetail() {
       ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
       <section class="sec">
         <div class="sec-head"><h2>Zutaten</h2>${ings.length ? scaler : ""}</div>
-        ${ings.length ? `<ul class="ings">${ingHtml}</ul>
+        ${ings.length ? `<ul class="ings" style="--qw:${qw.toFixed(1)}ch">${ingHtml}</ul>
           <div><button class="btn small quiet" data-action="copy-ings" style="margin-left:-13px">${icon("copy")}Zutaten kopieren</button></div>`
           : `<p class="muted">Noch keine Zutaten eingetragen.</p>`}
       </section>
@@ -2118,7 +2135,7 @@ function checkHtml(uns, r) {
   const label = u => u.in === "title" ? "Name" : u.in === "servings" ? sw.many : u.in === "time" ? "Zeit" : u.line ? `„${u.line}“` : u.in === "steps" ? "Zubereitung" : "Zutaten";
   return `<div class="check" role="note">
     <b>Bitte prüfen</b>
-    <span class="d">Hier war die KI beim Lesen nicht sicher${uns.some(u => u.line) ? ". Die Stellen sind gelb markiert" : ""}.</span>
+    <span class="d">Diese Stellen kurz mit dem Original vergleichen${uns.some(u => u.line) ? ", sie sind gelb markiert" : ""}.</span>
     <ul>${uns.map(u => `<li><span class="w">${esc(label(u))}</span>${u.note ? " – " + esc(u.note) : ""}</li>`).join("")}</ul>
     <div class="check-btns"><button class="btn small primary" data-action="unsure-ok">Passt so</button><button class="btn small" data-action="edit">Korrigieren</button></div>
   </div>`;
@@ -2266,6 +2283,23 @@ function starsHtml(r) {
   return `<div class="stars" role="group" aria-label="Bewertung">${[1, 2, 3, 4, 5].map(i =>
     `<button class="${i <= v ? "on" : ""}" data-action="rate" data-v="${i}" aria-label="${i} von 5 Sternen" aria-pressed="${i <= v}">${icon("star", i <= v ? "filled" : "")}</button>`).join("")}</div>`;
 }
+// Nährwerte: Die KI schätzt jede Zutat einzeln (für die ganze Menge im Rezept), die App rechnet zusammen und teilt durch die Portionen.
+// Das ist genauer als eine Schätzung fürs ganze Gericht, und Rechenfehler der KI fallen weg.
+const NUTRI_ITEMS = `Liste mit einem Eintrag pro Zutat (ohne Zwischenüberschriften) als {"z": Zutat kurz, "g": geschätztes Gewicht dieser Zutat im ganzen Rezept in Gramm (Flüssigkeiten ml ≈ g; Stückzutaten mit üblichem Gewicht, z. B. 1 Ei = 60 g, 1 Zwiebel = 100 g, 1 Knoblauchzehe = 4 g), "kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} – die Werte gelten für diese ganze Menge, nicht pro 100 g (Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm). Rechne mit üblichen Nährwerten wie in einer Nährwerttabelle, roh bzw. wie gekauft. Zutaten ohne Menge (Salz, Pfeffer, Gewürze) mit der üblichen kleinen Menge, „Öl zum Braten“ mit 10 g. Was nicht mitgegessen wird (Frittieröl, Lorbeerblatt, Kochwasser), mit 0.`;
+function nutritionFromItems(items, servings) {
+  if (!Array.isArray(items) || !items.length) return null;
+  const keys = ["kcal", "fat", "satFat", "carbs", "sugar", "fiber", "protein", "salt"], sum = {};
+  keys.forEach(k => { sum[k] = 0; });
+  let any = false;
+  for (const it of items) {
+    if (!it || typeof it !== "object") continue;
+    for (const k of keys) { const v = Number(it[k]); if (isFinite(v) && v > 0 && v < 100000) { sum[k] += v; any = true; } }
+  }
+  if (!any || !sum.kcal) return null;
+  const per = Number(servings) > 0 ? Number(servings) : 1;
+  const out = {}; keys.forEach(k => { out[k] = sum[k] / per; });
+  return cleanNutrition(out);
+}
 const nutriComplete = n => !!(n && n.kcal && n.sugar != null && n.salt != null);
 function nutritionHtml(r) {
   const n = cleanNutrition(r.nutrition), busy = state.nutriBusy === r.id;
@@ -2378,13 +2412,15 @@ function recipeText(r) {
 async function estimateNutrition(r) {
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
   const nw = servWords(r.category);
-  const prompt = `Schätze die Nährwerte für dieses Rezept ${base ? `pro ${nw.one} (das Rezept ist für ${servText(base, r.category)})` : "für das ganze Rezept"}.
-Antworte nur mit JSON: {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm; Salz auf 0,1 g, sonst ganze Zahlen).
+  const prompt = `Schätze die Nährwerte für jede Zutat dieses Rezepts${base ? ` (es ist für ${servText(base, r.category)})` : ""}.
+Antworte nur mit JSON: {"items": ${NUTRI_ITEMS}}
 
 Rezept: ${r.title || ""}
 Zutaten:
-${(r.ingredients || []).map(l => "- " + l).join("\n")}`;
-  return cleanNutrition(await sample.json(prompt, { cache: false, fast: true }));
+${(r.ingredients || []).filter(l => !isHead(l)).map(l => "- " + l).join("\n")}`;
+  void nw;
+  const res = await sample.json(prompt, { cache: false, fast: true });
+  return nutritionFromItems(res && res.items, base) || cleanNutrition(res); // ältere Antwortform zur Sicherheit
 }
 
 /* ---------- Editor ---------- */
@@ -2561,6 +2597,7 @@ function showError(title, text) {
 
 function buildPrompt(imp, n) {
   const t = imp.text.trim();
+  const transcribe = n > 0 && (imp.mode === "photo" || imp.mode === "insta"); // bei Bildern: erst abschreiben, dann sortieren
   let material;
   if (imp.mode === "insta") {
     material = `Das Material stammt aus einem Instagram-Reel oder -Beitrag: die Beschreibung (unten)` +
@@ -2575,8 +2612,9 @@ function buildPrompt(imp, n) {
   }
   return `Du hilfst einer Kochbuch-App, Rezepte zu speichern. ${material}
 
-Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern:
-- "isRecipe": true oder false
+Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern${transcribe ? " (in dieser Reihenfolge)" : ""}:
+${transcribe ? `- "transcript": zuerst eine genaue Abschrift des Rezepts, so wie es ${imp.mode === "insta" ? "als Text in den Bildern" : "auf den Bildern"} steht: Originalsprache, Zeile für Zeile, alle Mengen, Einheiten und Zahlen genau so, wie sie dastehen (bei mehreren Bildern der Reihe nach). Nur das Rezept, ohne Werbung. Lies dabei Wort für Wort; alle anderen Felder füllst du danach aus dieser Abschrift.${imp.mode === "insta" ? " Steht in den Bildern kein Text, leer." : ""}
+` : ""}- "isRecipe": true oder false
 - "problem": leer, oder kurz auf Deutsch, warum kein Rezept erkennbar ist (z. B. unscharf, abgeschnitten, nur ein Video-Standbild ohne Text)
 - "title": Rezeptname auf Deutsch, wie er in einem deutschen Kochbuch stehen würde: zuerst das Gericht, dann mit „mit“ die wichtigsten Zutaten, z. B. „Ofenpasta mit Spinat und Tomaten“ oder „Bananen-Brownie mit Schoko und Hafer“. Keine langen Bindestrich-Ketten wie „Spinat-Tomaten-Ofenpasta“. Höchstens etwa 6 Wörter. Ohne Werbewörter wie „High-Protein“, „einfach“, „lecker“, „schnell“, „gesund“ oder „aus dem Ofen“, ohne Hashtags und Emojis. Englische Gerichtsnamen schreibst du richtig, z. B. „Mac and Cheese“, „One-Pot-Pasta“ (nicht „Pasta One Pot“).
 - "category": genau eins von: ${CATEGORIES.join(", ")}
@@ -2593,7 +2631,8 @@ ${imp.mode === "photo" ? `- "coverBox": Ist auf dem gewählten Bild außer dem G
 ` : ""}- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
 - "tags": Liste der Merkmale, die sicher zutreffen, nur aus: ${TAGS.join(", ")} (${TAG_RULES}). Leere Liste, wenn keins passt.
 - "unsure": Liste der Stellen, bei denen du dir beim Lesen nicht sicher bist, z. B. schwer lesbare Handschrift, verwischte, verdeckte oder abgeschnittene Mengen, geratene Wörter. Je ein Objekt {"in": "title" | "ingredients" | "steps" | "servings" | "time", "n": Nummer des Eintrags in "ingredients" bzw. "steps" (ab 1, sonst weglassen), "note": kurz auf Deutsch, was unsicher ist, z. B. "250 oder 350 g?"}. Hast du die Stückzahl oder Portionen geschätzt, weil nichts dabeistand, trag das hier ein ({"in": "servings", "note": "geschätzt, stand nicht dabei"}). Sonst nur echte Unsicherheiten beim Lesen, keine Umrechnungen und keine Schätzungen, die schon „ca.“ haben. Leere Liste, wenn alles gut lesbar ist.
-- "nutrition": Nährwerte pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm; Salz auf 0,1 g, sonst ganze Zahlen). Stehen Nährwerte im Material, übernimm sie nur, wenn sie pro Portion gelten und zur Zahl in "servings" passen (pro Person, bei Backen pro Stück, bei Getränken pro Glas); Angaben pro 100 g oder für andere Portionen rechnest du um. Sonst schätze sie aus Zutaten und Mengen. Ist "servings" null, gilt der Wert für das ganze Rezept. null, wenn nichts Sinnvolles geht.
+- "nutrition": nur wenn im Material Nährwerte stehen: pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm). Übernimm sie nur, wenn sie zur Zahl in "servings" passen; Angaben pro 100 g oder für andere Portionen rechnest du um. Stehen keine Nährwerte im Material, null.
+- "nutritionItems": ${NUTRI_ITEMS}
 
 Regeln:
 - Lies auch Handschrift sorgfältig, selbst wenn sie unordentlich, schräg, verblasst oder durchgestrichen ist, und auch alte deutsche Schrift (Sütterlin, Kurrent). Nutze den Zusammenhang des Rezepts, um schwer lesbare Wörter und Mengen zu entziffern.
@@ -2604,6 +2643,7 @@ Regeln:
 - Ungarische Maße: dkg = 10 g (25 dkg = 250 g), dl = 100 ml, ek / evőkanál = EL, kk / kávéskanál = TL, mokkáskanál = ca. ½ TL, bögre = ca. 250 ml, csipet = 1 Prise, egy kevés = etwas.
 - Serbische Maße: kašika / кашика = EL, kašičica / кашичица = TL, šolja / шоља = ca. 200 ml, čaša / чаша = ca. 200 ml, prstohvat / прстохват = 1 Prise, dl = 100 ml, kesica / кесица = 1 Päckchen (z. B. Backpulver oder Vanillezucker).
 - Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen. Schätzen darfst du nur die Nährwerte und das Gewicht von Packungen, dann mit „ca.“. Unleserliche Stellen markierst du mit [?].
+- Wird in den Schritten eine Zutat verwendet, die in der Zutatenliste fehlt (z. B. „in Öl anbraten“, „mit Salz abschmecken“), nimm sie ohne Menge in "ingredients" auf, z. B. "Öl zum Braten", "Salz". Wasser nur, wenn es eine Menge hat.
 - Fehlen die Zubereitungsschritte, lass "steps" leer und schreib in "notes", dass die Zubereitung nur im Video gezeigt wird oder fehlt.
 - Lass Hashtags, Werbung, „Link in Bio“, Rabattcodes, Emojis und Danksagungen weg.
 - Stehen mehrere Rezepte im Material, nimm das Hauptrezept und erwähne die anderen kurz in "notes".` +
@@ -2632,7 +2672,7 @@ function resultToEdit(res, imp) {
   if (lang && !/^deutsch/i.test(lang)) d.notes = (d.notes ? d.notes + "\n\n" : "") + "Übersetzt, Originalsprache: " + lang + ".";
   d.source = str(res.source) || (imp.mode === "insta" ? "Instagram" : "");
   d.link = imp.link.trim();
-  d.nutrition = cleanNutrition(res.nutrition);
+  d.nutrition = cleanNutrition(res.nutrition) || nutritionFromItems(res.nutritionItems, sv > 0 && sv < 1000 ? sv : null);
   d.tags = cleanTags(res.tags);
   d.unsure = cleanUnsure((Array.isArray(res.unsure) ? res.unsure : []).map(u => {
     if (!u || typeof u !== "object") return null;
@@ -2645,12 +2685,62 @@ function resultToEdit(res, imp) {
     }
     return { in: where, line, note: u.note };
   }));
+  // Mengen gegenprüfen: Steht eine Menge so gar nicht im Original (Abschrift bzw. eingefügter Text), gelb markieren
+  const srcText = [str(res.transcript), imp.mode === "photo" ? "" : imp.text].join("\n");
+  if (srcText.trim().length > 20) {
+    for (const line of amountsNotFound(arr(res.ingredients), srcText)) {
+      if (!d.unsure.some(u => u.in === "ingredients" && u.line === line)) d.unsure.push({ in: "ingredients", line, note: "Menge so nicht im Original gefunden – bitte nachsehen" });
+    }
+    d.unsure = cleanUnsure(d.unsure);
+  }
   const other = arr(res.otherRecipes).map(x => str(x).replace(/^[-•*–]\s*/, "").slice(0, 80)).filter(x => x && norm(x) !== norm(d.title)).slice(0, 3);
   let ci = Number(res.coverImage);
   const imgs = imp.images || [];
   ci = Number.isInteger(ci) && ci >= 1 && ci <= imgs.length ? ci - 1 : -1;
   const pick = ci >= 0 ? imgs[ci] : null;
   return { data: d, coverBlob: pick ? pick.blob : null, coverUrl: null, other };
+}
+// Zahlen in einem Text (auch ½, 1/2, 1 1/2, 0,5, 2–3 und Zahlwörter in den häufigen Sprachen)
+const NUM_WORDS = { ein: 1, eine: 1, einen: 1, einem: 1, einer: 1, eins: 1, zwei: 2, drei: 3, vier: 4, "fünf": 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10, elf: 11, "zwölf": 12, halb: .5, halbe: .5, halben: .5, halber: .5,
+  a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, half: .5, dozen: 12,
+  egy: 1, "két": 2, "kettő": 2, "három": 3, "négy": 4, "öt": 5, hat: 6, "hét": 7, nyolc: 8, kilenc: 9, "tíz": 10, "fél": .5,
+  jedan: 1, jedna: 1, jedno: 1, dva: 2, dve: 2, dvije: 2, tri: 3, "četiri": 4, pet: 5, "šest": 6, sedam: 7, osam: 8, devet: 9, deset: 10, pola: .5 };
+function numsIn(text) {
+  const out = new Set(), add = v => { if (isFinite(v)) out.add(Math.round(v * 1000) / 1000); };
+  const t = String(text || "").toLowerCase();
+  for (const m of t.matchAll(/(\d+)\s*([½¼¾⅓⅔⅛])|(\d+)\s+(\d+)\/(\d+)|(\d+)\/(\d+)|(\d+(?:[.,]\d+)?)|([½¼¾⅓⅔⅛])/g)) {
+    if (m[1]) { add(+m[1] + FRAC[m[2]]); add(+m[1]); add(FRAC[m[2]]); }
+    else if (m[3]) { add(+m[3] + m[4] / m[5]); add(+m[3]); add(m[4] / m[5]); }
+    else if (m[6]) add(m[6] / m[7]);
+    else if (m[8]) { add(parseFloat(m[8].replace(",", "."))); if (/^\d{1,3}\.\d{3}$/.test(m[8])) add(+m[8].replace(".", "")); }
+    else if (m[9]) add(FRAC[m[9]]);
+  }
+  for (const w of t.split(/[^a-zäöüßáéíóöőúüűčćšžđ]+/)) if (NUM_WORDS[w] != null) add(NUM_WORDS[w]);
+  return out;
+}
+// Umgerechnete Maße im Original: daraus werden andere Zahlen (25 dkg → 250 g, ½ cup → 120 ml …). Die rechnet die App selbst nach.
+const CONV = [[/^(dkg|dag)$/, [10]], [/^dl$/, [100]], [/^cl$/, [10]], [/^(kg|l|liter)$/, [1000]], [/^(cups?|csésze)$/, [240, 120, 200, 225, 185, 90, 100, 150]],
+  [/^(oz|ounces?)$/, [28, 30]], [/^(lbs?|pounds?)$/, [450, 454]], [/^sticks?$/, [113, 115]], [/^pfund$/, [500]], [/^(tassen?|šolj[ae]|шољ[еа]|čaš[ae]|чаш[еа])$/, [200, 250]], [/^bögre$/, [250]]];
+function convertedIn(text) {
+  const out = [], t = String(text || "").toLowerCase();
+  for (const m of t.matchAll(/(\d+(?:[.,]\d+)?(?:\s*[½¼¾⅓⅔])?|\d+\/\d+|[½¼¾⅓⅔])\s*([a-zäöüšđčćжшољеачдл]+)/g)) {
+    const v = [...numsIn(m[1])].reduce((a, b) => Math.max(a, b), 0), c = CONV.find(([re]) => re.test(m[2]));
+    if (v && c) c[1].forEach(f => out.push(v * f));
+  }
+  return out;
+}
+// Zutaten, deren Menge im Original nicht vorkommt (auch nicht umgerechnet). Geschätztes („ca.“) zählt nicht.
+function amountsNotFound(lines, source) {
+  const src = numsIn(source), conv = convertedIn(source), out = [];
+  const near = v => conv.some(c => Math.abs(v - c) <= Math.max(2, c * 0.12)); // sinnvoll gerundet
+  for (const line of lines) {
+    if (isHead(line) || /\b(ca\.?|circa|etwa)\b/i.test(line)) continue;
+    const m = line.match(QTY2_RE);
+    if (!m) continue;
+    const lead = [...numsIn(m[0])], br = [...numsIn((line.match(/\(([^)]*)\)/g) || []).join(" "))];
+    if (![...lead, ...br].some(v => src.has(v) || near(v))) out.push(line.trim());
+  }
+  return out;
 }
 // „Bitte prüfen“: Stellen, bei denen die KI beim Lesen unsicher war
 function cleanUnsure(list) {
@@ -3271,7 +3361,7 @@ document.addEventListener("change", async e => {
         const { img, url } = await loadImg(f); // einmal dekodieren, für Verkleinern und Prüfen
         let blob, q = null;
         try {
-          blob = await toJpegImg(img, 1568, 0.86);
+          blob = await toJpegImg(img, AI_SIDE, 0.85, AI_PX); // neuere Modelle lesen größere Bilder: kleine Schrift und Handschrift werden deutlich schärfer
           // Screenshots (PNG) sind immer scharf, nur echte Fotos prüfen
           if (!/png/i.test(f.type || "")) { try { q = photoCheckImg(img); } catch (x) { q = null; } }
         } finally { URL.revokeObjectURL(url); }
