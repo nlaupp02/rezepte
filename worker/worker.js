@@ -53,19 +53,27 @@ async function handle(request, env, origin, cors) {
     return json({ error: "not_found" }, 404, cors);
 }
 
+// Günstige Prüfung ohne das (große) JSON zu zerlegen (das kostet bei vielen Fotos zu viel Rechenzeit):
+// Modell und max_tokens stehen ganz vorne, bestimmte Schlüssel nur einmal bzw. gar nicht.
+function checkScanBody(body) {
+  const m = body.slice(0, 80).match(/^\{"model":"([a-z0-9.-]+)","max_tokens":(\d+),"messages":/);
+  if (!m || !MODELS.includes(m[1]) || Number(m[2]) > MAX_TOKENS_LIMIT) return "Modell oder Länge nicht erlaubt.";
+  // Schlüssel könnten als \u-Zeichen versteckt sein ("\u006dodel" ist für JSON dasselbe wie "model"). Die App schreibt
+  // Buchstaben nie so (JSON.stringify macht das nur bei Steuerzeichen) – also gar nicht erlauben.
+  if (/(?:^|[^\\])(?:\\\\)*\\u00(?:[46][1-9a-f]|[57][0-9a])/i.test(body)) return "Anfrage nicht erlaubt.";
+  // In Texten stehen Anführungszeichen immer als \" – das zählt hier nicht mit
+  for (const key of ['"model":', '"max_tokens":', '"messages":', '"system":', '"tools":', '"stream":', '"tool_choice":', '"mcp_servers":', '"container":']) {
+    const n = body.split(key).length - 1;
+    if (n > (key === '"model":' || key === '"max_tokens":' || key === '"messages":' ? 1 : 0)) return "Anfrage nicht erlaubt.";
+  }
+  return "";
+}
 async function scan(request, env, cors) {
   if (!env.ANTHROPIC_API_KEY) return json({ error: "no_key", message: "ANTHROPIC_API_KEY fehlt im Worker." }, 500, cors);
   const body = await request.text();
   if (body.length > 20 * 1024 * 1024) return json({ error: "too_big" }, 413, cors);
-  // Günstige Prüfung ohne das (große) JSON zu zerlegen: Modell und max_tokens stehen ganz vorne
-  const head = body.slice(0, 80);
-  const m = head.match(/^\{"model":"([a-z0-9.-]+)","max_tokens":(\d+),"messages":/);
-  if (!m || !MODELS.includes(m[1]) || Number(m[2]) > MAX_TOKENS_LIMIT) return json({ error: "bad_request", message: "Modell oder Länge nicht erlaubt." }, 400, cors);
-  // Diese Schlüssel dürfen nur einmal vorkommen (in Texten stehen Anführungszeichen immer als \" – das zählt hier nicht mit)
-  for (const key of ['"model":', '"max_tokens":', '"messages":', '"system":', '"tools":', '"stream":']) {
-    const n = body.split(key).length - 1;
-    if (n > (key === '"system":' || key === '"tools":' || key === '"stream":' ? 0 : 1)) return json({ error: "bad_request", message: "Anfrage nicht erlaubt." }, 400, cors);
-  }
+  const bad = checkScanBody(body);
+  if (bad) return json({ error: "bad_request", message: bad }, 400, cors);
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
@@ -89,6 +97,18 @@ function publicWebUrl(u) {
   if (/^\d+\.\d+\.\d+\.\d+$/.test(h) || h.startsWith("[")) return false; // keine IP-Adressen
   if (u.username || u.password) return false;
   return true;
+}
+// Weiterleitungen selbst verfolgen und jede Adresse prüfen (sonst könnte eine Seite auf interne Adressen umleiten)
+async function safeFetch(url, init, hops = 5) {
+  let u = new URL(url);
+  for (let i = 0; i <= hops; i++) {
+    if (!publicWebUrl(u)) throw new Error("Weiterleitung auf eine nicht erlaubte Adresse");
+    const res = await fetch(u.toString(), Object.assign({}, init, { redirect: "manual" }));
+    const loc = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+    if (!loc) return res;
+    u = new URL(loc, u);
+  }
+  throw new Error("Zu viele Weiterleitungen");
 }
 async function readLimited(res, max) {
   const reader = res.body && res.body.getReader();
@@ -145,9 +165,9 @@ function htmlToText(html) {
   return decodeEntities(t).replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 async function fetchHtml(url, ua) {
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     headers: { "user-agent": ua, "accept": "text/html,application/xhtml+xml", "accept-language": "de-DE,de;q=0.9,en;q=0.8" },
-    redirect: "follow", signal: AbortSignal.timeout(12000)
+    signal: AbortSignal.timeout(12000)
   });
   if (!res.ok) throw new Error("Seite antwortet mit " + res.status);
   return await readLimited(res, MAX_HTML);
@@ -220,7 +240,7 @@ async function img(request, cors) {
   if (!publicWebUrl(target)) return json({ error: "bad_url" }, 400, cors);
   let res;
   try {
-    res = await fetch(target.toString(), { headers: { "user-agent": UA_MOBILE, "accept": "image/webp,image/jpeg,image/png,image/*;q=0.8" }, redirect: "follow", signal: AbortSignal.timeout(12000) });
+    res = await safeFetch(target.toString(), { headers: { "user-agent": UA_MOBILE, "accept": "image/webp,image/jpeg,image/png,image/*;q=0.8" }, signal: AbortSignal.timeout(12000) });
   } catch (e) { return json({ error: "fetch_failed", message: String(e.message || e) }, 502, cors); }
   if (!res.ok) return json({ error: "fetch_failed", message: "Bild antwortet mit " + res.status }, 502, cors);
   const ct = (res.headers.get("content-type") || "").toLowerCase().split(";")[0].trim();
@@ -249,13 +269,12 @@ async function page(request, cors) {
   if (ig) return instagram(ig, target.toString(), cors);
   let res;
   try {
-    res = await fetch(target.toString(), {
+    res = await safeFetch(target.toString(), {
       headers: {
         "user-agent": UA_MOBILE,
         "accept": "text/html,application/xhtml+xml",
         "accept-language": "de-DE,de;q=0.9,en;q=0.8"
       },
-      redirect: "follow",
       signal: AbortSignal.timeout(15000)
     });
   } catch (e) { return json({ error: "fetch_failed", message: String(e.message || e) }, 502, cors); }
