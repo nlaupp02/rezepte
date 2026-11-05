@@ -626,7 +626,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "40";
+const APP_VERSION = "41";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -871,8 +871,8 @@ function makeClaude() {
     }
     content.push({ type: "text", text: prompt });
     // Modell und max_tokens müssen ganz vorne stehen (der Worker prüft das)
-    // temperature 0: gleiche Vorlage, gleiches Ergebnis (Lesen ist keine Kreativaufgabe). Modell und max_tokens bleiben vorne, der Worker prüft das.
-    const send = model => workerPost("/scan", JSON.stringify({ model, max_tokens: model === CLAUDE_FAST ? 3000 : 8000, messages: [{ role: "user", content }], temperature: 0 }), opts.signal, 120000);
+    // Kein „temperature“ mehr: die aktuellen Modelle lehnen das ab („deprecated for this model“) – dann klappt gar nichts.
+    const send = model => workerPost("/scan", JSON.stringify({ model, max_tokens: model === CLAUDE_FAST ? 3000 : 8000, messages: [{ role: "user", content }] }), opts.signal, 120000);
     let data;
     const fast = opts.fast && !s.fastOff;
     try { data = await send(fast ? CLAUDE_FAST : CLAUDE_MODEL); }
