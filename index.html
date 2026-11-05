@@ -626,7 +626,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "41";
+const APP_VERSION = "42";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2321,6 +2321,30 @@ function nutritionHtml(r) {
     ${small ? `<p class="nutri-more">${small}</p>` : ""}
     <p class="note">${per[0].toUpperCase() + per.slice(1)}, geschätzt.${busy ? " Wird gerade ergänzt …" : ""}</p></section>`;
 }
+async function storeNutrition(r) {
+  const myUid = uid;
+  state.nutriBusy = r.id; nutriTried.add(r.id);
+  if (state.view === "detail" && state.currentId === r.id) renderDetail();
+  let ok = false;
+  try {
+    const n = await estimateNutrition(r);
+    if (!n) throw { code: "no_recipe", message: "" };
+    if (uid !== myUid || !state.recipes.some(x => x.id === r.id)) return;
+    await withRetry(() => col.doc(r.id).update({ nutrition: n }));
+    patchLocal(r.id, { nutrition: n }); ok = true;
+  } catch (e) { console.warn("Nährwerte", e); }
+  finally { state.nutriBusy = null; if (state.view === "detail" && state.currentId === r.id) renderDetail(); }
+  return ok;
+}
+// Gleich nach dem Einlesen: Nährwerte im Hintergrund schätzen (das Rezept ist schon gespeichert und zu sehen)
+async function nutriInBackground(id) {
+  nutriTried.add(id); // beim Öffnen nicht ein zweites Mal anstoßen
+  await initPromise;
+  for (let k = 0; state.nutriBusy && k < 240; k++) await sleep(500); // schätzt gerade ein anderes
+  const r = state.recipes.find(x => x.id === id);
+  if (!r || !col || !sample || !(r.ingredients || []).length || nutriComplete(cleanNutrition(r.nutrition))) return;
+  if (!await storeNutrition(r)) nutriTried.delete(id); // hat nicht geklappt: beim Öffnen nochmal versuchen
+}
 // Fehlen Nährwerte (alte Rezepte) oder wurden Zutaten geändert: einmal von selbst schätzen
 const nutriTried = new Set();
 // Einmalig: die vier Reel-Rezepte von Nico bekommen die neuen Namen (nur wenn der Name noch genau der alte ist)
@@ -2419,7 +2443,7 @@ Rezept: ${r.title || ""}
 Zutaten:
 ${(r.ingredients || []).filter(l => !isHead(l)).map(l => "- " + l).join("\n")}`;
   void nw;
-  const res = await sample.json(prompt, { cache: false, fast: true });
+  const res = await sample.json(prompt, { cache: false }); // Sonnet: genauer; läuft im Hintergrund
   return nutritionFromItems(res && res.items, base) || cleanNutrition(res); // ältere Antwortform zur Sicherheit
 }
 
@@ -2613,7 +2637,7 @@ function buildPrompt(imp, n) {
   return `Du hilfst einer Kochbuch-App, Rezepte zu speichern. ${material}
 
 Lies das Rezept heraus und antworte nur mit einem JSON-Objekt mit diesen Feldern${transcribe ? " (in dieser Reihenfolge)" : ""}:
-${transcribe ? `- "transcript": zuerst eine genaue Abschrift des Rezepts, so wie es ${imp.mode === "insta" ? "als Text in den Bildern" : "auf den Bildern"} steht: Originalsprache, Zeile für Zeile, alle Mengen, Einheiten und Zahlen genau so, wie sie dastehen (bei mehreren Bildern der Reihe nach). Nur das Rezept, ohne Werbung. Lies dabei Wort für Wort; alle anderen Felder füllst du danach aus dieser Abschrift.${imp.mode === "insta" ? " Steht in den Bildern kein Text, leer." : ""}
+${transcribe ? `- "transcript": zuerst eine genaue Abschrift, so wie es ${imp.mode === "insta" ? "als Text in den Bildern" : "auf den Bildern"} steht, in der Originalsprache: die Zutatenliste Zeile für Zeile mit allen Mengen und Einheiten (mit Zwischenüberschriften; steht keine eigene Liste da, die Sätze, in denen Zutaten mit Mengen vorkommen), danach aus der Zubereitung nur die Stellen mit Zahlen (Temperaturen, Zeiten, Mengen), wörtlich. Lies dabei Ziffer für Ziffer; die anderen Felder füllst du danach.${imp.mode === "insta" ? " Steht in den Bildern kein Text, leer." : ""}
 ` : ""}- "isRecipe": true oder false
 - "problem": leer, oder kurz auf Deutsch, warum kein Rezept erkennbar ist (z. B. unscharf, abgeschnitten, nur ein Video-Standbild ohne Text)
 - "title": Rezeptname auf Deutsch, wie er in einem deutschen Kochbuch stehen würde: zuerst das Gericht, dann mit „mit“ die wichtigsten Zutaten, z. B. „Ofenpasta mit Spinat und Tomaten“ oder „Bananen-Brownie mit Schoko und Hafer“. Keine langen Bindestrich-Ketten wie „Spinat-Tomaten-Ofenpasta“. Höchstens etwa 6 Wörter. Ohne Werbewörter wie „High-Protein“, „einfach“, „lecker“, „schnell“, „gesund“ oder „aus dem Ofen“, ohne Hashtags und Emojis. Englische Gerichtsnamen schreibst du richtig, z. B. „Mac and Cheese“, „One-Pot-Pasta“ (nicht „Pasta One Pot“).
@@ -2631,8 +2655,7 @@ ${imp.mode === "photo" ? `- "coverBox": Ist auf dem gewählten Bild außer dem G
 ` : ""}- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
 - "tags": Liste der Merkmale, die sicher zutreffen, nur aus: ${TAGS.join(", ")} (${TAG_RULES}). Leere Liste, wenn keins passt.
 - "unsure": Liste der Stellen, bei denen du dir beim Lesen nicht sicher bist, z. B. schwer lesbare Handschrift, verwischte, verdeckte oder abgeschnittene Mengen, geratene Wörter. Je ein Objekt {"in": "title" | "ingredients" | "steps" | "servings" | "time", "n": Nummer des Eintrags in "ingredients" bzw. "steps" (ab 1, sonst weglassen), "note": kurz auf Deutsch, was unsicher ist, z. B. "250 oder 350 g?"}. Hast du die Stückzahl oder Portionen geschätzt, weil nichts dabeistand, trag das hier ein ({"in": "servings", "note": "geschätzt, stand nicht dabei"}). Sonst nur echte Unsicherheiten beim Lesen, keine Umrechnungen und keine Schätzungen, die schon „ca.“ haben. Leere Liste, wenn alles gut lesbar ist.
-- "nutrition": nur wenn im Material Nährwerte stehen: pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm). Übernimm sie nur, wenn sie zur Zahl in "servings" passen; Angaben pro 100 g oder für andere Portionen rechnest du um. Stehen keine Nährwerte im Material, null.
-- "nutritionItems": ${NUTRI_ITEMS}
+- "nutrition": nur wenn im Material Nährwerte stehen: pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm). Übernimm sie nur, wenn sie zur Zahl in "servings" passen; Angaben pro 100 g oder für andere Portionen rechnest du um. Stehen keine Nährwerte im Material, null (schätze sie nicht, das passiert danach).
 
 Regeln:
 - Lies auch Handschrift sorgfältig, selbst wenn sie unordentlich, schräg, verblasst oder durchgestrichen ist, und auch alte deutsche Schrift (Sütterlin, Kurrent). Nutze den Zusammenhang des Rezepts, um schwer lesbare Wörter und Mengen zu entziffern.
@@ -2672,7 +2695,7 @@ function resultToEdit(res, imp) {
   if (lang && !/^deutsch/i.test(lang)) d.notes = (d.notes ? d.notes + "\n\n" : "") + "Übersetzt, Originalsprache: " + lang + ".";
   d.source = str(res.source) || (imp.mode === "insta" ? "Instagram" : "");
   d.link = imp.link.trim();
-  d.nutrition = cleanNutrition(res.nutrition) || nutritionFromItems(res.nutritionItems, sv > 0 && sv < 1000 ? sv : null);
+  d.nutrition = cleanNutrition(res.nutrition) || nutritionFromItems(res.nutritionItems, sv > 0 && sv < 1000 ? sv : null); // sonst gleich nach dem Speichern im Hintergrund
   d.tags = cleanTags(res.tags);
   d.unsure = cleanUnsure((Array.isArray(res.unsure) ? res.unsure : []).map(u => {
     if (!u || typeof u !== "object") return null;
@@ -2912,9 +2935,10 @@ async function runJob(job) {
         return;
       }
     }
-    await saveData(conv.data, conv.coverBlob, conv.coverUrl, conv.orig);
+    const savedId = await saveData(conv.data, conv.coverBlob, conv.coverUrl, conv.orig);
     removeJob(job);
     toast(`„${conv.data.title}“ gespeichert`);
+    if (savedId && !nutriComplete(cleanNutrition(conv.data.nutrition))) nutriInBackground(savedId);
     // Auf den Fotos war noch ein anderes Rezept: anbieten, es auch zu lesen (gleiche Fotos, mit Hinweis welches)
     if (job.src.mode === "photo" && Array.isArray(conv.other) && conv.other.length && (job.src.images || []).length) {
       const images = job.src.images.map(i => ({ blob: i.blob, url: URL.createObjectURL(i.blob) }));
@@ -3090,17 +3114,7 @@ const actions = {
     const r = current(); if (!r || !col || state.nutriBusy) return;
     await initPromise;
     if (!sample) { toast("Schätzen geht gerade nicht. Lade die App neu."); return; }
-    const myUid = uid;
-    state.nutriBusy = r.id; nutriTried.add(r.id); renderDetail();
-    try {
-      const n = await estimateNutrition(r);
-      if (!n) throw { code: "no_recipe", message: "" };
-      if (uid !== myUid) return;
-      await withRetry(() => col.doc(r.id).update({ nutrition: n }));
-      patchLocal(r.id, { nutrition: n });
-    } catch (e) { console.warn("Nährwerte", e); }
-    finally { state.nutriBusy = null; }
-    if (state.view === "detail") renderDetail();
+    await storeNutrition(r);
   },
   "login-google": () => loginGoogle(),
   "lg-mode": el => {
