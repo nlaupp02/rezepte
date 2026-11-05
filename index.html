@@ -362,7 +362,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .ing.done .ing-t, .ing.done .ing-q, .ing.done .ing-n { text-decoration: line-through; }
 /* Mengen als eigene Spalte, die Zutaten stehen bündig daneben */
 .ing-t.cols { display: flex; gap: 10px; min-width: 0; }
-.ing-q { flex: none; min-width: var(--qw, 4ch); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ing-q { flex: none; min-width: max(var(--qw, 4ch), 3ch); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ing-n { flex: 1; min-width: 0; }
 
 .ing.done .box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -626,7 +626,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "43";
+const APP_VERSION = "44";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1324,7 +1324,7 @@ function ingItems(ings, factor) {
       if (!grp) { grp = { spices: [], idx: [] }; items.push(grp); }
       grp.spices.push(line.trim()); grp.idx.push(i); return;
     }
-    let q = sq.qty.trim(), name = sq.rest;
+    let q = sq.qty.trim().replace(/(\d)\s*[-–]\s*(?=[\d½¼¾⅓⅔⅛])/g, "$1–"), name = sq.rest; // „400-500“ wie beim Umrechnen als „400–500“
     const um = q ? name.match(UNIT_RE) : null;
     if (um) { q += " " + um[1]; name = name.slice(um[0].length); }
     items.push({ i, line, qty: q, name: name.trim(), full: (sq.qty + sq.rest).trim() });
@@ -2148,6 +2148,17 @@ function renderDetail() {
       <button class="btn danger quiet block" data-action="delete">Rezept löschen</button>
     </article>`;
   setHTMLKeepImgs(app, html); // auch beim Öffnen aus der Liste: das Bild ist schon geladen
+  fitQtyCol();
+}
+// Mengenspalte so breit wie die breiteste Menge (gemessen statt geschätzt, z. B. „400–500 g“), höchstens gut ein Drittel der Zeile
+function fitQtyCol() {
+  const ul = app.querySelector(".ings"), qs = ul ? ul.querySelectorAll(".ing-q") : [];
+  if (!qs.length) return;
+  const guess = ul.style.getPropertyValue("--qw");
+  ul.style.setProperty("--qw", "0px");
+  let w = 0; qs.forEach(e => { w = Math.max(w, e.offsetWidth); });
+  const max = ul.clientWidth * 0.36;
+  ul.style.setProperty("--qw", w && max ? Math.ceil(Math.min(w + 1, max)) + "px" : guess); // nicht sichtbar: bei der Schätzung bleiben
 }
 
 function checkHtml(uns, r) {
@@ -2685,7 +2696,7 @@ ${transcribe ? `- "transcript": zuerst eine genaue Abschrift, so wie es ${imp.mo
 - "problem": leer, oder kurz auf Deutsch, warum kein Rezept erkennbar ist (z. B. unscharf, abgeschnitten, nur ein Video-Standbild ohne Text)
 - "title": Rezeptname auf Deutsch, wie er in einem deutschen Kochbuch stehen würde: zuerst das Gericht, dann mit „mit“ die wichtigsten Zutaten, z. B. „Ofenpasta mit Spinat und Tomaten“ oder „Bananen-Brownie mit Schoko und Hafer“. Keine langen Bindestrich-Ketten wie „Spinat-Tomaten-Ofenpasta“. Höchstens etwa 6 Wörter. Ohne Werbewörter wie „High-Protein“, „einfach“, „lecker“, „schnell“, „gesund“ oder „aus dem Ofen“, ohne Hashtags und Emojis. Englische Gerichtsnamen schreibst du richtig, z. B. „Mac and Cheese“, „One-Pot-Pasta“ (nicht „Pasta One Pot“).
 - "category": genau eins von: ${CATEGORIES.join(", ")}
-- "servings": für wie viele Personen bzw. Portionen das Rezept ist, als Zahl, oder null. Bei Kuchen, Torten, Gebäck und Brot (Kategorie Backen) ist es die Anzahl der Stücke, z. B. 12 für einen Kuchen in der Springform; steht nichts dabei, nimm die übliche Stückzahl. Bei Getränken die Anzahl Gläser, bei Snacks wie Energy Balls oder Riegeln und bei Sonstigem (z. B. Pesto, Gewürzmischung) die Anzahl Portionen
+- "servings": für wie viele Personen bzw. Portionen das Rezept ist, als Zahl. Bei Kuchen, Torten, Gebäck und Brot (Kategorie Backen) ist es die Anzahl der Stücke, z. B. 12 für einen Kuchen in der Springform. Bei Getränken die Anzahl Gläser, bei Snacks wie Energy Balls oder Riegeln und bei Sonstigem (z. B. Pesto, Gewürzmischung) die Anzahl Portionen. Steht nichts dabei, schätze sie aus den Mengen, wie viele davon üblicherweise satt werden (z. B. 500 g Nudeln für 4 Personen, eine Springform für 12 Stücke), und trag das in "unsure" ein. null nur, wenn sich gar nichts schätzen lässt
 - "prepTime": Vorbereitungszeit wie "15 Min." oder "1 Std. 10 Min.", sonst "". Ruhe-, Geh-, Kühl- und Marinierzeiten gehören weder hierher noch in "cookTime", sondern in die Schritte
 - "cookTime": Koch- bzw. Backzeit im selben Format, sonst ""
 - "ingredients": Liste von Strings, eine Zutat pro Eintrag, Menge zuerst, z. B. "200 g Mehl", "2 EL Olivenöl", "1 TL Zimt". Steht keine Menge dabei, schreib die Zutat ohne Menge, z. B. "Salz", "Pfeffer nach Geschmack", "etwas Öl zum Braten", und erfinde keine. Schreib Mengen möglichst genau in g oder ml. Packungen, Dosen, Becher, Gläser und Tüten rechnest du in g oder ml um und schreibst die Packung in Klammern dahinter, z. B. "500 g Gnocchi (1 Packung)", "400 g gehackte Tomaten (1 Dose)", "200 g Sahne (1 Becher)"; ist das Gewicht nicht angegeben, nimm die übliche Packungsgröße in Deutschland mit „ca.“. Stückzutaten bleiben Stück, z. B. "2 Eier", "1 Zwiebel", "3 Knoblauchzehen". Steht bei Gewürzen eine Menge, schreib sie in EL, TL oder Prise. Die Menge steht immer ganz vorne, z. B. "1 Zitrone (Saft)" statt "Saft von 1 Zitrone". Zwischenüberschriften als eigener Eintrag mit "# " davor, z. B. "# Für die Soße".
@@ -2697,7 +2708,7 @@ ${transcribe ? `- "transcript": zuerst eine genaue Abschrift, so wie es ${imp.mo
 ${imp.mode === "photo" ? `- "coverBox": Ist auf dem gewählten Bild außer dem Gericht noch anderes zu sehen (Text, Seitenrand, Knöpfe einer App), dann der Ausschnitt nur mit dem Gericht als [links, oben, rechts, unten] in Prozent der Bildbreite bzw. -höhe, so groß wie möglich. Zeigt fast das ganze Bild das Gericht, null
 ` : ""}- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
 - "tags": Liste der Merkmale, die sicher zutreffen, nur aus: ${TAGS.join(", ")} (${TAG_RULES}). Leere Liste, wenn keins passt.
-- "unsure": Liste der Stellen, bei denen du dir beim Lesen nicht sicher bist, z. B. schwer lesbare Handschrift, verwischte, verdeckte oder abgeschnittene Mengen, geratene Wörter. Je ein Objekt {"in": "title" | "ingredients" | "steps" | "servings" | "time", "n": Nummer des Eintrags in "ingredients" bzw. "steps" (ab 1, sonst weglassen), "note": kurz auf Deutsch, was unsicher ist, z. B. "250 oder 350 g?"}. Hast du die Stückzahl oder Portionen geschätzt, weil nichts dabeistand, trag das hier ein ({"in": "servings", "note": "geschätzt, stand nicht dabei"}). Sonst nur echte Unsicherheiten beim Lesen, keine Umrechnungen und keine Schätzungen, die schon „ca.“ haben. Leere Liste, wenn alles gut lesbar ist.
+- "unsure": Liste der Stellen, bei denen du dir beim Lesen nicht sicher bist, z. B. schwer lesbare Handschrift, verwischte, verdeckte oder abgeschnittene Mengen, geratene Wörter. Je ein Objekt {"in": "title" | "ingredients" | "steps" | "servings" | "time", "n": Nummer des Eintrags in "ingredients" bzw. "steps" (ab 1, sonst weglassen), "note": kurz auf Deutsch, was unsicher ist, z. B. "250 oder 350 g?"}. Hast du die Personen, Stückzahl oder Portionen geschätzt, weil nichts dabeistand, trag das hier ein ({"in": "servings", "note": "geschätzt, stand nicht dabei"}). Sonst nur echte Unsicherheiten beim Lesen, keine Umrechnungen und keine Schätzungen, die schon „ca.“ haben. Leere Liste, wenn alles gut lesbar ist.
 - "nutrition": nur wenn im Material Nährwerte stehen: pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm). Übernimm sie nur, wenn sie zur Zahl in "servings" passen; Angaben pro 100 g oder für andere Portionen rechnest du um. Stehen keine Nährwerte im Material, null (schätze sie nicht, das passiert danach).
 
 Regeln:
