@@ -540,6 +540,17 @@ body.kb .toast.show { transform: none; }
 .list > li.letter { content-visibility: visible; contain-intrinsic-size: none; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: var(--muted); }
 .list > li.letter + li > .row::before { display: none; }
 .set-title { margin: 6px 0 14px; overflow-wrap: anywhere; }
+/* Reel, Link oder Text: Feld, zwei Knöpfe, drei kurze Hinweise */
+.imp-in {
+  width: 100%; padding: 12px 14px; border-radius: 12px; border: 0; background: var(--fill); color: var(--ink);
+  font-size: 17px; line-height: 1.45; resize: none; min-height: 120px; -webkit-appearance: none; appearance: none;
+}
+.imp-in:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+.imp-in::placeholder { color: #A29C93; }
+.imp-btns { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
+.imp-btns .ic { width: 20px; height: 20px; }
+.imp-help { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; font-size: 15px; line-height: 1.4; color: var(--muted); }
+.imp-help b { color: var(--ink); font-weight: 600; }
 /* Kochmodus */
 .sec-head .cookbtn { margin: -4px 0; }
 .cookbtn {
@@ -706,7 +717,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "55";
+const APP_VERSION = "56";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1224,11 +1235,15 @@ function blobUrl(d, key) {
 const placeholder = (ic = "pot") => `<div class="ph">${icon(ic)}</div>`;
 // Neu zeichnen, ohne fertig geladene Bilder wegzuwerfen: sonst blitzen die Titelbilder bei jeder Änderung kurz weiß auf
 const imgPool = new Map(); // fertig geladene Bilder, auch über Seitenwechsel hinweg (Liste ↔ Rezept)
+// Pro Bildadresse mehrere Bilder: dasselbe Foto steht oft zweimal da (Sammlungs-Kachel oben und Zeile in der Liste).
+// Mit nur einem gemerkten Bild pro Adresse lud das zweite jedes Mal neu und blitzte kurz auf.
 function keepImgs(el) {
   el.querySelectorAll("img[src]").forEach(i => {
     if (!(i.complete && i.naturalWidth)) return;
-    const src = i.getAttribute("src");
-    imgPool.delete(src); imgPool.set(src, i);
+    const src = i.getAttribute("src"), arr = imgPool.get(src) || [];
+    if (!arr.includes(i)) arr.push(i);
+    if (arr.length > 4) arr.shift();
+    imgPool.delete(src); imgPool.set(src, arr);
   });
   while (imgPool.size > 400) imgPool.delete(imgPool.keys().next().value);
   return imgPool;
@@ -1236,8 +1251,9 @@ function keepImgs(el) {
 function reuseImgs(el, pool) {
   if (!pool.size) return;
   el.querySelectorAll("img[src]").forEach(n => {
-    const o = pool.get(n.getAttribute("src"));
-    if (!o || o === n || o.isConnected) return;
+    const arr = pool.get(n.getAttribute("src"));
+    const o = arr && arr.find(x => x !== n && !x.isConnected);
+    if (!o) return;
     o.className = n.className; n.replaceWith(o);
   });
 }
@@ -2874,17 +2890,28 @@ function renderImport() {
       <h2 class="bar-title">${ig ? "Instagram-Reel" : "Reel, Link oder Text"}</h2>
       <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
     </div>
-    <main class="stack imp">
+    ${ig ? "" : `<main class="stack imp">
+      <textarea id="imp-link" class="imp-in" rows="5" autocomplete="off" autocapitalize="off" aria-label="Reel, Link oder Text" placeholder="Link oder Rezepttext hier einfügen">${esc(imp.link)}</textarea>
+      <div id="imp-status" aria-live="polite"></div>
+      <div class="imp-btns"><button class="btn" data-action="paste-link">${icon("paste")}Einfügen</button><button class="btn primary" id="recognize" data-action="recognize">Rezept holen</button></div>
+      <ul class="imp-help">
+        <li><b>Instagram:</b> im Reel auf Teilen → Link kopieren</li>
+        <li><b>Website:</b> Link kopieren, z. B. von Chefkoch</li>
+        <li><b>Text:</b> aus WhatsApp, E-Mail oder Notizen</li>
+      </ul>
+      <p class="note">Steht das Rezept nur im Video, nimm lieber Screenshots.</p>
+    </main>`}
+    ${ig ? `<main class="stack imp">
       <div class="field">
-        <div class="sec-head"><label for="imp-link">${ig ? "Link zum Reel" : "Reel, Link oder Text"}</label><button class="btn small quiet" data-action="paste-link" style="margin-right:-13px">${icon("paste")}Einfügen</button></div>
+        <div class="sec-head"><label for="imp-link">Link zum Reel</label><button class="btn small quiet" data-action="paste-link" style="margin-right:-13px">${icon("paste")}Einfügen</button></div>
         <textarea id="imp-link" rows="${ig ? 2 : 5}" autocomplete="off" autocapitalize="off" placeholder="${ig ? "https://www.instagram.com/reel/…" : "https://… oder den ganzen Rezepttext"}">${esc(imp.link)}</textarea>
       </div>
       <div id="imp-status" aria-live="polite"></div>
       <button class="btn primary block" id="recognize" data-action="recognize">Rezept holen</button>
       <p class="note">${ig
         ? "Tipp im Reel auf <b>Teilen</b> und dann auf <b>Link kopieren</b>. Gelesen werden die Beschreibung und das Vorschaubild. Steht das Rezept nur im Video, mach lieber Screenshots davon."
-        : "Ein Instagram-Reel (im Reel: <b>Teilen</b> → <b>Link kopieren</b>), ein Link, zum Beispiel von Chefkoch, oder der Rezepttext aus WhatsApp, E-Mail oder Notizen. Bei Reels werden die Beschreibung und das Vorschaubild gelesen. Steht das Rezept nur im Video, mach lieber Screenshots davon."}</p>
-    </main>`;
+        : ""}</p>
+    </main>` : ""}`;
   const ta = $("#imp-link"); if (ta) autosize(ta);
 }
 function showError(title, text) {
