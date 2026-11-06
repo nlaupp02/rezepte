@@ -39,6 +39,8 @@ if (navigator.standalone === true || (window.matchMedia && matchMedia("(display-
   --star: #C98A12;
   --danger: #C4322A;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Große Titel wie in einem Kochbuch: auf dem iPhone Apples Schrift „New York“ */
+  --serif: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
   color-scheme: light;
 }
 
@@ -89,7 +91,7 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
 .tbtn[disabled] { opacity: .4; }
 .home-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: calc(34px + env(safe-area-inset-top)); margin: 0 -10px 10px 0; }
 .head-btns { display: flex; gap: 2px; }
-.brand { font-size: 34px; line-height: 1.15; font-weight: 700; margin: 0; }
+.brand { font-family: var(--serif); font-size: 34px; line-height: 1.15; font-weight: 700; margin: 0; }
 /* Fester weißer Streifen unter der Uhr: iOS zeichnet dort sonst die Inhalte weich (unscharf) */
 .install { display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 14px; border-radius: 14px; background: var(--accent-soft); margin: 0 0 12px; }
 .install > div { flex: 1; min-width: 0; }
@@ -185,7 +187,7 @@ body.typing .fab { display: none; }
 button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; background: rgba(0, 0, 0, .05); pointer-events: none; }
 .thumb-sm { position: relative; width: 64px; height: 64px; flex: none; border-radius: 10px; overflow: hidden; background: var(--ph); }
 .thumb-sm img { width: 100%; height: 100%; object-fit: cover; }
-.ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--ph); color: var(--faint); }
+.ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--ph); color: #AEAEB2; }
 .ph .ic { width: 32px; height: 32px; stroke-width: 1.5; }
 .row-b { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .row-t { font-size: 17px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -329,7 +331,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .d-meta { margin: 0; font-size: 16px; line-height: 1.35; color: var(--muted); }
 .d-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
 .tag { padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: #7A5209; font-size: 14px; font-weight: 500; line-height: 1.3; }
-.d-title { font-size: 28px; line-height: 1.15; overflow-wrap: anywhere; }
+.d-title { font-family: var(--serif); font-size: 29px; line-height: 1.15; overflow-wrap: anywhere; }
 .info { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: -8px 0 0; font-size: 16px; }
 .info dt { color: var(--muted); }
 .info dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
@@ -337,7 +339,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .src { margin: 0; font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
 .src a { color: var(--accent); text-decoration: none; }
 .sec { display: grid; gap: 6px; }
-.sec h2 { font-size: 20px; color: var(--ink); letter-spacing: -.2px; }
+.sec h2 { font-family: var(--serif); font-size: 21px; color: var(--ink); }
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 36px; }
 .scaler { display: inline-flex; align-items: center; background: var(--fill); border-radius: 9px; padding: 2px; }
 .scaler button { width: 44px; height: 40px; border: 0; border-radius: 7px; background: none; font-size: 21px; line-height: 1; color: var(--ink); }
@@ -502,6 +504,7 @@ body.kb .toast.show { transform: none; }
 .row.dup { align-items: flex-start; }
 .row.dup .row-t { color: var(--ink); }
 .modal.top { top: calc(env(safe-area-inset-top) + 64px); transform: none; }
+.modal.top.placed { transition: top .3s cubic-bezier(.2, .8, .2, 1); }
 .modal .p-in { margin-top: 8px; width: 100%; padding: 11px 12px; border-radius: 10px; border: 0; background: var(--fill); font-size: 17px; color: var(--ink); text-align: left; }
 .modal .p-in:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
 .modal .qprev { width: 120px; height: 96px; border-radius: 10px; object-fit: cover; margin: 0 auto 6px; display: block; background: var(--fill); }
@@ -536,7 +539,49 @@ body.kb .toast.show { transform: none; }
 .sortbtn .ic { width: 16px; height: 16px; stroke-width: 2.4; }
 .list > li.letter { content-visibility: visible; contain-intrinsic-size: none; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: var(--muted); }
 .list > li.letter + li > .row::before { display: none; }
+.lh-r { display: inline-flex; align-items: center; gap: 6px; }
+.layoutbtn { width: 36px; height: 36px; margin: -8px 0; border: 0; background: none; display: grid; place-items: center; color: var(--accent); }
+.layoutbtn .ic { width: 20px; height: 20px; }
+/* Kacheln: zwei nebeneinander, großes Bild, Name darunter */
+.tiles { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
+.tiles > li.letter { grid-column: 1 / -1; padding: 4px 0 0; font-size: 15px; font-weight: 700; color: var(--muted); }
+.tile { display: grid; gap: 2px; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: inherit; }
+.tile-img { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: var(--ph); margin-bottom: 6px; }
+.tile-img img { width: 100%; height: 100%; object-fit: cover; }
+.tile-img .ph .ic { width: 44px; height: 44px; stroke-width: 1.4; }
+.tile.pressed .tile-img { opacity: .75; }
+.tile-t { font-size: 16px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tile .row-m { font-size: 14px; }
 .set-title { margin: 6px 0 14px; overflow-wrap: anywhere; }
+/* Kochmodus */
+.sec-head .cookbtn { margin: -4px 0; }
+.cookbtn {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink);
+  font-size: 15px; font-weight: 600; padding: 8px 15px 8px 12px; white-space: nowrap;
+}
+.cookbtn .ic { width: 13px; height: 13px; stroke-width: 2.4; }
+.cookbtn:active { opacity: .7; }
+.cook { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; }
+.cook-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 44px; padding: calc(env(safe-area-inset-top) + 4px) 6px 2px 16px; }
+.cook-pos { grid-column: 2; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cook-bar .tbtn { grid-column: 3; justify-self: end; }
+.cook-prog { height: 4px; margin: 6px 16px 0; border-radius: 2px; background: var(--fill); overflow: hidden; }
+.cook-prog i { display: block; height: 100%; width: 0; border-radius: 2px; background: var(--accent); transition: width .25s; }
+.cook-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 30px 22px 24px; touch-action: pan-y; }
+.cook-h { font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.cook-text { margin: 0; font-family: var(--serif); font-size: 28px; line-height: 1.38; overflow-wrap: break-word; }
+.cook-ings { margin-top: 30px; padding: 14px 16px 16px; border-radius: 14px; background: var(--group); }
+.cook-ih { font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+.cook-ings ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 20px; line-height: 1.35; }
+.cook-ings b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.cook-nav { display: grid; grid-template-columns: 1fr 1.7fr; gap: 10px; padding: 10px 16px calc(env(safe-area-inset-bottom) + 12px); }
+.cook-nav .btn { min-height: 58px; font-size: 19px; border-radius: 14px; }
+.cook-nav .btn .ic { width: 22px; height: 22px; margin-left: -6px; }
+@media (prefers-reduced-motion: no-preference) {
+  .cook { animation: cookup .3s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes cookup { from { transform: translateY(100%); } }
+}
+
 /* Originalfoto ansehen */
 .viewer { position: absolute; inset: 0; background: #111; color: #fff; display: flex; flex-direction: column; touch-action: none; }
 .vbar { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: calc(env(safe-area-inset-top) + 4px) 6px 4px 16px; font-size: 17px; }
@@ -623,8 +668,26 @@ const ICONS = {
   addsq: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/>',
   menu: '<path d="M4 6.5h16M4 12h16M4 17.5h10.5"/>',
   more: '<path d="M6 9.5l6 6 6-6"/>',
-  folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>'
+  folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
+  coffee: '<path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" /><path d="M6 2v2" />',
+  salad: '<path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" />',
+  soup: '<path d="M11.248 3c.273.1.808.53.747 1.36-.05.83-.938 1.2-.989 2.02-.06.78.333 1.24.727 1.62" /><path d="M16.252 3c.268.1.794.53.745 1.36-.06.83-.923 1.2-.993 2.02-.05.78.338 1.24.725 1.62" /><path d="M19.5 12 22 6" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M6.252 3c.268.1.794.53.745 1.36-.06.83-.923 1.2-.993 2.02-.05.78.338 1.24.735 1.62" /><path d="M7 21h10" />',
+  popcorn: '<path d="M18 8a2 2 0 0 0 0-4 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0 0 4" /><path d="M10 22 9 8" /><path d="m14 22 1-14" /><path d="M20 8c.5 0 .9.4.8 1l-2.6 12c-.1.5-.7 1-1.2 1H7c-.6 0-1.1-.4-1.2-1L3.2 9c-.1-.6.3-1 .8-1Z" />',
+  icecream: '<path d="M12 17c5 0 8-2.69 8-6H4c0 3.31 3 6 8 6m-4 4h8m-4-3v3M5.14 11a3.5 3.5 0 1 1 6.71 0" /><path d="M12.14 11a3.5 3.5 0 1 1 6.71 0" /><path d="M15.5 6.5a3.5 3.5 0 1 0-7 0" />',
+  cake: '<path d="M16 13H3" /><path d="M16 17H3" /><path d="m7.2 7.9-3.388 2.5A2 2 0 0 0 3 12.01V20a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-8.654c0-2-2.44-6.026-6.44-8.026a1 1 0 0 0-1.082.057L10.4 5.6" /><circle cx="9" cy="7" r="2" />',
+  soda: '<path d="m6 8 1.75 12.28a2 2 0 0 0 2 1.72h4.54a2 2 0 0 0 2-1.72L18 8" /><path d="M5 8h14" /><path d="M7 15a6.47 6.47 0 0 1 5 0 6.47 6.47 0 0 0 5 0" /><path d="m12 8 1-6h2" />',
+  chefhat: '<path d="M10 11v5" /><path d="M14 11v5" /><path d="M6 12.65c0-.457-.316-.844-.727-1.041A4 4 0 017.52 4.034a1.53 1.53 0 001.367-.547 4 4 0 016.225 0 1.53 1.53 0 001.367.547 4 4 0 012.248 7.575c-.411.197-.727.584-.727 1.04V19a2 2 0 01-2 2H8a2 2 0 01-2-2z" /><path d="M6 16h12" />',
+  fries: '<path d="M8 11.5 7.2 4.2M10.7 11 10.4 3M13.3 11l.3-7.6M16 11.5l.9-6.8"/><path d="M5.5 10.5c2.4 1.6 10.6 1.6 13 0l-1.7 9.6a1.6 1.6 0 0 1-1.6 1.4H8.8a1.6 1.6 0 0 1-1.6-1.4z"/>',
+  play: '<path d="M8 5.5v13l10-6.5z"/>',
+  gridv: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
+  listv: '<rect x="3.5" y="5" width="5" height="5" rx="1.2"/><rect x="3.5" y="14" width="5" height="5" rx="1.2"/><path d="M11.5 7.5h9M11.5 16.5h9"/>'
 };
+// Ohne Foto: ein Symbol je Kategorie, das man sofort erkennt. Hauptgericht bleibt der Topf.
+// Kaffee, Salat, Suppe, Popcorn, Eisbecher, Kuchenstück, Becher und Kochmütze stammen aus Lucide (lucide.dev, ISC-Lizenz,
+// Copyright (c) Lucide Icons and Contributors), die Pommes sind selbst gezeichnet.
+const CAT_ICON = { "Frühstück": "coffee", "Hauptgericht": "pot", "Beilage": "fries", "Salat": "salad", "Suppe": "soup", "Snack": "popcorn",
+  "Dessert": "icecream", "Backen": "cake", "Getränk": "soda", "Sonstiges": "chefhat" };
+const catIcon = c => CAT_ICON[c] || "pot";
 const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 
 /* ---------- State ---------- */
@@ -647,6 +710,7 @@ const state = {
   jobs: [],
   listScroll: 0,
   sort: (() => { try { return localStorage.getItem("rezepte-sort") || "added"; } catch (e) { return "added"; } })(),
+  layout: (() => { try { return localStorage.getItem("rezepte-layout") === "grid" ? "grid" : "list"; } catch (e) { return "list"; } })(),
   nutriBusy: null
 };
 let sample = null, uid = null, col = null, initDone = false;
@@ -658,7 +722,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "48";
+const APP_VERSION = "49";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1195,12 +1259,12 @@ function reuseImgs(el, pool) {
 }
 function setHTMLKeepImgs(el, html) { const old = keepImgs(el); el.innerHTML = html; reuseImgs(el, old); }
 function coverHtml(r) {
-  const src = coverSrc(r.cover, r.id + ":" + (r.updatedAt || 0));
-  return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="">` : placeholder();
+  const src = coverSrc(r.cover, r.id + ":" + (r.updatedAt || 0)), ic = catIcon(r.category);
+  return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="${ic}">` : placeholder(ic);
 }
 document.addEventListener("error", e => {
   const t = e.target;
-  if (t && t.tagName === "IMG" && t.dataset && "ph" in t.dataset) t.outerHTML = placeholder();
+  if (t && t.tagName === "IMG" && t.dataset && "ph" in t.dataset) t.outerHTML = placeholder(ICONS[t.dataset.ph] ? t.dataset.ph : "pot");
 }, true);
 
 function parseMin(s) {
@@ -1623,6 +1687,7 @@ if (window.visualViewport) {
   const editing = () => { const a = document.activeElement; return !!(a && a.matches && a.matches("textarea, select, input:not([type=file]):not([type=checkbox]):not([type=radio])")); };
   const upd = () => {
     raf = 0;
+    placeModals();
     const o = editing() && Math.abs(vv.scale - 1) < 0.02 ? Math.max(0, Math.round(vv.offsetTop)) : 0;
     document.body.classList.toggle("kb", editing() && window.innerHeight - vv.height > 150);
     if (o === last) return;
@@ -1636,7 +1701,7 @@ if (window.visualViewport) {
 }
 
 /* Antippen sichtbar machen wie in iOS: erst nach kurzem Halten grau, beim Wischen über die Liste gar nicht */
-const PRESSABLE = "button.row, .opt, .cell";
+const PRESSABLE = "button.row, .opt, .cell, .tile";
 let pressEl = null, pressT = 0, pressX = 0, pressY = 0;
 function clearPress() { clearTimeout(pressT); if (pressEl) pressEl.classList.remove("pressed"); pressEl = null; }
 document.addEventListener("pointerdown", e => {
@@ -1720,6 +1785,18 @@ function closeDialog() {
   if (layer2.classList.contains("open")) { layer2.classList.remove("open"); layer2.innerHTML = ""; }
   else closeLayer();
 }
+// Fenster mit Eingabefeld: mittig im sichtbaren Bereich. Kommt die Tastatur, gleitet es weich nach oben über die Tastatur
+// (wie die Fenster vom iPhone selbst), statt von Anfang an oben zu kleben.
+function placeModals() {
+  const vv = window.visualViewport, top = ($(".statusfill") || {}).offsetHeight || 0;
+  const vh = vv ? vv.height : window.innerHeight, vo = vv ? Math.max(0, vv.offsetTop) : 0;
+  document.querySelectorAll(".modal.top").forEach(m => {
+    const y = Math.max(top + 12, Math.round(vo + (vh - m.offsetHeight) * 0.42));
+    m.style.top = y + "px";
+    if (!m.classList.contains("placed")) requestAnimationFrame(() => m.classList.add("placed")); // erst danach mit Übergang
+  });
+}
+window.addEventListener("resize", placeModals);
 function promptDialog({ title, text, value, yes }) {
   return new Promise(res => {
     promptResolve = res;
@@ -1734,6 +1811,7 @@ function promptDialog({ title, text, value, yes }) {
         </div>
       </div>`;
     host.classList.add("open");
+    placeModals();
     const i = $("#p-in"); if (i) { i.focus(); i.select(); }
   });
 }
@@ -1833,6 +1911,7 @@ window.addEventListener("popstate", e => {
   if (layer.classList.contains("open") || layer2.classList.contains("open")) hardCloseLayer();
   if (modalResolve) { modalResolve(false); modalResolve = null; }
   if (promptResolve) { promptResolve(null); promptResolve = null; }
+  cook = null;
   if (viewer) { viewer = null; if (themeMeta) themeMeta.content = "#FFFFFF"; }
   if (state.edit) { if (state.edit.coverUrl) URL.revokeObjectURL(state.edit.coverUrl); state.edit = null; }
   state.imp = null;
@@ -1947,6 +2026,15 @@ function card(r) {
       <span class="row-m">${cleanUnsure(r.unsure).length ? `<span class="chk">Bitte prüfen</span>` : ""}${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}<span>${esc(meta || " ")}</span></span></span>
   </button></li>`;
 }
+// Kacheln: zwei Rezepte nebeneinander mit großem Bild
+function tile(r) {
+  const meta = [r.category, totalTime(r)].filter(Boolean).join(" · ");
+  return `<li><button class="tile" data-action="open-recipe" data-id="${esc(r.id)}">
+    <span class="tile-img">${coverHtml(r)}</span>
+    <span class="tile-t">${esc(r.title || "Ohne Titel")}</span>
+    <span class="row-m">${cleanUnsure(r.unsure).length ? `<span class="chk">Prüfen</span>` : ""}${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}<span>${esc(meta || " ")}</span></span>
+  </button></li>`;
+}
 function renderListBody() {
   const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab"), albums = $("#albums");
   if (!grid) return;
@@ -1997,18 +2085,21 @@ function renderListBody() {
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
   const n = list.length, sortName = (SORTS.find(([k]) => k === state.sort) || SORTS[0])[1];
+  const tiles = state.layout === "grid";
   const head = n ? `<div class="list-head"><span>${q ? (n === 1 ? "1 Treffer" : n + " Treffer") : (n === 1 ? "1 Rezept" : n + " Rezepte")}</span>
-    <button class="sortbtn" data-action="sort">${esc(sortName)}${icon("more")}</button></div>` : "";
+    <span class="lh-r"><button class="layoutbtn" data-action="layout" aria-label="${tiles ? "Als Liste zeigen" : "Mit großen Bildern zeigen"}">${icon(tiles ? "listv" : "gridv")}</button>
+    <button class="sortbtn" data-action="sort">${esc(sortName)}${icon("more")}</button></span></div>` : "";
   // Nach Namen sortiert: Buchstaben als Zwischenüberschrift, damit man in langen Listen schnell hinfindet
   let last = null;
   const rows = list.map(r => {
-    if (state.sort !== "az") return card(r);
+    const c = tiles ? tile(r) : card(r);
+    if (state.sort !== "az") return c;
     const L = letterOf(r.title);
     const h = L !== last ? `<li class="letter">${L}</li>` : "";
-    last = L; return h + card(r);
+    last = L; return h + c;
   }).join("");
   setHTMLKeepImgs(grid, ((jobsHtml || list.length)
-    ? head + `<ul class="list">${jobsHtml}${rows}</ul>`
+    ? head + (tiles ? (jobsHtml ? `<ul class="list">${jobsHtml}</ul>` : "") + `<ul class="tiles">${rows}</ul>` : `<ul class="list">${jobsHtml}${rows}</ul>`)
     : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`));
 }
 const letterOf = t => { const c = norm(t).trim().charAt(0).toUpperCase(); return /[A-Z]/.test(c) ? c : "#"; };
@@ -2215,12 +2306,11 @@ function renderDetail() {
       ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
       <section class="sec">
         <div class="sec-head"><h2>Zutaten</h2>${ings.length ? scaler : ""}</div>
-        ${ings.length ? `<ul class="ings" style="--qw:${qw.toFixed(1)}ch">${ingHtml}</ul>
-          <div><button class="btn small quiet" data-action="copy-ings" style="margin-left:-13px">${icon("copy")}Zutaten kopieren</button></div>`
+        ${ings.length ? `<ul class="ings" style="--qw:${qw.toFixed(1)}ch">${ingHtml}</ul>`
           : `<p class="muted">Noch keine Zutaten eingetragen.</p>`}
       </section>
       <section class="sec">
-        <h2>Zubereitung</h2>
+        <div class="sec-head"><h2>Zubereitung</h2>${n ? `<button class="cookbtn" data-action="cook">${icon("play", "filled")}Kochmodus</button>` : ""}</div>
         ${steps.length ? `<ol class="steps">${stepHtml}</ol>` : `<p class="muted">Noch keine Schritte eingetragen.</p>`}
       </section>
       ${r.notes ? `<section class="sec"><h2>Notizen</h2><p class="notes">${esc(r.notes)}</p></section>` : ""}
@@ -2253,6 +2343,85 @@ function checkHtml(uns, r) {
 }
 /* ---------- Originalfoto ansehen (zum Vergrößern mit zwei Fingern) ---------- */
 let viewer = null;
+/* ---------- Kochmodus: ein Schritt pro Bildschirm, große Schrift, darunter die Zutaten für diesen Schritt ---------- */
+let cook = null;
+function cookSteps(r) {
+  const out = []; let head = "";
+  (Array.isArray(r.steps) ? r.steps : []).forEach((s, i) => {
+    if (typeof s !== "string") return;
+    if (/^#/.test(s)) { head = headText(s); return; }
+    out.push({ i, text: s, head });
+  });
+  return out;
+}
+// Welche Zutaten kommen in diesem Schritt vor? (Wortstamm im Text, „alle Zutaten“ = alle), Mengen wie gerade eingestellt
+function cookIngs(r, text) {
+  const base = Number(r.servings) > 0 ? Number(r.servings) : null;
+  const factor = base ? (state.servings || base) / base : state.factor;
+  const items = ingItems((Array.isArray(r.ingredients) ? r.ingredients : []).filter(x => typeof x === "string"), factor);
+  const t = norm(text), all = /\balle[nrs]? (?:zutaten|anderen zutaten)\b/.test(t);
+  const hit = name => norm(name).replace(/\([^)]*\)/g, " ").split(/[^a-zß]+/).filter(w => w.length >= 4 && !STOP.has(w))
+    .some(w => t.includes(w.slice(0, Math.max(4, w.length - 2))));
+  const out = [];
+  for (const it of items) {
+    if (it.head) continue;
+    if (it.spices) { const sp = it.spices.filter(l => all || hit(l)); if (sp.length) out.push(`<li>${esc(sp.map(spiceName).join(", "))}</li>`); continue; }
+    if (all || hit(it.qty ? it.name : it.full)) out.push(it.qty ? `<li><b>${esc(it.qty)}</b> ${esc(it.name)}</li>` : `<li>${esc(it.full)}</li>`);
+  }
+  return out;
+}
+function openCook() {
+  const r = current(); if (!r) return;
+  const steps = cookSteps(r); if (!steps.length) return;
+  let k = steps.findIndex(x => !state.doneSteps.has(x.i)); // weitermachen, wo man war
+  if (k < 0) k = 0;
+  cook = { rid: r.id, steps, k };
+  layer.innerHTML = `<div class="cook" role="dialog" aria-modal="true" aria-labelledby="ck-t">
+      <div class="cook-bar"><span class="cook-pos" id="ck-t"></span><button class="tbtn bold" data-action="cook-close">Fertig</button></div>
+      <div class="cook-prog"><i id="ck-prog"></i></div>
+      <div class="cook-body" id="ck-body"></div>
+      <div class="cook-nav"><button class="btn" data-action="cook-prev" id="ck-prev">${icon("back")}Zurück</button><button class="btn primary" data-action="cook-next" id="ck-next">Weiter</button></div>
+    </div>`;
+  layer.classList.add("open");
+  const body = $("#ck-body");
+  let sx = 0, sy = 0, on = false;
+  body.addEventListener("pointerdown", e => { on = true; sx = e.clientX; sy = e.clientY; });
+  body.addEventListener("pointerup", e => {
+    if (!on) return; on = false;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) cookGo(dx < 0 ? 1 : -1);
+  });
+  body.addEventListener("pointercancel", () => { on = false; });
+  drawCook(0);
+}
+function drawCook(dir) {
+  const r = current(), body = $("#ck-body");
+  if (!cook || !r || r.id !== cook.rid || !body) return;
+  const st = cook.steps[cook.k], last = cook.k === cook.steps.length - 1, ings = cookIngs(r, st.text);
+  $("#ck-t").textContent = `Schritt ${cook.k + 1} von ${cook.steps.length}`;
+  $("#ck-prog").style.width = ((cook.k + 1) / cook.steps.length * 100) + "%";
+  $("#ck-prev").disabled = cook.k === 0;
+  $("#ck-next").textContent = last ? "Fertig" : "Weiter";
+  body.innerHTML = `<div class="cook-step">${st.head ? `<div class="cook-h">${esc(st.head)}</div>` : ""}
+      <p class="cook-text">${esc(st.text)}</p>
+      ${ings.length ? `<div class="cook-ings"><div class="cook-ih">Dafür brauchst du</div><ul>${ings.join("")}</ul></div>` : ""}</div>`;
+  body.scrollTop = 0;
+  const el = body.firstElementChild;
+  if (dir && el.animate && !noMotion()) el.animate([{ transform: `translateX(${dir * 28}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 220, easing: "cubic-bezier(.2, .8, .2, 1)" });
+}
+function cookGo(d) {
+  if (!cook) return;
+  const k = cook.k + d;
+  if (k >= cook.steps.length) { cook.steps.forEach(x => state.doneSteps.add(x.i)); closeCook(); return; }
+  if (k < 0) return;
+  if (d > 0) state.doneSteps.add(cook.steps[cook.k].i); else state.doneSteps.delete(cook.steps[k].i); // im Rezept abgehakt
+  cook.k = k;
+  drawCook(d);
+}
+function closeCook() {
+  cook = null; closeLayer();
+  if (state.view === "detail") renderDetail();
+}
 function openViewer(r) {
   const n = Math.max(0, Math.min(6, Number(r && r.orig) || 0));
   if (!n || !col) return;
@@ -3366,6 +3535,11 @@ const actions = {
     else startImport(mode);
   },
   filter: el => { state.filter = el.dataset.f; renderListBody(); },
+  layout: () => {
+    state.layout = state.layout === "grid" ? "list" : "grid";
+    try { localStorage.setItem("rezepte-layout", state.layout); } catch (e) { /* egal */ }
+    renderListBody();
+  },
   "open-set": el => openSet(el.dataset.s),
   "set-back": () => leaveSet(),
   "open-recipe": el => openDetail(el.dataset.id),
@@ -3419,6 +3593,10 @@ const actions = {
     renderDetail();
   },
   factor: el => { state.factor = Number(el.dataset.f); renderDetail(); },
+  cook: () => openCook(),
+  "cook-close": () => closeCook(),
+  "cook-next": () => cookGo(1),
+  "cook-prev": () => cookGo(-1),
   "toggle-ing": el => {
     const i = Number(el.dataset.i);
     state.checked.has(i) ? state.checked.delete(i) : state.checked.add(i);
