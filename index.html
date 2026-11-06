@@ -515,9 +515,15 @@ body.kb .toast.show { transform: none; }
   padding: 7px 14px 7px 7px; border: 0; border-radius: 14px; background: var(--group); text-align: left; color: var(--ink);
 }
 .album:active { opacity: .65; }
-.album-c { width: 46px; height: 46px; flex: none; border-radius: 9px; overflow: hidden; background: var(--ph); display: grid; }
-.album-c.m4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1.5px; }
-.album-c img { width: 100%; height: 100%; object-fit: cover; }
+.album-c {
+  width: 46px; height: 46px; flex: none; border-radius: 9px; overflow: hidden; background: var(--ph);
+  display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); gap: 1.5px;
+}
+/* Hochkant-Bilder (Reels) dürfen die Kacheln nicht strecken: feste Zeilen und Spalten, Bild füllt nur seine Zelle */
+.album-c.m2 { grid-template: minmax(0, 1fr) / repeat(2, minmax(0, 1fr)); }
+.album-c.m3, .album-c.m4 { grid-template: repeat(2, minmax(0, 1fr)) / repeat(2, minmax(0, 1fr)); }
+.album-c.m3 > :first-child { grid-row: 1 / 3; }
+.album-c img, .album-c .ph { width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: cover; }
 .album-c .ph .ic { width: 22px; height: 22px; stroke-width: 1.6; }
 .album.add .album-c { place-items: center; background: var(--bg); color: var(--accent); }
 .album.add .album-c .ic { width: 22px; height: 22px; stroke-width: 2.2; }
@@ -652,7 +658,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "47";
+const APP_VERSION = "48";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1977,7 +1983,8 @@ function renderListBody() {
   if ((app.dataset.set || "") !== (curSet() == null ? "" : "set:" + curSet())) { renderList(); return; } // Sammlung geöffnet oder verlassen: neuer Kopf
   const q = !!state.query.trim();
   // Sammlungen: eine eigene Reihe mit Bild, Name und Anzahl (wie Alben). Die Chips darunter filtern nur noch.
-  if (albums && set == null && !q && sets.length) {
+  // „Neue Sammlung“ steht immer am Ende der Reihe, auch wenn es noch keine gibt.
+  if (albums && set == null && !q && rs.length) {
     const row = albums.querySelector(".albums"), keepA = row ? row.scrollLeft : 0;
     setHTMLKeepImgs(albums, `<div class="sub-h">Sammlungen</div><div class="albums">${sets.map(([s, n]) => albumCard(s, n)).join("")}
       <button class="album add" data-action="new-set"><span class="album-c">${icon("plus")}</span><span class="album-b"><span class="album-t">Neue</span><span class="album-n">Sammlung</span></span></button></div>`);
@@ -1985,8 +1992,7 @@ function renderListBody() {
   } else noAlbums();
   const keepX = chips.scrollLeft;
   chips.innerHTML = rs.length < 2 || set != null ? "" : [chip("all", "Alle"), favN ? chip("fav", "Favoriten") : "",
-    ...cats.map(c => chip("cat:" + c, c)),
-    sets.length ? "" : `<button class="chip add" data-action="new-set">${icon("plus")}Sammlung</button>`].join(""); // ohne Sammlungen: Anlegen ganz am Ende
+    ...cats.map(c => chip("cat:" + c, c))].join("");
   chips.scrollLeft = keepX;
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
@@ -2008,9 +2014,9 @@ function renderListBody() {
 const letterOf = t => { const c = norm(t).trim().charAt(0).toUpperCase(); return /[A-Z]/.test(c) ? c : "#"; };
 function albumCard(name, n) {
   const withCover = sorted(state.recipes.filter(r => setsOf(r).includes(name) && r.cover && (r.cover.url || r.cover.dataUrl)));
-  const pics = withCover.length >= 4 ? withCover.slice(0, 4) : withCover.slice(0, 1);
+  const pics = withCover.slice(0, 4); // 1 Bild ganz, 2 nebeneinander, 3 = eins links und zwei rechts, 4 im Raster
   return `<button class="album" data-action="open-set" data-s="${esc(name)}">
-    <span class="album-c${pics.length === 4 ? " m4" : ""}">${pics.length ? pics.map(coverHtml).join("") : placeholder("folder")}</span>
+    <span class="album-c${pics.length > 1 ? " m" + pics.length : ""}">${pics.length ? pics.map(coverHtml).join("") : placeholder("folder")}</span>
     <span class="album-b"><span class="album-t">${esc(name)}</span><span class="album-n">${n === 1 ? "1 Rezept" : n + " Rezepte"}</span></span></button>`;
 }
 
