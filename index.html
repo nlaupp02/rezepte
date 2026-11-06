@@ -706,7 +706,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "53";
+const APP_VERSION = "54";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1817,13 +1817,12 @@ function confirmDialog({ title, text, yes, danger }) {
 const ADD_OPTIONS = [
   { mode: "camera", icon: "camera", t: "Foto aufnehmen", pick: "cam-pick" },
   { mode: "photo", icon: "image", t: "Fotos oder Screenshots", pick: "quick-pick" },
-  { mode: "insta", icon: "reel", t: "Instagram-Reel" },
-  { mode: "link", icon: "link", t: "Link oder Text einfügen" },
+  { mode: "link", icon: "link", t: "Reel, Link oder Text einfügen" }, // Instagram-Links erkennt die App selbst
   { mode: "manual", icon: "pen", t: "Selbst eintippen" }
 ];
 const addOptions = () => ADD_OPTIONS.map(o => o.pick
-  ? `<label class="opt" for="${o.pick}">${icon(o.icon)}<span>${o.t}</span>${icon("chev", "chev")}</label>`
-  : `<button class="opt" data-action="start" data-mode="${o.mode}">${icon(o.icon)}<span>${o.t}</span>${icon("chev", "chev")}</button>`
+  ? `<label class="opt" for="${o.pick}">${icon(o.icon)}<span>${o.t}</span></label>`
+  : `<button class="opt" data-action="start" data-mode="${o.mode}">${icon(o.icon)}<span>${o.t}</span></button>`
 ).join("");
 function openSheet() {
   layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
@@ -2869,19 +2868,19 @@ function renderImport() {
   app.innerHTML = `
     <div class="topbar">
       <button class="tbtn" data-action="back">Abbrechen</button>
-      <h2 class="bar-title">${ig ? "Instagram-Reel" : "Link oder Text"}</h2>
+      <h2 class="bar-title">${ig ? "Instagram-Reel" : "Reel, Link oder Text"}</h2>
       <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
     </div>
     <main class="stack imp">
       <div class="field">
-        <div class="sec-head"><label for="imp-link">${ig ? "Link zum Reel" : "Link oder Text"}</label><button class="btn small quiet" data-action="paste-link" style="margin-right:-13px">${icon("paste")}Einfügen</button></div>
+        <div class="sec-head"><label for="imp-link">${ig ? "Link zum Reel" : "Reel, Link oder Text"}</label><button class="btn small quiet" data-action="paste-link" style="margin-right:-13px">${icon("paste")}Einfügen</button></div>
         <textarea id="imp-link" rows="${ig ? 2 : 5}" autocomplete="off" autocapitalize="off" placeholder="${ig ? "https://www.instagram.com/reel/…" : "https://… oder den ganzen Rezepttext"}">${esc(imp.link)}</textarea>
       </div>
       <div id="imp-status" aria-live="polite"></div>
       <button class="btn primary block" id="recognize" data-action="recognize">Rezept holen</button>
       <p class="note">${ig
         ? "Tipp im Reel auf <b>Teilen</b> und dann auf <b>Link kopieren</b>. Gelesen werden die Beschreibung und das Vorschaubild. Steht das Rezept nur im Video, mach lieber Screenshots davon."
-        : "Ein Link, zum Beispiel von Chefkoch, oder der Rezepttext aus WhatsApp, E-Mail oder Notizen. Für Instagram gibt es einen eigenen Punkt „Instagram-Reel“."}</p>
+        : "Ein Instagram-Reel (im Reel: <b>Teilen</b> → <b>Link kopieren</b>), ein Link, zum Beispiel von Chefkoch, oder der Rezepttext aus WhatsApp, E-Mail oder Notizen. Bei Reels werden die Beschreibung und das Vorschaubild gelesen. Steht das Rezept nur im Video, mach lieber Screenshots davon."}</p>
     </main>`;
   const ta = $("#imp-link"); if (ta) autosize(ta);
 }
