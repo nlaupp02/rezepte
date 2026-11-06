@@ -539,34 +539,6 @@ body.kb .toast.show { transform: none; }
 .list > li.letter { content-visibility: visible; contain-intrinsic-size: none; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: var(--muted); }
 .list > li.letter + li > .row::before { display: none; }
 .set-title { margin: 6px 0 14px; overflow-wrap: anywhere; }
-/* Kleiner Titel oben, sobald der große weggescrollt ist */
-.minibar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 7; height: calc(44px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top);
-  display: grid; place-items: center; background: var(--bg); box-shadow: 0 .5px 0 var(--line);
-  font-size: 17px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .15s;
-}
-body.scrolled .minibar { opacity: 1; }
-/* Seitenwechsel: Abbild der alten Seite in einer festen Ebene, die neue Seite gleitet darüber (oder darunter hervor) */
-body { overflow-x: clip; }
-.nav-ghost { position: fixed; inset: 0; overflow: hidden; background: var(--bg); pointer-events: none; z-index: 1; }
-.nav-shade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 2; }
-body.nav-anim #app { position: relative; z-index: 3; background: var(--bg); min-height: 100lvh; will-change: transform; }
-body.nav-fwd #app { box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
-body.nav-up #app { box-shadow: 0 -10px 30px rgba(0, 0, 0, .1); }
-body.nav-back .nav-ghost { z-index: 3; box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
-body.nav-down .nav-ghost { box-shadow: 0 -10px 30px rgba(0, 0, 0, .1); }
-body.nav-back #app { z-index: 1; }
-body.nav-anim #app .fab, body.nav-anim #app .fab-fade, body.nav-anim #app .minibar { visibility: hidden; }
-body.nav-swipe #app { box-shadow: -10px 0 30px rgba(0, 0, 0, .12); }
-/* Kleine Rückmeldungen: Herz und Stern hüpfen, der Haken bei den Zutaten füllt sich weich */
-@media (prefers-reduced-motion: no-preference) {
-  .pop .ic { animation: pop .38s cubic-bezier(.3, 1.6, .5, 1); }
-  @keyframes pop { 0% { transform: scale(.6); } 60% { transform: scale(1.18); } 100% { transform: none; } }
-  .ing .box { transition: background-color .16s, border-color .16s; }
-  .ing .box .ic { transition: transform .22s cubic-bezier(.3, 1.6, .5, 1); transform: scale(.3); }
-  .ing.done .box .ic { transform: none; }
-}
-
 /* Kochmodus */
 .sec-head .cookbtn { margin: -4px 0; }
 .cookbtn {
@@ -733,7 +705,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "50";
+const APP_VERSION = "51";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1863,191 +1835,36 @@ const histDepth = () => (history.state && Number(history.state.d)) || 0;
 function histPush(v) { try { history.pushState({ v, id: state.currentId, d: histDepth() + 1 }, ""); } catch (e) { /* egal */ } }
 function histReplace(v) { try { history.replaceState({ v, id: state.currentId, d: histDepth() }, ""); } catch (e) { /* egal */ } }
 let popPending = null, popOk = false;
-// navOwn: der Schritt zurück kommt aus der App selbst (Knopf, Wischen) und wird animiert. Wischt man in Safari zurück,
-// animiert Safari schon selbst – dann zeichnen wir nur.
-let navOwn = 0, navStill = false;
 function histBack(then) { // einen Schritt zurück; gezeichnet wird im popstate-Handler
   if (histDepth() <= 0) return false;
-  popPending = then || null; navOwn = Date.now(); history.back(); return true;
+  popPending = then || null; history.back(); return true;
 }
 function histToList() { // ganz zurück zur Liste
   const d = histDepth();
   if (d <= 0) return false;
-  popPending = null; navOwn = Date.now(); history.go(-d); return true;
+  popPending = null; history.go(-d); return true;
 }
 function go(view, opts) {
   const from = state.view;
-  const own = !(opts && opts.nohist) || Date.now() - navOwn < 1500;
-  navOwn = 0;
-  const kind = own && !navStill ? navKind(from, view) : null;
-  navStill = false;
   if (!(opts && opts.nohist) && view !== "list" && (from === "list" || (view === "edit" && from === "detail"))) histPush(view);
-  if (from === "list") { state.listScroll = window.scrollY; if (view === "detail") pageCache.list = { html: app.innerHTML, y: window.scrollY }; }
-  navAnim(kind, () => {
-    state.view = view;
-    render();
-    window.scrollTo(0, view === "list" ? state.listScroll : 0);
-  });
+  if (from === "list") state.listScroll = window.scrollY;
+  state.view = view;
+  render();
+  window.scrollTo(0, view === "list" ? state.listScroll : 0);
   keepAwake(view === "detail");
-  if (swipeDone) { const f = swipeDone; swipeDone = null; f(); }
-}
-
-/* ---------- Übergänge wie in iOS ---------- */
-// Rezept öffnen: die neue Seite schiebt sich von rechts herein, die alte rückt ein Stück nach links und wird etwas dunkler.
-// Zurück umgekehrt. Bearbeiten und Einlesen kommen von unten und gehen nach unten weg.
-// Die alte Seite ist dabei ein Abbild (Kopie) in einer festen Ebene; die neue ist sofort fertig gezeichnet und bedienbar.
-const pageCache = { list: null, home: null }; // für „vom Rand wischen“: so sah die Seite darunter aus
-let navStop = null, swipeDone = null;
-function navKind(from, to) {
-  if (from === to) return null;
-  if (from === "list" && to === "detail") return "push";
-  if (from === "detail" && to === "list") return "pop";
-  if ((to === "edit" || to === "import") && (from === "list" || from === "detail")) return "up";
-  if ((from === "edit" || from === "import") && (to === "list" || to === "detail")) return "down";
-  return null;
-}
-// Das Abbild steckt in einem abgeschlossenen Schatten-Baum: Suchen im Dokument ($, querySelector) finden darin nichts,
-// Tippen geht nicht hinein, die Gestaltung kommt aus einer Kopie des Stylesheets.
-let ghostCss = null;
-const canCopy = () => !!(Element.prototype.attachShadow && "adoptedStyleSheets" in Document.prototype && window.CSSStyleSheet);
-function pageCopy(html, y, cls) {
-  const g = document.createElement("div");
-  g.className = "nav-ghost"; g.setAttribute("aria-hidden", "true"); g.inert = true;
-  const root = g.attachShadow({ mode: "closed" });
-  if (!ghostCss) {
-    ghostCss = new CSSStyleSheet();
-    const st = document.querySelector("style");
-    ghostCss.replaceSync(st && st.sheet ? [...st.sheet.cssRules].map(r => r.cssText).join("\n") : "");
-  }
-  root.adoptedStyleSheets = [ghostCss];
-  const c = document.createElement("div");
-  c.className = cls || app.className; c.innerHTML = html;
-  c.querySelectorAll("[id]").forEach(e => e.removeAttribute("id"));
-  c.style.cssText = `margin-top:${-y}px;min-height:100lvh`;
-  root.appendChild(c);
-  return g;
-}
-function navAnim(kind, draw) {
-  if (navStop) navStop();
-  if (!kind || noMotion() || !app.firstElementChild || !app.animate || !canCopy()) { draw(); return; }
-  const ghost = pageCopy(app.innerHTML, window.scrollY);
-  draw();
-  const shade = document.createElement("div"); shade.className = "nav-shade";
-  const back = kind === "pop" || kind === "down";
-  document.body.append(ghost, shade);
-  document.body.classList.add("nav-anim", back ? "nav-back" : "nav-fwd", "nav-" + kind);
-  const D = 380, E = "cubic-bezier(.32, .72, 0, 1)", o = { duration: D, easing: E };
-  const T = v => ({ transform: v });
-  const an = [];
-  if (kind === "push") {
-    an.push(app.animate([T("translateX(100%)"), T("none")], o), ghost.animate([T("none"), T("translateX(-28%)")], o),
-      shade.animate([{ opacity: 0 }, { opacity: .1 }], o));
-  } else if (kind === "pop") {
-    an.push(ghost.animate([T("none"), T("translateX(100%)")], o), app.animate([T("translateX(-28%)"), T("none")], o),
-      shade.animate([{ opacity: .1 }, { opacity: 0 }], o));
-  } else if (kind === "up") {
-    an.push(app.animate([T("translateY(100%)"), T("none")], o), shade.animate([{ opacity: 0 }, { opacity: .12 }], o));
-  } else {
-    an.push(ghost.animate([T("none"), T("translateY(100%)")], o), shade.animate([{ opacity: .12 }, { opacity: 0 }], o));
-  }
-  let over = false;
-  const end = () => {
-    if (over) return; over = true; navStop = null;
-    ghost.remove(); shade.remove();
-    document.body.classList.remove("nav-anim", "nav-back", "nav-fwd", "nav-" + kind);
-  };
-  navStop = () => { an.forEach(a => { try { a.finish(); } catch (e) { /* egal */ } }); end(); };
-  Promise.all(an.map(a => a.finished)).then(end, end);
-  setTimeout(end, D + 400); // falls eine Animation hängen bleibt
-}
-
-/* Vom linken Rand nach rechts wischen = zurück, mit dem Finger, wie in iOS. Nur in der App vom Home-Bildschirm:
-   in Safari macht das der Browser selbst. Geht im Rezept (zurück zur Liste) und in einer Sammlung (zurück zu allen). */
-let swipe = null;
-function swipeTarget() {
-  if (!document.documentElement.classList.contains("standalone") || noMotion() || !canCopy()) return null;
-  if (layer.classList.contains("open") || layer2.classList.contains("open") || viewer) return null;
-  if (state.view === "detail") return pageCache.list ? "list" : null;
-  if (state.view === "list" && curSet() != null) return pageCache.home ? "home" : null;
-  return null;
-}
-document.addEventListener("touchstart", e => {
-  swipe = null;
-  if (e.touches.length !== 1 || e.touches[0].clientX > 22) return;
-  const target = swipeTarget(); if (!target) return;
-  swipe = { target, x0: e.touches[0].clientX, y0: e.touches[0].clientY, on: false, dx: 0, t: performance.now(), v: 0 };
-}, { passive: true });
-document.addEventListener("touchmove", e => {
-  if (!swipe) return;
-  const t = e.touches[0], dx = t.clientX - swipe.x0, dy = t.clientY - swipe.y0;
-  if (!swipe.on) {
-    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { swipe = null; return; }
-    if (dx < 8) return;
-    swipeStart();
-  }
-  e.preventDefault();
-  const now = performance.now(), nx = Math.max(0, dx);
-  swipe.v = (nx - swipe.dx) / Math.max(1, now - swipe.t); swipe.dx = nx; swipe.t = now;
-  swipeMove(nx);
-}, { passive: false });
-document.addEventListener("touchend", () => { if (swipe && swipe.on) swipeEnd(); swipe = null; }, { passive: true });
-document.addEventListener("touchcancel", () => { if (swipe && swipe.on) swipeEnd(true); swipe = null; }, { passive: true });
-function swipeStart() {
-  if (navStop) navStop();
-  const c = swipe.target === "list" ? pageCache.list : pageCache.home;
-  const under = pageCopy(c.html, c.y, "app home");
-  const shade = document.createElement("div"); shade.className = "nav-shade";
-  document.body.append(under, shade);
-  document.body.classList.add("nav-anim", "nav-fwd", "nav-swipe");
-  Object.assign(swipe, { on: true, under, shade, W: window.innerWidth });
-  clearPress();
-}
-function swipeMove(dx) {
-  const p = Math.min(1, dx / swipe.W);
-  app.style.transform = `translateX(${dx}px)`;
-  swipe.under.style.transform = `translateX(${-28 * (1 - p)}%)`;
-  swipe.shade.style.opacity = String(.1 * (1 - p));
-}
-function swipeEnd(cancel) {
-  const s = swipe, p = s.dx / s.W, done = !cancel && (p > .4 || (s.v > .35 && s.dx > 40));
-  const ms = Math.round(Math.max(140, Math.min(320, (done ? 1 - p : p) * 420)));
-  const E = "cubic-bezier(.2, .8, .2, 1)", tr = `transform ${ms}ms ${E}, opacity ${ms}ms ${E}`;
-  [app, s.under, s.shade].forEach(el => { el.style.transition = tr; });
-  requestAnimationFrame(() => {
-    if (done) { app.style.transform = "translateX(100%)"; s.under.style.transform = "none"; s.shade.style.opacity = "0"; }
-    else { app.style.transform = "none"; s.under.style.transform = "translateX(-28%)"; s.shade.style.opacity = ".1"; }
-  });
-  let cleaned = false;
-  const clean = () => {
-    if (cleaned) return; cleaned = true;
-    app.style.transition = ""; app.style.transform = "";
-    s.under.remove(); s.shade.remove();
-    document.body.classList.remove("nav-anim", "nav-fwd", "nav-swipe");
-  };
-  setTimeout(() => {
-    if (!done) { clean(); return; }
-    navStill = true; // die Seite ist schon weggewischt: ohne zweite Animation zeichnen
-    if (s.target === "home") { leaveSet(true); clean(); return; }
-    swipeDone = clean;
-    actions.back();
-    setTimeout(() => { if (swipeDone === clean) { swipeDone = null; navStill = false; clean(); } }, 800);
-  }, ms + 20);
 }
 
 /* Sammlung öffnen und wieder verlassen (wie eine eigene Seite) */
 function openSet(name) {
   if (state.view !== "list") return;
-  pageCache.home = { html: app.innerHTML, y: window.scrollY };
   state.homeScroll = window.scrollY;
-  state.query = "";
-  navAnim("push", () => { state.filter = "set:" + name; renderList(); window.scrollTo(0, 0); });
+  state.query = ""; state.filter = "set:" + name;
+  renderList(); window.scrollTo(0, 0);
 }
-function leaveSet(still) {
-  navAnim(still ? null : "pop", () => { state.filter = "all"; state.query = ""; renderList(); window.scrollTo(0, state.homeScroll || 0); });
+function leaveSet() {
+  state.filter = "all"; state.query = "";
+  renderList(); window.scrollTo(0, state.homeScroll || 0);
 }
-// Großer Titel „Rezepte“ weggescrollt: klein oben in der Leiste zeigen (wie in iOS)
-function onScrollBar() { document.body.classList.toggle("scrolled", state.view === "list" && window.scrollY > 44); }
-window.addEventListener("scroll", onScrollBar, { passive: true });
 window.addEventListener("popstate", e => {
   if (!authKnown || state.view === "login" || state.view === "boot") return;
   const st = e.state && typeof e.state === "object" ? e.state : { v: "list", d: 0 };
@@ -2131,12 +1948,10 @@ function renderList() {
     <div id="chips" class="chips"></div>
     <div id="grid"></div>
     <button class="fab" id="fab" data-action="open-add">${icon("plus")}<span>Neues Rezept</span></button>
-    <div class="fab-fade" aria-hidden="true"></div>
-    ${set == null ? `<div class="minibar" aria-hidden="true">Rezepte</div>` : ""}`;
+    <div class="fab-fade" aria-hidden="true"></div>`;
   renderListBody();
   reuseImgs(app, oldImgs);
   if (y) window.scrollTo(0, y);
-  onScrollBar();
 }
 const SORTS = [["added", "Zuletzt hinzugefügt"], ["viewed", "Zuletzt angesehen"], ["az", "Name A–Z"], ["rating", "Beste Bewertung"]];
 function sorted(list) {
@@ -3558,7 +3373,6 @@ const actions = {
     const v = Number(el.dataset.v) === Number(r.rating) ? 0 : Number(el.dataset.v);
     patchLocal(r.id, { rating: v });
     renderDetail();
-    const st = v && $(`.stars [data-v="${v}"]`); if (st) st.classList.add("pop");
     try { await withRetry(() => col.doc(r.id).update({ rating: v })); }
     catch (e) { patchLocal(r.id, { rating: r.rating || 0 }); renderDetail(); toast(dbErrorText(e)); }
   },
@@ -3678,10 +3492,7 @@ const actions = {
     if (mode === "manual") openEditor({ isNew: true });
     else startImport(mode);
   },
-  filter: el => {
-    state.filter = el.dataset.f; renderListBody();
-    const g = $("#grid"); if (g && g.animate && !noMotion()) g.animate([{ opacity: .35 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
-  },
+  filter: el => { state.filter = el.dataset.f; renderListBody(); },
   "open-set": el => openSet(el.dataset.s),
   "set-back": () => leaveSet(),
   "open-recipe": el => openDetail(el.dataset.id),
@@ -3709,7 +3520,6 @@ const actions = {
     const v = !r.favorite;
     patchLocal(r.id, { favorite: v });
     renderDetail();
-    const fb2 = $("[data-action=fav]"); if (fb2 && v) fb2.classList.add("pop");
     try { await withRetry(() => col.doc(r.id).update({ favorite: v })); }
     catch (e) { patchLocal(r.id, { favorite: r.favorite }); renderDetail(); toast(dbErrorText(e)); }
   },
