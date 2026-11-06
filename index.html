@@ -626,7 +626,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "44";
+const APP_VERSION = "45";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2842,7 +2842,7 @@ function aiErrorText(e) {
   const msg = {
     no_recipe: ["Kein Rezept erkannt", (e && e.message) || ({ link: "Auf der Seite steht kein Rezept. Mach einen Screenshot vom Rezept oder füg den Text ein.", text: "Im Text stehen keine Zutaten oder Schritte. Füg den ganzen Rezepttext ein." }[e && e.mode] || "Versuch ein schärferes Foto.")],
     no_credit: ["Claude-Guthaben ist aufgebraucht", "Neues Guthaben kommt mit dem nächsten Max-Monat, oder lade auf platform.claude.com auf."],
-    not_allowed: ["Dieses Konto ist nicht freigeschaltet", "Die E-Mail-Adresse muss im Worker bei ALLOWED_EMAILS stehen."],
+    not_allowed: ["Dieses Konto ist nicht freigeschaltet", "Frag Nico, ob er " + (authUser && authUser.email ? authUser.email : "deine E-Mail") + " freischaltet."],
     not_verified: ["E-Mail noch nicht bestätigt", "Melde dich mit Google an, oder bestätige deine E-Mail unter „Konto“ (Symbol oben rechts) und lade die App danach neu."],
     server_unreachable: ["Der Server antwortet nicht", "Versuch es in einer Minute nochmal."],
     insta_blocked: ["Instagram hat das Reel nicht herausgegeben", "Manchmal sperrt Instagram kurz. Tipp gleich auf „Nochmal“, oder mach Screenshots von der Beschreibung und vom Rezept im Video."],
