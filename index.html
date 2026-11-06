@@ -25,15 +25,16 @@ if (navigator.standalone === true || (window.matchMedia && matchMedia("(display-
 :root {
   /* Layout: plain one-column phone app in iOS style. Large title, search, filter chips and a list of recipe rows with small photos. Full-page detail and editor, bottom sheets for options. Always light. */
   --bg: #FFFFFF;
-  --group: #F4F2EF;
-  --fill: #F1EFEB;
-  --ink: #1D1B18;
-  --muted: #6F6960;
-  --faint: #C9C3B9;
-  --line: #ECE8E2;
+  --group: #F2F2F7;
+  --fill: #EFEFF2;
+  --ink: #1C1C1E;
+  --muted: #6E6E73;
+  --faint: #C7C7CC;
+  --line: #E6E6EA;
   --accent: #9E680D;
   --accent-ink: #FFFFFF;
   --accent-soft: #F6EEDF;
+  --ph: #F2F2F5;
   --heart: #E0483E;
   --star: #C98A12;
   --danger: #C4322A;
@@ -122,7 +123,7 @@ html.dim .statusfill { z-index: 25; }
   background: var(--fill); color: var(--ink); font-size: 17px; font-weight: 600; text-decoration: none;
 }
 .btn:active { opacity: .65; }
-.opt.pressed, .cell.pressed { background: #EEEBE6; }
+.opt.pressed, .cell.pressed { background: #E9E9EC; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); }
 .btn.quiet { background: transparent; color: var(--accent); font-weight: 500; }
 .btn.danger { color: var(--danger); }
@@ -135,7 +136,7 @@ html.dim .statusfill { z-index: 25; }
   display: inline-grid; place-items: center; color: var(--accent);
 }
 .icon-btn .ic { width: 25px; height: 25px; stroke-width: 2.1; shape-rendering: geometricPrecision; }
-.home-head .icon-btn { color: #8A5A0B; }
+.home-head .icon-btn { color: var(--accent); }
 .icon-btn.on { color: var(--heart); }
 
 .fab {
@@ -182,9 +183,9 @@ body.typing .fab { display: none; }
 }
 .list > li + li > .row::before { content: ""; position: absolute; top: 0; left: 78px; right: 0; border-top: 1px solid var(--line); }
 button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; background: rgba(0, 0, 0, .05); pointer-events: none; }
-.thumb-sm { position: relative; width: 64px; height: 64px; flex: none; border-radius: 10px; overflow: hidden; background: var(--accent-soft); }
+.thumb-sm { position: relative; width: 64px; height: 64px; flex: none; border-radius: 10px; overflow: hidden; background: var(--ph); }
 .thumb-sm img { width: 100%; height: 100%; object-fit: cover; }
-.ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 45%, var(--accent-soft)); }
+.ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--ph); color: var(--faint); }
 .ph .ic { width: 32px; height: 32px; stroke-width: 1.5; }
 .row-b { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .row-t { font-size: 17px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -214,7 +215,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 
 /* Empty state + option groups */
 .empty { padding: 36px 0 24px; text-align: center; }
-.empty-ic { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 16px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.empty-ic { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 16px; display: grid; place-items: center; background: var(--ph); color: var(--accent); }
 .empty-ic .ic { width: 38px; height: 38px; stroke-width: 1.5; }
 .empty h2 { font-size: 22px; margin-bottom: 6px; }
 .empty p { color: var(--muted); margin: 0 auto 22px; max-width: 34ch; }
@@ -308,7 +309,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 .cover-edit { display: grid; gap: 8px; }
-.cover-prev { aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--accent-soft); }
+.cover-prev { aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--ph); }
 .cover-prev img { width: 100%; height: 100%; object-fit: cover; }
 .cover-prev .ph .ic { width: 40px; height: 40px; stroke-width: 1.4; }
 .cover-actions { display: flex; gap: 4px; flex-wrap: wrap; margin-left: -12px; }
@@ -319,7 +320,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 
 /* Detail */
 .detail { display: grid; gap: 22px; padding-top: 6px; }
-.hero { aspect-ratio: 4 / 3; max-height: 420px; margin: -6px -16px 0; overflow: hidden; background: var(--accent-soft); }
+.hero { aspect-ratio: 4 / 3; max-height: 420px; margin: -6px -16px 0; overflow: hidden; background: var(--ph); }
 @media (min-width: 700px) { .hero { margin: 0; border-radius: 14px; } }
 .hero img { width: 100%; height: 100%; object-fit: cover; }
 .hero .ph .ic { width: 48px; height: 48px; stroke-width: 1.4; }
@@ -336,7 +337,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .src { margin: 0; font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
 .src a { color: var(--accent); text-decoration: none; }
 .sec { display: grid; gap: 6px; }
-.sec h2 { font-size: 21px; color: var(--accent); }
+.sec h2 { font-size: 20px; color: var(--ink); letter-spacing: -.2px; }
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 36px; }
 .scaler { display: inline-flex; align-items: center; background: var(--fill); border-radius: 9px; padding: 2px; }
 .scaler button { width: 44px; height: 40px; border: 0; border-radius: 7px; background: none; font-size: 21px; line-height: 1; color: var(--ink); }
@@ -505,6 +506,31 @@ body.kb .toast.show { transform: none; }
 .modal .p-in:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
 .modal .qprev { width: 120px; height: 96px; border-radius: 10px; object-fit: cover; margin: 0 auto 6px; display: block; background: var(--fill); }
 
+/* Sammlungen als eigene Reihe (wie Alben): Bild, Name, Anzahl */
+.sub-h { font-size: 17px; font-weight: 600; margin: 16px 0 0; }
+.albums { display: flex; gap: 10px; overflow-x: auto; margin: 0 -16px; padding: 10px 16px 2px; scrollbar-width: none; }
+.albums::-webkit-scrollbar { display: none; }
+.album {
+  position: relative; flex: none; display: flex; align-items: center; gap: 10px; max-width: 230px;
+  padding: 7px 14px 7px 7px; border: 0; border-radius: 14px; background: var(--group); text-align: left; color: var(--ink);
+}
+.album:active { opacity: .65; }
+.album-c { width: 46px; height: 46px; flex: none; border-radius: 9px; overflow: hidden; background: var(--ph); display: grid; }
+.album-c.m4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1.5px; }
+.album-c img { width: 100%; height: 100%; object-fit: cover; }
+.album-c .ph .ic { width: 22px; height: 22px; stroke-width: 1.6; }
+.album.add .album-c { place-items: center; background: var(--bg); color: var(--accent); }
+.album.add .album-c .ic { width: 22px; height: 22px; stroke-width: 2.2; }
+.album-b { display: grid; min-width: 0; }
+.album-t { font-size: 15px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.album-n { font-size: 13px; line-height: 1.3; color: var(--muted); white-space: nowrap; }
+/* Anzahl und Sortierung direkt über der Liste */
+.list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 16px 0 -4px; font-size: 15px; color: var(--muted); }
+.sortbtn { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none; padding: 10px 0 10px 12px; margin: -10px 0; color: var(--accent); font-size: 15px; white-space: nowrap; }
+.sortbtn .ic { width: 16px; height: 16px; stroke-width: 2.4; }
+.list > li.letter { content-visibility: visible; contain-intrinsic-size: none; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: var(--muted); }
+.list > li.letter + li > .row::before { display: none; }
+.set-title { margin: 6px 0 14px; overflow-wrap: anywhere; }
 /* Originalfoto ansehen */
 .viewer { position: absolute; inset: 0; background: #111; color: #fff; display: flex; flex-direction: column; touch-action: none; }
 .vbar { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: calc(env(safe-area-inset-top) + 4px) 6px 4px 16px; font-size: 17px; }
@@ -626,7 +652,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "46";
+const APP_VERSION = "47";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1774,6 +1800,18 @@ function go(view, opts) {
   window.scrollTo(0, view === "list" ? state.listScroll : 0);
   keepAwake(view === "detail");
 }
+
+/* Sammlung öffnen und wieder verlassen (wie eine eigene Seite) */
+function openSet(name) {
+  if (state.view !== "list") return;
+  state.homeScroll = window.scrollY;
+  state.query = ""; state.filter = "set:" + name;
+  renderList(); window.scrollTo(0, 0);
+}
+function leaveSet() {
+  state.filter = "all"; state.query = "";
+  renderList(); window.scrollTo(0, state.homeScroll || 0);
+}
 window.addEventListener("popstate", e => {
   if (!authKnown || state.view === "login" || state.view === "boot") return;
   const st = e.state && typeof e.state === "object" ? e.state : { v: "list", d: 0 };
@@ -1835,21 +1873,24 @@ function banner() {
   if (state.slow) return `<div class="status warn"><div><b>Das dauert gerade länger.</b><span class="d">Deine Rezepte werden noch geladen. Die App versucht es weiter.</span></div></div>`;
   return "";
 }
+const curSet = () => state.filter.startsWith("set:") ? state.filter.slice(4) : null;
 function renderList() {
   lastBanner = bannerKey();
   const y = window.scrollY;
   const oldImgs = keepImgs(app); // zurück aus dem Rezept: Bilder nicht neu laden
+  const set = curSet();
+  app.dataset.set = set == null ? "" : "set:" + set; // welcher Kopf gerade steht (alle Rezepte oder eine Sammlung)
   app.innerHTML = `
-    <header class="home-head">
+    ${set == null ? `<header class="home-head">
       <h1 class="brand">Rezepte</h1>
-      <span class="head-btns">
-        <button class="icon-btn" data-action="sort" aria-label="Sortieren">${icon("sort")}</button>
-        <button class="icon-btn" data-action="account" aria-label="Konto">${icon("user")}</button>
-      </span>
-    </header>
+      <span class="head-btns"><button class="icon-btn" data-action="account" aria-label="Konto">${icon("user")}</button></span>
+    </header>` : `<div class="topbar"><button class="back" data-action="set-back">${icon("back")}Rezepte</button><span class="grow"></span>
+      <button class="tbtn" data-action="edit-set">Bearbeiten</button></div>
+    <h1 class="brand set-title">${esc(set)}</h1>`}
     ${installBanner()}
     <div class="stack" style="padding:0 0 10px;gap:12px">${banner()}</div>
-    <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="Suchen" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
+    <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="${set == null ? "Suchen" : "In der Sammlung suchen"}" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
+    <div id="albums"></div>
     <div id="chips" class="chips"></div>
     <div id="grid"></div>
     <button class="fab" id="fab" data-action="open-add">${icon("plus")}<span>Neues Rezept</span></button>
@@ -1898,12 +1939,12 @@ function card(r) {
     <span class="thumb-sm">${coverHtml(r)}</span>
     <span class="row-b"><span class="row-t">${esc(r.title || "Ohne Titel")}</span>
       <span class="row-m">${cleanUnsure(r.unsure).length ? `<span class="chk">Bitte prüfen</span>` : ""}${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}<span>${esc(meta || " ")}</span></span></span>
-    ${icon("chev", "chev")}
   </button></li>`;
 }
 function renderListBody() {
-  const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab");
+  const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab"), albums = $("#albums");
   if (!grid) return;
+  const noAlbums = () => { if (albums) albums.innerHTML = ""; };
   lastListSig = listSig();
   const rs = state.recipes;
   const skeleton = () => {
@@ -1911,14 +1952,14 @@ function renderListBody() {
     grid.innerHTML = `<div class="skel-top skel"><div class="search"></div><div class="chips">${"<span class=\"chip\"></span>".repeat(3)}</div></div>
       <ul class="list">${Array.from({ length: 4 }, () => `<li><div class="row skel"><span class="thumb-sm"></span><span class="row-b"><span class="bar"></span><span class="bar s"></span></span></div></li>`).join("")}</ul>`;
   };
-  if (!state.loaded) { skeleton(); return; }
-  if (!rs.length && !state.jobs.length && state.slow) { skeleton(); return; } // dauert lange: weiter laden zeigen, nicht „Noch keine Rezepte“
+  if (!state.loaded) { noAlbums(); skeleton(); return; }
+  if (!rs.length && !state.jobs.length && state.slow) { noAlbums(); skeleton(); return; } // dauert lange: weiter laden zeigen, nicht „Noch keine Rezepte“
   if (!rs.length && !state.jobs.length && state.storage === "error") { // Laden fehlgeschlagen: nur die rote Meldung oben, kein „Noch keine Rezepte“
-    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true; grid.innerHTML = "";
+    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true; grid.innerHTML = ""; noAlbums();
     return;
   }
   if (!rs.length && !state.jobs.length) {
-    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true;
+    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true; noAlbums();
     grid.innerHTML = `<section class="empty">
       <div class="empty-ic">${icon("pot")}</div>
       <h2>Noch keine Rezepte</h2>
@@ -1930,22 +1971,47 @@ function renderListBody() {
   sw.hidden = !rs.length; fab.hidden = false;
   const cats = CATEGORIES.filter(c => rs.some(r => r.category === c));
   const favN = rs.filter(r => r.favorite).length;
-  const sets = allSets(), curSet = state.filter.startsWith("set:") ? state.filter.slice(4) : null;
+  const sets = allSets(), set = curSet();
   if ((state.filter === "fav" && !favN) || (state.filter.startsWith("cat:") && !cats.includes(state.filter.slice(4))) ||
-    (curSet != null && !sets.some(([s]) => s === curSet))) state.filter = "all";
+    (set != null && !sets.some(([s]) => s === set))) state.filter = "all";
+  if ((app.dataset.set || "") !== (curSet() == null ? "" : "set:" + curSet())) { renderList(); return; } // Sammlung geöffnet oder verlassen: neuer Kopf
+  const q = !!state.query.trim();
+  // Sammlungen: eine eigene Reihe mit Bild, Name und Anzahl (wie Alben). Die Chips darunter filtern nur noch.
+  if (albums && set == null && !q && sets.length) {
+    const row = albums.querySelector(".albums"), keepA = row ? row.scrollLeft : 0;
+    setHTMLKeepImgs(albums, `<div class="sub-h">Sammlungen</div><div class="albums">${sets.map(([s, n]) => albumCard(s, n)).join("")}
+      <button class="album add" data-action="new-set"><span class="album-c">${icon("plus")}</span><span class="album-b"><span class="album-t">Neue</span><span class="album-n">Sammlung</span></span></button></div>`);
+    albums.querySelector(".albums").scrollLeft = keepA;
+  } else noAlbums();
   const keepX = chips.scrollLeft;
-  chips.innerHTML = rs.length < 2 ? "" : [chip("all", "Alle"), favN ? chip("fav", "Favoriten") : "",
-    ...sets.map(([s]) => chip("set:" + s, s, "folder")),
+  chips.innerHTML = rs.length < 2 || set != null ? "" : [chip("all", "Alle"), favN ? chip("fav", "Favoriten") : "",
     ...cats.map(c => chip("cat:" + c, c)),
-    `<button class="chip add" data-action="new-set">${icon("plus")}Sammlung</button>`].join(""); // erst die Filter, das Anlegen ganz am Ende
+    sets.length ? "" : `<button class="chip add" data-action="new-set">${icon("plus")}Sammlung</button>`].join(""); // ohne Sammlungen: Anlegen ganz am Ende
   chips.scrollLeft = keepX;
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
-  const setN = state.filter.startsWith("set:") ? (sets.find(([s]) => s === state.filter.slice(4)) || [0, 0])[1] : 0;
-  const setBar = setN ? `<div class="setbar"><span>${setN === 1 ? "1 Rezept" : setN + " Rezepte"}</span><button class="btn small quiet" data-action="edit-set">Bearbeiten</button></div>` : "";
-  setHTMLKeepImgs(grid, setBar + ((jobsHtml || list.length)
-    ? `<ul class="list">${jobsHtml}${list.map(card).join("")}</ul>`
+  const n = list.length, sortName = (SORTS.find(([k]) => k === state.sort) || SORTS[0])[1];
+  const head = n ? `<div class="list-head"><span>${q ? (n === 1 ? "1 Treffer" : n + " Treffer") : (n === 1 ? "1 Rezept" : n + " Rezepte")}</span>
+    <button class="sortbtn" data-action="sort">${esc(sortName)}${icon("more")}</button></div>` : "";
+  // Nach Namen sortiert: Buchstaben als Zwischenüberschrift, damit man in langen Listen schnell hinfindet
+  let last = null;
+  const rows = list.map(r => {
+    if (state.sort !== "az") return card(r);
+    const L = letterOf(r.title);
+    const h = L !== last ? `<li class="letter">${L}</li>` : "";
+    last = L; return h + card(r);
+  }).join("");
+  setHTMLKeepImgs(grid, ((jobsHtml || list.length)
+    ? head + `<ul class="list">${jobsHtml}${rows}</ul>`
     : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`));
+}
+const letterOf = t => { const c = norm(t).trim().charAt(0).toUpperCase(); return /[A-Z]/.test(c) ? c : "#"; };
+function albumCard(name, n) {
+  const withCover = sorted(state.recipes.filter(r => setsOf(r).includes(name) && r.cover && (r.cover.url || r.cover.dataUrl)));
+  const pics = withCover.length >= 4 ? withCover.slice(0, 4) : withCover.slice(0, 1);
+  return `<button class="album" data-action="open-set" data-s="${esc(name)}">
+    <span class="album-c${pics.length === 4 ? " m4" : ""}">${pics.length ? pics.map(coverHtml).join("") : placeholder("folder")}</span>
+    <span class="album-b"><span class="album-t">${esc(name)}</span><span class="album-n">${n === 1 ? "1 Rezept" : n + " Rezepte"}</span></span></button>`;
 }
 
 /* ---------- Sammlungen ---------- */
@@ -2075,8 +2141,11 @@ function renderDetail() {
   const both = !!(r.prepTime && r.cookTime);
   const timeTxt = both ? (tot || `${r.prepTime} vorbereiten · ${r.cookTime} ${verb}`) : (tot || r.prepTime || r.cookTime || "");
   const timeDetail = both && tot ? `(${r.prepTime} vorbereiten + ${r.cookTime} ${verb})` : ""; // bricht nur als Ganzes um
-  const metaHtml = [r.category, timeTxt].filter(Boolean).map(esc).join(" · ") + (timeDetail ? ` <span class="nw">${esc(timeDetail)}</span>` : "");
   const tg = cleanTags(r.tags);
+  // Zwei ruhige Zeilen statt Etiketten: was es ist („Hauptgericht · vegetarisch · schnell“) und wie lange es dauert
+  const what = [r.category, ...tg].filter(Boolean).map(esc).join(" · ");
+  const howLong = timeTxt ? esc(timeTxt) + (timeDetail ? ` <span class="nw">${esc(timeDetail)}</span>` : "") : "";
+  const metaHtml = [what, howLong].filter(Boolean).join("<br>");
   const rs = setsOf(r);
   info.push([rs.length > 1 ? "Sammlungen" : "Sammlung", (rs.length ? esc(rs.join(" · ")) + " · " : "") +
     `<button class="linkbtn" data-action="sets">${rs.length ? "Ändern" : "Hinzufügen"}</button>`]);
@@ -2135,7 +2204,6 @@ function renderDetail() {
       ${hasCover ? `<div class="hero">${coverHtml(r)}</div>` : ""}
       <div class="d-head"><h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>
         ${metaHtml.trim() ? `<p class="d-meta">${metaHtml}</p>` : ""}
-        ${tg.length ? `<div class="d-tags">${tg.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
         ${starsHtml(r)}</div>
       ${uns.length ? checkHtml(uns, r) : ""}
       ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
@@ -3292,6 +3360,8 @@ const actions = {
     else startImport(mode);
   },
   filter: el => { state.filter = el.dataset.f; renderListBody(); },
+  "open-set": el => openSet(el.dataset.s),
+  "set-back": () => leaveSet(),
   "open-recipe": el => openDetail(el.dataset.id),
   back: async () => {
     if (state.view === "detail") { if (!histBack()) go("list", { nohist: true }); return; }
