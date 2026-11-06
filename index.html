@@ -706,7 +706,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "54";
+const APP_VERSION = "55";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1314,7 +1314,7 @@ function fmtNum(n) {
 }
 /* Mengen genau umrechnen: Gramm/ml rund, Packungen in Gramm, Eier ganz, Löffel in ¼-Schritten */
 const QTY2_RE = new RegExp("^((?:ca\\.|circa|etwa|ungefähr)\\s*)?(" + NUM + ")(?:\\s*[-–]\\s*(" + NUM + "))?");
-const UNIT_RE = /^\s*(kg|g|mg|ml|l|cl|dl|EL|TL|Tassen?|Pck\.?|Pkg\.?|Päckchen|Packung(?:en)?|Dosen?|Becher|Gläser|Glas|Beutel|Tüten?|Flaschen?|Netze?|Bund|Stück|Stk\.?|Scheiben?|Zehen?|Stangen?|Blätter|Blatt|Kugeln?|Prisen?|Msp\.?|Messerspitzen?|Handvoll|Würfel|Zweige?|Knollen?|Köpfe|Kopf|Tropfen|Schuss|Spritzer|cm)(?=[\s.,;:)]|$)/i;
+const UNIT_RE = /^\s*(kg|g|mg|ml|l|cl|dl|EL|TL|Tassen?|Pck\.?|Pkg\.?|Päckchen|Packung(?:en)?|Dosen?|Becher|Gläser|Glas|Beutel|Tüten?|Flaschen?|Netze?|Bund|Stück|Stk\.?|Scheiben?|Zehen?|Stangen?|Blätter|Blatt|Kugeln?|Prisen?|Msp\.?|Messerspitzen?|Handvoll|Würfel|Zweige?|Knollen?|Köpfe|Kopf|Tropfen|Schuss|Spritzer|Kellen?|cm)(?=[\s.,;:)]|$)/i;
 const NO_SCALE = /^\s*(prise|prisen|msp\.?|messerspitzen?|schuss|spritzer|etwas|nach\s+geschmack|n\.\s*b\.)(?=[\s.,]|$)/i;
 const METRIC = { g: ["g", 1], kg: ["g", 1000], mg: ["mg", 1], ml: ["ml", 1], l: ["ml", 1000], cl: ["ml", 10], dl: ["ml", 100] };
 const PACK = /^(pck\.?|pkg\.?|päckchen|packung(en)?|dosen?|becher|gläser|glas|beutel|tüten?|flaschen?|netze?)$/i;
@@ -1330,7 +1330,7 @@ const WORDS = [["Ei", "Eier"], ["Zwiebel", "Zwiebeln"], ["Knoblauchzehe", "Knobl
   ["Melone", "Melonen"], ["Kiwi", "Kiwis"], ["Brötchen", "Brötchen"], ["Tortilla", "Tortillas"], ["Wrap", "Wraps"], ["Schnitzel", "Schnitzel"],
   ["Steak", "Steaks"], ["Brust", "Brüste"], ["Schenkel", "Schenkel"], ["Rolle", "Rollen"], ["Platte", "Platten"], ["Zweig", "Zweige"], ["Stängel", "Stängel"],
   ["Peperoni", "Peperoni"], ["Würfel", "Würfel"], ["Eiweiß", "Eiweiße"], ["Eigelb", "Eigelbe"],
-  ["Prise", "Prisen"], ["Messerspitze", "Messerspitzen"], ["Kopf", "Köpfe"]];
+  ["Prise", "Prisen"], ["Messerspitze", "Messerspitzen"], ["Kopf", "Köpfe"], ["Kelle", "Kellen"]];
 const SING = Object.fromEntries(WORDS.map(([a, b]) => [b, a])), PLUR = Object.fromEntries(WORDS);
 // Geschlecht für die Endung davor („ein großer Apfel“, „ein großes Ei“, „eine große Zwiebel“); nicht genannt = weiblich
 const GENDER = Object.assign({},
@@ -1408,8 +1408,11 @@ function ingItems(ings, factor) {
     if (isHead(line)) { items.push({ head: line }); grp = null; return; }
     const sq = splitQty(line, factor);
     if (!sq.qty && isSpice(line)) {
-      if (!grp) { grp = { spices: [], idx: [] }; items.push(grp); }
-      grp.spices.push(line.trim()); grp.idx.push(i); return;
+      if (!grp) { grp = { spices: [], idx: [], lines: [] }; items.push(grp); }
+      // „Paprikapulver, Pfeffer und Salz“ in einer Zeile: einzeln aufzählen, damit es zu „Gewürze: …“ wird
+      const parts = line.trim().split(/\s*(?:,|\bund\b|&|\+)\s*/).map(x => x.trim()).filter(Boolean);
+      grp.spices.push(...(parts.length > 1 && parts.every(isSpice) ? parts : [line.trim()]));
+      grp.idx.push(i); grp.lines.push(line.trim()); return;
     }
     let q = sq.qty.trim().replace(/(\d)\s*[-–]\s*(?=[\d½¼¾⅓⅔⅛])/g, "$1–"), name = sq.rest; // „400-500“ wie beim Umrechnen als „400–500“
     const um = q ? name.match(UNIT_RE) : null;
@@ -2237,7 +2240,7 @@ function renderDetail() {
   for (const it of items) {
     if (it.head) { ingHtml += `<li class="ing-h">${esc(headText(it.head))}</li>`; continue; }
     if (it.spices) {
-      const uns1 = it.spices.some(l => unsLine("ingredients", l));
+      const uns1 = it.lines.some(l => unsLine("ingredients", l));
       ingHtml += it.spices.length > 1
         ? ingRow(it.idx[0], uns1, `<b>Gewürze:</b> ${esc(it.spices.map(spiceName).join(", "))}`)
         : ingRow(it.idx[0], uns1, esc(spiceName(it.spices[0])));
@@ -2920,7 +2923,7 @@ ${transcribe ? `- "transcript": zuerst eine genaue Abschrift, so wie es ${imp.mo
 - "notes": Tipps, Hinweise, Varianten und Austausch-Tipps aus dem Rezept ("statt Sahne geht auch …", "vegane Variante: …"), sonst "". Bei "A oder B" in den Zutaten nimm A und nenn B hier. Keine Bemerkungen dazu, woher du etwas hast oder wie du gelesen hast (z. B. „die Zeit stammt aus dem Titel im Bild“)
 - "otherRecipes": Titel weiterer, eigenständiger Rezepte im Material (z. B. das zweite Gericht einer Doppelseite), sonst leere Liste. Nicht gemeint sind Teilrezepte des Gerichts wie Soße oder Teig
 - "source": Buchtitel, Website oder Instagram-Kanal (z. B. "@kanalname"), falls erkennbar, sonst ""
-- "coverImage": Nummer des Bildes (ab 1), das als Titelbild taugt, weil darauf ein echtes Foto des fertigen Gerichts zu sehen ist. Bilder, die vor allem Text zeigen (Rezeptseite, Zettel, Handschrift, Screenshot einer Beschreibung oder App), nimmst du nicht. Gibt es kein solches Bild, null
+- "coverImage": Nummer des Bildes (ab 1), das als Titelbild taugt, weil darauf ein echtes Foto des fertigen Gerichts zu sehen ist. Bilder, die vor allem Text zeigen (Rezeptseite, Zettel, Handschrift, Screenshot einer Beschreibung oder App), nimmst du nicht. Auch keinen Screenshot, auf dem das Essen nur klein oder nebenbei zu sehen ist (z. B. oben ein kleines Video, darunter Text), und kein Bild, das nur Zutaten oder einen Zubereitungsschritt statt des fertigen Gerichts zeigt. Gibt es kein solches Bild, null
 ${imp.mode === "photo" ? `- "coverBox": Ist auf dem gewählten Bild außer dem Gericht noch anderes zu sehen (Text, Seitenrand, Knöpfe einer App), dann der Ausschnitt nur mit dem Gericht als [links, oben, rechts, unten] in Prozent der Bildbreite bzw. -höhe, so groß wie möglich. Zeigt fast das ganze Bild das Gericht, null
 ` : ""}- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
 - "tags": Liste der Merkmale, die sicher zutreffen, nur aus: ${TAGS.join(", ")} (${TAG_RULES}). Leere Liste, wenn keins passt.
@@ -3265,7 +3268,12 @@ async function runJob(job) {
     if (job.src.mode === "link" && !conv.data.source) { try { conv.data.source = new URL(job.src.link).hostname.replace(/^www\./, ""); } catch (e) { /* egal */ } }
     if (src.mode === "photo" && conv.coverBlob) {
       const box = cleanBox(res.coverBox);
-      if (box) { try { conv.coverBlob = await cropBox(conv.coverBlob, box); } catch (e) { conv.coverBlob = null; } }
+      // Ein ganzer Handy-Screenshot (hochkant, mit Text und Knöpfen) taugt nie als Titelbild: ohne Ausschnitt
+      // oder mit einem winzigen Ausschnitt lieber keins, dann zeigt die App das Symbol der Kategorie
+      let tall = false;
+      try { const { img, url } = await loadImg(conv.coverBlob); tall = img.naturalHeight / Math.max(1, img.naturalWidth) > 1.7; URL.revokeObjectURL(url); } catch (e) { /* egal */ }
+      if (tall && (!box || (box[2] - box[0]) * (box[3] - box[1]) < 1200)) conv.coverBlob = null;
+      else if (box) { try { conv.coverBlob = await cropBox(conv.coverBlob, box); } catch (e) { conv.coverBlob = null; } }
     }
     if (!conv.coverBlob && thumb) conv.coverBlob = thumb;
     if (!conv.coverBlob && pageImage && !insta) conv.coverUrl = pageImage;
