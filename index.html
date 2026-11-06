@@ -626,7 +626,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "45";
+const APP_VERSION = "46";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2046,6 +2046,12 @@ function openDetail(id, opts) {
   state.checked = new Set(); state.doneSteps = new Set();
   go("detail", opts);
 }
+// „etwas Salz“, „Pfeffer nach Geschmack“ → „Salz“, „Pfeffer“ (nur in der Anzeige, das Rezept bleibt wie eingelesen)
+const spiceName = l => {
+  const t = l.replace(/^(?:etwas|ein wenig|ein bisschen|ein paar|einige|nach (?:Belieben|Geschmack))\s+/i, "")
+    .replace(/,?\s*(?:nach (?:Belieben|Geschmack|Bedarf)|zum (?:Abschmecken|Würzen))\s*$/i, "").trim();
+  return t || l;
+};
 function renderDetail() {
   const r = current();
   if (!r) { app.innerHTML = ""; return; }
@@ -2100,8 +2106,8 @@ function renderDetail() {
     if (it.spices) {
       const uns1 = it.spices.some(l => unsLine("ingredients", l));
       ingHtml += it.spices.length > 1
-        ? ingRow(it.idx[0], uns1, `<b>Gewürze:</b> ${esc(it.spices.join(", "))}`)
-        : ingRow(it.idx[0], uns1, esc(it.spices[0]));
+        ? ingRow(it.idx[0], uns1, `<b>Gewürze:</b> ${esc(it.spices.map(spiceName).join(", "))}`)
+        : ingRow(it.idx[0], uns1, esc(spiceName(it.spices[0])));
       continue;
     }
     ingHtml += ingRow(it.i, unsLine("ingredients", it.line), it.qty
@@ -2701,7 +2707,7 @@ ${transcribe ? `- "transcript": zuerst eine genaue Abschrift, so wie es ${imp.mo
 - "cookTime": Koch- bzw. Backzeit im selben Format, sonst ""
 - "ingredients": Liste von Strings, eine Zutat pro Eintrag, Menge zuerst, z. B. "200 g Mehl", "2 EL Olivenöl", "1 TL Zimt". Steht keine Menge dabei, schreib die Zutat ohne Menge, z. B. "Salz", "Pfeffer nach Geschmack", "etwas Öl zum Braten", und erfinde keine. Schreib Mengen möglichst genau in g oder ml. Packungen, Dosen, Becher, Gläser und Tüten rechnest du in g oder ml um und schreibst die Packung in Klammern dahinter, z. B. "500 g Gnocchi (1 Packung)", "400 g gehackte Tomaten (1 Dose)", "200 g Sahne (1 Becher)"; ist das Gewicht nicht angegeben, nimm die übliche Packungsgröße in Deutschland mit „ca.“. Stückzutaten bleiben Stück, z. B. "2 Eier", "1 Zwiebel", "3 Knoblauchzehen". Steht bei Gewürzen eine Menge, schreib sie in EL, TL oder Prise. Die Menge steht immer ganz vorne, z. B. "1 Zitrone (Saft)" statt "Saft von 1 Zitrone". Zwischenüberschriften als eigener Eintrag mit "# " davor, z. B. "# Für die Soße".
 - "steps": Liste von Strings, ein Arbeitsschritt pro Eintrag, ohne Nummerierung. Bei Teilrezepten Zwischenüberschriften wie bei den Zutaten als eigener Eintrag mit "# " davor, z. B. "# Teig", "# Füllung", "# Fertigstellen". Backofen: Temperatur und Betriebsart so übernehmen, wie sie dastehen, z. B. "Ofen auf 180 °C Ober-/Unterhitze (160 °C Umluft) vorheizen"; stehen beide, beide nennen, steht nur eine, nur diese, nichts umrechnen (nur Gasherd-Stufen und °F in °C)
-- "notes": Tipps, Hinweise, Varianten und Austausch-Tipps aus dem Rezept ("statt Sahne geht auch …", "vegane Variante: …"), sonst "". Bei "A oder B" in den Zutaten nimm A und nenn B hier
+- "notes": Tipps, Hinweise, Varianten und Austausch-Tipps aus dem Rezept ("statt Sahne geht auch …", "vegane Variante: …"), sonst "". Bei "A oder B" in den Zutaten nimm A und nenn B hier. Keine Bemerkungen dazu, woher du etwas hast oder wie du gelesen hast (z. B. „die Zeit stammt aus dem Titel im Bild“)
 - "otherRecipes": Titel weiterer, eigenständiger Rezepte im Material (z. B. das zweite Gericht einer Doppelseite), sonst leere Liste. Nicht gemeint sind Teilrezepte des Gerichts wie Soße oder Teig
 - "source": Buchtitel, Website oder Instagram-Kanal (z. B. "@kanalname"), falls erkennbar, sonst ""
 - "coverImage": Nummer des Bildes (ab 1), das als Titelbild taugt, weil darauf ein echtes Foto des fertigen Gerichts zu sehen ist. Bilder, die vor allem Text zeigen (Rezeptseite, Zettel, Handschrift, Screenshot einer Beschreibung oder App), nimmst du nicht. Gibt es kein solches Bild, null
