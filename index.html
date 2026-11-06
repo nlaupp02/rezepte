@@ -706,7 +706,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "52";
+const APP_VERSION = "53";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1273,7 +1273,13 @@ const pureTime = s => !String(s || "").replace(/\d+|[.,½¼¾\-–+]|std\.?|stun
 function totalTime(r) {
   // Steht irgendwo etwas, das sich nicht lesen lässt (z. B. „über Nacht“), lieber keine Summe zeigen als eine falsche
   if ((r.prepTime && (!parseMin(r.prepTime) || !pureTime(r.prepTime))) || (r.cookTime && (!parseMin(r.cookTime) || !pureTime(r.cookTime)))) return "";
-  if (/\d\s*(?:[-–]|bis)\s*\d/.test((r.prepTime || "") + " " + (r.cookTime || ""))) return ""; // Spanne wie „2–3 Std.“: keine falsche Summe
+  const RANGE = /(\d+(?:[.,]\d+)?)\s*(?:[-–]|bis)\s*(\d+(?:[.,]\d+)?)/g;
+  if (RANGE.test((r.prepTime || "") + " " + (r.cookTime || ""))) { // Spanne wie „25–30 Min.“: die Summe auch als Spanne („35–40 Min.“)
+    const sum = k => parseMin(String(r.prepTime || "").replace(RANGE, (a, x, y) => k ? y : x)) + parseMin(String(r.cookTime || "").replace(RANGE, (a, x, y) => k ? y : x));
+    const lo = sum(0), hi = sum(1);
+    if (!(lo > 0 && hi > lo)) return "";
+    return hi < 60 ? `${lo}–${hi} Min.` : `${fmtMin(lo)} – ${fmtMin(hi)}`;
+  }
   const t = parseMin(r.prepTime) + parseMin(r.cookTime);
   return t > 0 ? fmtMin(t) : "";
 }
@@ -2201,13 +2207,10 @@ function renderDetail() {
   // Kategorie und Zeit in einer Zeile unter dem Titel, z. B. „Hauptgericht · 1 Std. (15 Min. vorbereiten + 45 Min. kochen)“
   const verb = sw.time === "Backzeit" ? "backen" : "kochen", tot = totalTime(r);
   const both = !!(r.prepTime && r.cookTime);
-  const timeTxt = both ? (tot || `${r.prepTime} vorbereiten · ${r.cookTime} ${verb}`) : (tot || r.prepTime || r.cookTime || "");
-  const timeDetail = both && tot ? `(${r.prepTime} vorbereiten + ${r.cookTime} ${verb})` : ""; // bricht nur als Ganzes um
+  const timeTxt = both ? (tot || `${r.prepTime} vorbereiten + ${r.cookTime} ${verb}`) : (tot || r.prepTime || r.cookTime || "");
   const tg = cleanTags(r.tags);
-  // Zwei ruhige Zeilen statt Etiketten: was es ist („Hauptgericht · vegetarisch · schnell“) und wie lange es dauert
-  const what = [r.category, ...tg].filter(Boolean).map(esc).join(" · ");
-  const howLong = timeTxt ? esc(timeTxt) + (timeDetail ? ` <span class="nw">${esc(timeDetail)}</span>` : "") : "";
-  const metaHtml = [what, howLong].filter(Boolean).join("<br>");
+  // Eine ruhige Zeile: „Hauptgericht · 25 Min. · vegetarisch · schnell“ – nur die Gesamtzeit (Vorbereiten und Kochen stehen beim Bearbeiten)
+  const metaHtml = [r.category, timeTxt, ...tg].filter(Boolean).map(esc).join(" · ");
   const rs = setsOf(r);
   info.push([rs.length > 1 ? "Sammlungen" : "Sammlung", (rs.length ? esc(rs.join(" · ")) + " · " : "") +
     `<button class="linkbtn" data-action="sets">${rs.length ? "Ändern" : "Hinzufügen"}</button>`]);
