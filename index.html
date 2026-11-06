@@ -352,11 +352,11 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .ings { list-style: none; margin: 0; padding: 0; }
 .ing {
   position: relative; width: 100%; display: flex; align-items: flex-start; gap: 12px; text-align: left;
-  padding: 10px 0; border: 0; background: none; font-size: 17px; line-height: 1.4; color: var(--ink);
+  padding: 7px 0; border: 0; background: none; font-size: 17px; line-height: 1.4; color: var(--ink);
 }
-.ings li + li > .ing::before { content: ""; position: absolute; top: 0; left: 34px; right: 0; border-top: 1px solid var(--line); }
+/* Ohne Kreise: Antippen streicht die Zeile trotzdem grau durch */
 .ing .box {
-  width: 22px; height: 22px; flex: none; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--faint);
+  width: 20px; height: 20px; flex: none; margin-top: 2px; border-radius: 50%; border: 1.5px solid #D1D1D6;
   display: grid; place-items: center; color: transparent;
 }
 .ing .box .ic { width: 13px; height: 13px; stroke-width: 3; }
@@ -367,6 +367,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .ing-t.cols { display: flex; gap: 10px; min-width: 0; }
 .ing-q { flex: none; min-width: max(var(--qw, 4ch), 3ch); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ing-n { flex: 1; min-width: 0; }
+.ing-x { color: var(--muted); }
 
 .ing.done .box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .ing-h, .step-h { padding: 14px 0 2px; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
@@ -705,7 +706,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "51";
+const APP_VERSION = "52";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1307,7 +1308,7 @@ function fmtNum(n) {
 }
 /* Mengen genau umrechnen: Gramm/ml rund, Packungen in Gramm, Eier ganz, Löffel in ¼-Schritten */
 const QTY2_RE = new RegExp("^((?:ca\\.|circa|etwa|ungefähr)\\s*)?(" + NUM + ")(?:\\s*[-–]\\s*(" + NUM + "))?");
-const UNIT_RE = /^\s*(kg|g|mg|ml|l|cl|dl|EL|TL|Tassen?|Pck\.?|Pkg\.?|Päckchen|Packung(?:en)?|Dosen?|Becher|Gläser|Glas|Beutel|Tüten?|Flaschen?|Netze?|Bund|Stück|Stk\.?|Scheiben?|Zehen?|Stangen?|Blätter|Blatt|Kugeln?)(?=[\s.,;:)]|$)/i;
+const UNIT_RE = /^\s*(kg|g|mg|ml|l|cl|dl|EL|TL|Tassen?|Pck\.?|Pkg\.?|Päckchen|Packung(?:en)?|Dosen?|Becher|Gläser|Glas|Beutel|Tüten?|Flaschen?|Netze?|Bund|Stück|Stk\.?|Scheiben?|Zehen?|Stangen?|Blätter|Blatt|Kugeln?|Prisen?|Msp\.?|Messerspitzen?|Handvoll|Würfel|Zweige?|Knollen?|Köpfe|Kopf|Tropfen|Schuss|Spritzer|cm)(?=[\s.,;:)]|$)/i;
 const NO_SCALE = /^\s*(prise|prisen|msp\.?|messerspitzen?|schuss|spritzer|etwas|nach\s+geschmack|n\.\s*b\.)(?=[\s.,]|$)/i;
 const METRIC = { g: ["g", 1], kg: ["g", 1000], mg: ["mg", 1], ml: ["ml", 1], l: ["ml", 1000], cl: ["ml", 10], dl: ["ml", 100] };
 const PACK = /^(pck\.?|pkg\.?|päckchen|packung(en)?|dosen?|becher|gläser|glas|beutel|tüten?|flaschen?|netze?)$/i;
@@ -1322,11 +1323,12 @@ const WORDS = [["Ei", "Eier"], ["Zwiebel", "Zwiebeln"], ["Knoblauchzehe", "Knobl
   ["Keule", "Keulen"], ["Pfirsich", "Pfirsiche"], ["Nektarine", "Nektarinen"], ["Pflaume", "Pflaumen"], ["Feige", "Feigen"], ["Dattel", "Datteln"],
   ["Melone", "Melonen"], ["Kiwi", "Kiwis"], ["Brötchen", "Brötchen"], ["Tortilla", "Tortillas"], ["Wrap", "Wraps"], ["Schnitzel", "Schnitzel"],
   ["Steak", "Steaks"], ["Brust", "Brüste"], ["Schenkel", "Schenkel"], ["Rolle", "Rollen"], ["Platte", "Platten"], ["Zweig", "Zweige"], ["Stängel", "Stängel"],
-  ["Peperoni", "Peperoni"], ["Würfel", "Würfel"], ["Eiweiß", "Eiweiße"], ["Eigelb", "Eigelbe"]];
+  ["Peperoni", "Peperoni"], ["Würfel", "Würfel"], ["Eiweiß", "Eiweiße"], ["Eigelb", "Eigelbe"],
+  ["Prise", "Prisen"], ["Messerspitze", "Messerspitzen"], ["Kopf", "Köpfe"]];
 const SING = Object.fromEntries(WORDS.map(([a, b]) => [b, a])), PLUR = Object.fromEntries(WORDS);
 // Geschlecht für die Endung davor („ein großer Apfel“, „ein großes Ei“, „eine große Zwiebel“); nicht genannt = weiblich
 const GENDER = Object.assign({},
-  ...["Apfel", "Pfirsich", "Champignon", "Würfel", "Zweig", "Stängel", "Schenkel", "Wrap"].map(w => ({ [w]: "m" })),
+  ...["Apfel", "Pfirsich", "Champignon", "Würfel", "Zweig", "Stängel", "Schenkel", "Wrap", "Kopf"].map(w => ({ [w]: "m" })),
   ...["Ei", "Eiweiß", "Eigelb", "Glas", "Netz", "Filet", "Blatt", "Lorbeerblatt", "Brötchen", "Würstchen", "Steak", "Schnitzel", "Hähnchenbrustfilet"].map(w => ({ [w]: "n" })));
 // Für zusammengesetzte Wörter (Süßkartoffel, Cocktailtomaten): die längsten Wörter zuerst, nur ab 4 Buchstaben
 const WORD_ENDS = WORDS.flatMap(([a, b]) => [[a, a, b], [b, a, b]]).filter(([w]) => w.length >= 4).sort((x, y) => y[0].length - x[0].length);
@@ -2173,6 +2175,11 @@ const spiceName = l => {
     .replace(/,?\s*(?:nach (?:Belieben|Geschmack|Bedarf)|zum (?:Abschmecken|Würzen))\s*$/i, "").trim();
   return t || l;
 };
+// „Bananen (ca. 173 g)“, „Butter, weich“: die Zutat selbst schwarz, der Zusatz grau – man sieht schneller, was man braucht
+function ingNameHtml(n) {
+  const m = String(n).match(/^(.*?\S)(\s*[,(][\s\S]*)$/);
+  return m ? esc(m[1]) + `<span class="ing-x">${esc(m[2])}</span>` : esc(n);
+}
 function renderDetail() {
   const r = current();
   if (!r) { app.innerHTML = ""; return; }
@@ -2222,7 +2229,7 @@ function renderDetail() {
   const ingRow = (i, unsure, inner) => {
     const done = state.checked.has(i);
     return `<li><button class="ing ${done ? "done" : ""}${unsure ? " unsure" : ""}" data-action="toggle-ing" data-i="${i}" aria-pressed="${done}">
-      <span class="box">${icon("check")}</span><span class="ing-t${/^<span class="ing-q">/.test(inner) ? " cols" : ""}">${inner}</span></button></li>`;
+      <span class="ing-t${/^<span class="ing-q">/.test(inner) ? " cols" : ""}">${inner}</span></button></li>`;
   };
   let ingHtml = "";
   for (const it of items) {
@@ -2235,7 +2242,7 @@ function renderDetail() {
       continue;
     }
     ingHtml += ingRow(it.i, unsLine("ingredients", it.line), it.qty
-      ? `<span class="ing-q">${esc(it.qty)}</span><span class="ing-n">${esc(it.name)}</span>` : esc(it.full));
+      ? `<span class="ing-q">${esc(it.qty)}</span><span class="ing-n">${ingNameHtml(it.name)}</span>` : ingNameHtml(it.full));
   }
 
   let stepHtml = "", n = 0;
