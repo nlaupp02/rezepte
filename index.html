@@ -721,12 +721,12 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "63";
+const APP_VERSION = "64";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
 const CLAUDE_MODEL = "claude-sonnet-5-5";      // liest Rezepte
-const CLAUDE_FAST = "claude-haiku-5-5";        // Nährwerte und Merkmale schätzen (reine Tabellenwerte)
+const CLAUDE_FAST = "claude-haiku-5-5";        // Merkmale schätzen
 const useClaude = () => true;
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const installHidden = () => { try { return localStorage.getItem("rezepte-install-hidden") === "1"; } catch (e) { return false; } };
@@ -2751,7 +2751,7 @@ Rezept: ${r.title || ""}
 Zutaten:
 ${(r.ingredients || []).filter(l => !isHead(l)).map(l => "- " + l).join("\n")}`;
   void nw;
-  const res = await sample.json(prompt, { fast: true }); // Haiku: Tabellenwerte kann das kleine Modell genauso, kostet ein Zwanzigstel; läuft im Hintergrund
+  const res = await sample.json(prompt, { cache: false }); // Sonnet: trifft vor allem Salz bei Käse, Speck und Fertigprodukten besser als Haiku; läuft im Hintergrund
   return nutritionFromItems(res && res.items, base) || cleanNutrition(res); // ältere Antwortform zur Sicherheit
 }
 
