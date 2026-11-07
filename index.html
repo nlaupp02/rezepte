@@ -203,8 +203,9 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .row.job img { filter: saturate(.5); }
 .job-err { font-size: 15px; color: var(--muted); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .row.err .row-t { color: var(--danger); }
-.row.err { align-items: flex-start; }
+.row.err, .row.wait { align-items: flex-start; }
 .job-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.row.job.wait .row-t { color: var(--muted); }
 
 .skel .thumb-sm { background: var(--fill); }
 .skel .bar { display: block; height: 12px; border-radius: 6px; background: var(--fill); width: 60%; }
@@ -720,7 +721,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "61";
+const APP_VERSION = "62";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1733,7 +1734,8 @@ document.addEventListener("pointerup", () => {
 window.addEventListener("scroll", clearPress, { passive: true });
 window.addEventListener("scroll", () => { const t = app.querySelector(".topbar"); if (t) t.classList.toggle("lined", window.scrollY > 2); }, { passive: true });
 
-let sheetDrag = null, suppressClick = false;
+let sheetDrag = null, suppressClick = false, shotsFor = null;
+document.addEventListener("cancel", e => { if (e.target && e.target.id === "quick-pick") shotsFor = null; }, true);
 layer.addEventListener("pointerdown", e => {
   const sh = e.target.closest(".sheet");
   if (!sh || (e.pointerType === "mouse" && e.button !== 0)) return;
@@ -3010,7 +3012,7 @@ function resultToEdit(res, imp) {
   d.notes = str(res.notes);
   const lang = str(res.originalLanguage);
   if (lang && !/^deutsch/i.test(lang)) d.notes = (d.notes ? d.notes + "\n\n" : "") + "Übersetzt, Originalsprache: " + lang + ".";
-  d.source = str(res.source) || (imp.mode === "insta" ? "Instagram" : "");
+  d.source = str(res.source) || (imp.mode === "insta" || isIgLink(imp.link || "") ? "Instagram" : "");
   d.link = imp.link.trim();
   d.nutrition = cleanNutrition(res.nutrition) || nutritionFromItems(res.nutritionItems, sv > 0 && sv < 1000 ? sv : null); // sonst gleich nach dem Speichern im Hintergrund
   d.tags = cleanTags(res.tags);
@@ -3205,6 +3207,7 @@ function jobRecord(job) {
   if (job.force) rec.force = true;
   if (job.more) { rec.more = job.more; rec.savedTitle = job.savedTitle || ""; }
   if (job.conv) rec.conv = job.conv; // schon gelesen: nach einem Neustart nicht nochmal lesen
+  if (job.waits) { rec.waits = job.waits; rec.retryAt = job.retryAt || 0; } // wartet auf Instagram
   return rec;
 }
 async function resumeJobs() {
@@ -3217,8 +3220,10 @@ async function resumeJobs() {
     const src = Object.assign({}, rec.src, { images: (rec.src.images || []).map(b => ({ blob: b, url: URL.createObjectURL(b) })) });
     const job = { id: rec.id, src, status: "busy", title: "", error: [], t0: rec.t0 || Date.now(), ctl: null, uid: rec.uid, conv: rec.conv || null, dup: rec.dup || null, force: !!rec.force, more: rec.more || null, savedTitle: rec.savedTitle || "" };
     state.jobs.push(job);
+    if (rec.waits) { job.waits = rec.waits; job.retryAt = rec.retryAt || 0; }
     if (job.more) job.status = "more"; // wartet auf „Auch lesen“ oder „Nein“
     else if (job.dup && !job.force) job.status = "dup"; // wartet auf „Ansehen“, „Trotzdem speichern“ oder „Entfernen“
+    else if (job.waits && job.retryAt > Date.now() && !job.conv) { job.status = "wait"; scheduleJobRetry(job); } // wartet noch auf Instagram
     else runJob(job);
   }
   if (all.some(r => r.uid === uid)) refreshJobs();
@@ -3329,10 +3334,33 @@ async function runJob(job) {
     if (job.dead) return; // Konto gewechselt: Auftrag bleibt im Gerätespeicher und läuft beim nächsten Anmelden weiter
     if (e && e.code === "cancelled") { removeJob(job); return; }
     console.warn("Rezept lesen", e);
+    // Instagram sperrt meist nur kurz: bis zu dreimal von selbst neu versuchen (nach 1, 3 und 10 Minuten), erst dann melden
+    if (e && e.code === "insta_blocked" && (job.waits || 0) < IG_WAITS.length) {
+      job.waits = (job.waits || 0) + 1; job.retryAt = Date.now() + IG_WAITS[job.waits - 1];
+      job.status = "wait"; jobStore("put", jobRecord(job)); scheduleJobRetry(job); refreshJobs(); return;
+    }
     job.status = "error"; job.error = aiErrorText(e);
+    if (e && e.code === "insta_blocked" && job.waits) job.error = ["Instagram hat das Reel nicht herausgegeben", "Auch nach mehreren Versuchen nicht. Mach Screenshots von der Beschreibung und vom Rezept im Video, der Link bleibt am Rezept."];
     refreshJobs();
   }
 }
+const IG_WAITS = [60e3, 180e3, 600e3];
+let jobTimer = 0;
+function scheduleJobRetry(job) {
+  const ms = Math.max(1000, (job.retryAt || 0) - Date.now());
+  clearTimeout(job.timer);
+  job.timer = setTimeout(() => { if (state.jobs.includes(job) && job.status === "wait" && !job.dead) runJob(job); }, ms);
+  if (!jobTimer) jobTimer = setInterval(() => { // Anzeige „in X Min.“ nachführen; ohne wartende Aufträge wieder aus
+    if (!state.jobs.some(j => j.status === "wait")) { clearInterval(jobTimer); jobTimer = 0; return; }
+    refreshJobs();
+  }, 30000);
+}
+// Nach dem Zurückkommen in die App (iOS hält Timer im Hintergrund an): fällige Versuche gleich starten
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  state.jobs.forEach(j => { if (j.status === "wait" && !j.dead && (j.retryAt || 0) <= Date.now() + 2000) runJob(j); });
+});
+const isIgLink = u => { try { return /(^|\.)instagram\.com$|instagr\.am$/i.test(new URL(u).hostname); } catch (e) { return false; } };
 function jobCard(j) {
   const im = (j.src.images || [])[0];
   const pic = im ? `<img src="${esc(im.url)}" alt="">` : placeholder({ link: "link", text: "text" }[j.src.mode] || "pot");
@@ -3359,13 +3387,24 @@ function jobCard(j) {
         <button class="btn small${r ? "" : " primary"}" data-action="job-force" data-id="${j.id}">${r ? "Trotzdem speichern" : "Speichern"}</button>
         <button class="btn small quiet" data-action="job-drop" data-id="${j.id}">Entfernen</button></span></span></div></li>`;
   }
+  const ig = j.src.mode === "link" && isIgLink(j.src.link);
+  const shots = ig ? `<button class="btn small" data-action="job-shots" data-id="${j.id}">Screenshots einlesen</button>` : "";
+  if (j.status === "wait") {
+    const min = Math.max(1, Math.round(((j.retryAt || 0) - Date.now()) / 60000));
+    return `<li><div class="row job wait">
+      <span class="thumb-sm">${pic}</span>
+      <span class="row-b"><span class="row-t">Wartet auf Instagram …</span>
+        <span class="job-err">Instagram gibt das Reel gerade nicht heraus. Die App versucht es in etwa ${min} Min. von selbst nochmal (Versuch ${j.waits} von ${IG_WAITS.length}).</span>
+        <span class="job-actions"><button class="btn small primary" data-action="job-retry" data-id="${j.id}">Nochmal</button>${shots}
+        <button class="btn small quiet" data-action="job-drop" data-id="${j.id}">Entfernen</button></span></span></div></li>`;
+  }
   if (j.status === "error") {
     return `<li><div class="row job err">
       <span class="thumb-sm">${pic}</span>
       <span class="row-b"><span class="row-t">${esc(j.error[0] || "Hat nicht geklappt")}</span>
         <span class="job-err">${esc(j.error[1] || "")}</span>
-        <span class="job-actions"><button class="btn small primary" data-action="job-retry" data-id="${j.id}">Nochmal</button>
-        <button class="btn small" data-action="job-drop" data-id="${j.id}">Entfernen</button></span></span></div></li>`;
+        <span class="job-actions"><button class="btn small primary" data-action="job-retry" data-id="${j.id}">Nochmal</button>${shots}
+        <button class="btn small${shots ? " quiet" : ""}" data-action="job-drop" data-id="${j.id}">Entfernen</button></span></span></div></li>`;
   }
   const n = (j.src.images || []).length;
   let meta = n === 1 ? "1 Foto" : n + " Fotos";
@@ -3463,6 +3502,8 @@ const actions = {
   },
   reload: () => location.reload(),
   "job-retry": el => { const j = state.jobs.find(x => x.id === el.dataset.id); if (j) runJob(j); },
+  // Screenshots statt Beschreibung: Fotos wählen, der Reel-Link bleibt am Rezept, der wartende Auftrag verschwindet
+  "job-shots": el => { const j = state.jobs.find(x => x.id === el.dataset.id); if (!j) return; shotsFor = { link: j.src.link, jobId: j.id, t: Date.now() }; $("#quick-pick").click(); },
   "job-drop": async el => {
     const j = state.jobs.find(x => x.id === el.dataset.id); if (!j) return;
     if (j.src.mode === "photo" && (j.src.images || []).length && j.status !== "more") {
@@ -3696,11 +3737,13 @@ document.addEventListener("change", async e => {
   if (t.dataset.file === "quick") {
     const all = Array.from(files || []), list = all.slice(0, maxImages());
     t.value = "";
+    const sf = shotsFor && Date.now() - shotsFor.t < 5 * 60e3 ? shotsFor : null; shotsFor = null; // Screenshots zu einem Reel-Link
     if (!list.length) return;
     closeLayer();
     if (all.length > list.length) toast(`Höchstens ${maxImages()} Fotos pro Rezept. Die ersten ${list.length} werden genommen.`);
     // Direkt im Hintergrund lesen: man bleibt in der Liste und kann weitermachen
-    const job = newJob({ mode: "photo", text: "", link: "", images: [] }, "prep");
+    const job = newJob({ mode: "photo", text: "", link: sf ? sf.link : "", images: [] }, "prep");
+    if (sf) { const old = state.jobs.find(x => x.id === sf.jobId); if (old) { old.dead = true; if (old.ctl) old.ctl.abort(); removeJob(old); } }
     if (state.view !== "list") { if (!histToList()) go("list", { nohist: true }); } else renderListBody();
     const images = [], weak = []; let bad = 0;
     for (const f of list) {
@@ -3725,7 +3768,7 @@ document.addEventListener("change", async e => {
       return;
     }
     if (job.dead) return;
-    startJob({ mode: "photo", text: "", link: "", images }, job);
+    startJob({ mode: "photo", text: "", link: sf ? sf.link : "", images }, job);
     return;
   }
   if (t.dataset.file === "cover" && files && files[0] && state.edit) {

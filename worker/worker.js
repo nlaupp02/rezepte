@@ -16,15 +16,15 @@ const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken
 let jwksCache = null; // { keys, until, missUntil }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
     const cors = corsHeaders(origin);
-    try { return await handle(request, env, origin, cors); }
+    try { return await handle(request, env, origin, cors, ctx); }
     catch (e) { return json({ error: "internal", message: String(e && e.message || e).slice(0, 200) }, 500, cors); }
   }
 };
 
-async function handle(request, env, origin, cors) {
+async function handle(request, env, origin, cors, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/") {
@@ -48,7 +48,7 @@ async function handle(request, env, origin, cors) {
     }
 
     if (url.pathname === "/scan") return scan(request, env, cors);
-    if (url.pathname === "/page") return page(request, cors);
+    if (url.pathname === "/page") return page(request, cors, ctx);
     if (url.pathname === "/img") return img(request, cors);
     return json({ error: "not_found" }, 404, cors);
 }
@@ -164,10 +164,10 @@ function htmlToText(html) {
     .replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|li|h\d|div|tr)>/gi, "\n").replace(/<[^>]+>/g, " ");
   return decodeEntities(t).replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
-async function fetchHtml(url, ua) {
+async function fetchHtml(url, ua, timeout) {
   const res = await safeFetch(url, {
     headers: { "user-agent": ua, "accept": "text/html,application/xhtml+xml", "accept-language": "de-DE,de;q=0.9,en;q=0.8" },
-    signal: AbortSignal.timeout(12000)
+    signal: AbortSignal.timeout(timeout || 12000)
   });
   if (!res.ok) throw new Error("Seite antwortet mit " + res.status);
   return await readLimited(res, MAX_HTML);
@@ -180,10 +180,38 @@ function instagramCode(u) {
   const m = u.pathname.match(/^\/(?:[\w.]+\/)?(?:p|reel|reels|tv)\/([\w-]{5,})/);
   return m ? m[1] : null;
 }
-async function instagram(code, original, cors) {
+// Einmal gelesene Reels ein paar Tage aufheben (Cache des Rechenzentrums): dasselbe Reel kommt dann sofort, auch wenn
+// Instagram gerade sperrt. Kürzer als eine Woche, weil die Bildlinks von Instagram nach einigen Tagen ablaufen.
+const IG_CACHE_SECONDS = 3 * 24 * 3600;
+const igCacheKey = code => new Request("https://rezepte-ki.cache/ig/" + encodeURIComponent(code));
+async function instagram(code, original, cors, ctx) {
+  let cache = null;
+  try { cache = caches.default; } catch (e) { cache = null; }
+  if (cache) {
+    try {
+      const hit = await cache.match(igCacheKey(code));
+      if (hit) { const body = await hit.json(); body.url = original; body.cached = true; return json(body, 200, cors); }
+    } catch (e) { /* ohne Cache weiter */ }
+  }
+  const out = await instagramFetch(code, original);
+  if (out.ok && cache) {
+    try {
+      const put = cache.put(igCacheKey(code), new Response(JSON.stringify(out.body), { headers: { "content-type": "application/json", "cache-control": "max-age=" + IG_CACHE_SECONDS } }));
+      if (ctx && ctx.waitUntil) ctx.waitUntil(put); else await put;
+    } catch (e) { /* egal */ }
+  }
+  return json(out.body, out.ok ? 200 : 502, cors);
+}
+async function instagramFetch(code, original) {
+  // Sperrt Instagram gerade (Fehler oder Anmeldeseite ohne Beschreibung), nach zwei Sekunden ein zweiter Versuch
+  let r = await instagramOnce(code, original);
+  if (!r.ok) { await new Promise(f => setTimeout(f, 2000)); r = await instagramOnce(code, original); }
+  return r;
+}
+async function instagramOnce(code, original) {
   const [emb, pre] = await Promise.allSettled([
-    fetchHtml(`https://www.instagram.com/p/${code}/embed/captioned/`, UA_DESKTOP),
-    fetchHtml(`https://www.instagram.com/p/${code}/`, UA_PREVIEW)
+    fetchHtml(`https://www.instagram.com/p/${code}/embed/captioned/`, UA_DESKTOP, 9000),
+    fetchHtml(`https://www.instagram.com/p/${code}/`, UA_PREVIEW, 9000)
   ]);
   let caption = "", user = "";
   // Alle Vorschaubilder sammeln, die in den beiden Seiten stehen; die App lässt Claude eins ohne Play-Knopf wählen
@@ -224,14 +252,14 @@ async function instagram(code, original, cors) {
   const text = [caption, desc && (caption.length < 40 || desc.length > caption.length + 200) ? "Beschreibung laut Instagram: " + desc : ""].filter(Boolean).join("\n\n").slice(0, 20000);
   if (text.replace(/\s/g, "").length < 20) {
     const why = [emb, pre].map(r => r.status === "rejected" ? String(r.reason && r.reason.message || r.reason) : "").filter(Boolean).join(" / ");
-    return json({ error: "instagram_blocked", message: why || "Keine Beschreibung gefunden." }, 502, cors);
+    return { ok: false, body: { error: "instagram_blocked", message: why || "Keine Beschreibung gefunden." } };
   }
   // Die Vorschau für Suchmaschinen (lookaside/crawler) zeigt bei Videos oft einen Play-Knopf: nach hinten
   const crawler = u => /lookaside\.|\/crawler\/|\/seo\//i.test(u) ? 1 : 0;
   imgs.sort((a, b) => crawler(a) - crawler(b));
   const meta = { "og:site_name": "Instagram", "og:title": title || "Instagram", "og:image": imgs[0] || "", images: imgs.slice(0, 3) };
   if (user) meta.user = "@" + user.replace(/^@/, "");
-  return json({ kind: "instagram", url: original, meta, data: text }, 200, cors);
+  return { ok: true, body: { kind: "instagram", url: original, meta, data: text } };
 }
 
 async function img(request, cors) {
@@ -251,7 +279,7 @@ async function img(request, cors) {
   return new Response(bytes, { status: 200, headers: { ...cors, "content-type": ct, "cache-control": "no-store" } });
 }
 
-async function page(request, cors) {
+async function page(request, cors, ctx) {
   let target;
   try { target = new URL((await request.json()).url); } catch (e) { return json({ error: "bad_url" }, 400, cors); }
   if (!publicWebUrl(target)) return json({ error: "bad_url", message: "Das ist keine normale Webadresse." }, 400, cors);
@@ -266,7 +294,7 @@ async function page(request, cors) {
     } catch (e) { return json({ error: "instagram_blocked", message: "Der Teilen-Link ließ sich nicht auflösen: " + String(e.message || e) }, 502, cors); }
   }
   const ig = instagramCode(target);
-  if (ig) return instagram(ig, target.toString(), cors);
+  if (ig) return instagram(ig, target.toString(), cors, ctx);
   let res;
   try {
     res = await safeFetch(target.toString(), {
