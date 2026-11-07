@@ -34,7 +34,10 @@ if (navigator.standalone === true || (window.matchMedia && matchMedia("(display-
   --accent: #9E680D;
   --accent-ink: #FFFFFF;
   --accent-soft: #F6EEDF;
-  --ph: #F2F2F5;
+  --ph: #F6EEDF; /* Kästen ohne Foto: warm, mit goldenem Symbol */
+  /* Warm ist Inhalt (Nährwerte, „Dafür brauchst du“), grau ist Bedienung (Suche, Chips, Knöpfe) */
+  --warm: #FAF4E8;
+  --warm-line: #EDE2CC;
   --heart: #E0483E;
   --star: #C98A12;
   --danger: #C4322A;
@@ -187,7 +190,7 @@ body.typing .fab { display: none; }
 button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; background: rgba(0, 0, 0, .05); pointer-events: none; }
 .thumb-sm { position: relative; width: 64px; height: 64px; flex: none; border-radius: 10px; overflow: hidden; background: var(--ph); }
 .thumb-sm img { width: 100%; height: 100%; object-fit: cover; }
-.ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--ph); color: #AEAEB2; }
+.ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--ph); color: color-mix(in srgb, var(--accent) 55%, var(--ph)); }
 .ph .ic { width: 32px; height: 32px; stroke-width: 1.5; }
 .row-b { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .row-t { font-size: 17px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -403,10 +406,10 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .nutri .sub dt { color: var(--muted); padding-left: 14px; }
 .nutri .sub dd { font-weight: 500; color: var(--muted); }
 /* Nährwerte: vier große Werte im Raster, darunter der Rest in einer Zeile */
-.nutri2 { margin: 0; display: grid; grid-template-columns: 1fr 1fr; background: var(--group); border-radius: 12px; overflow: hidden; }
+.nutri2 { margin: 0; display: grid; grid-template-columns: 1fr 1fr; background: var(--warm); border-radius: 12px; overflow: hidden; }
 .nutri2 div { padding: 11px 14px 12px; display: grid; gap: 1px; }
-.nutri2 div:nth-child(2n) { border-left: 1px solid var(--line); }
-.nutri2 div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+.nutri2 div:nth-child(2n) { border-left: 1px solid var(--warm-line); }
+.nutri2 div:nth-child(n + 3) { border-top: 1px solid var(--warm-line); }
 .nutri2 dt { font-size: 14px; color: var(--muted); }
 .nutri2 dd { margin: 0; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
 .nutri-more { margin: 10px 0 0; padding: 0 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; font-size: 15px; color: var(--muted); }
@@ -568,7 +571,7 @@ body.kb .toast.show { transform: none; }
 .cook-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 30px 22px 24px; touch-action: pan-y; }
 .cook-h { font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 .cook-text { margin: 0; font-family: var(--serif); font-size: 28px; line-height: 1.38; overflow-wrap: break-word; }
-.cook-ings { margin-top: 30px; padding: 14px 16px 16px; border-radius: 14px; background: var(--group); }
+.cook-ings { margin-top: 30px; padding: 14px 16px 16px; border-radius: 14px; background: var(--warm); }
 .cook-ih { font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
 .cook-ings ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 20px; line-height: 1.35; }
 .cook-ings b { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -717,7 +720,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "56";
+const APP_VERSION = "57";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
