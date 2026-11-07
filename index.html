@@ -520,7 +520,7 @@ body.kb .toast.show { transform: none; }
   position: relative; flex: none; display: flex; align-items: center; gap: 10px; max-width: 230px;
   padding: 7px 14px 7px 7px; border: 0; border-radius: 14px; background: var(--group); text-align: left; color: var(--ink);
 }
-.album:active { opacity: .65; }
+.album.pressed { opacity: .65; }
 .album-c {
   width: 46px; height: 46px; flex: none; border-radius: 9px; overflow: hidden; background: var(--ph);
   display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); gap: 1.5px;
@@ -720,7 +720,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "60";
+const APP_VERSION = "61";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1713,7 +1713,7 @@ if (window.visualViewport) {
 }
 
 /* Antippen sichtbar machen wie in iOS: erst nach kurzem Halten grau, beim Wischen über die Liste gar nicht */
-const PRESSABLE = "button.row, .opt, .cell";
+const PRESSABLE = "button.row, .opt, .cell, .album";
 let pressEl = null, pressT = 0, pressX = 0, pressY = 0;
 function clearPress() { clearTimeout(pressT); if (pressEl) pressEl.classList.remove("pressed"); pressEl = null; }
 document.addEventListener("pointerdown", e => {
@@ -1897,6 +1897,7 @@ function leaveSet() {
   renderList(); window.scrollTo(0, state.homeScroll || 0);
 }
 window.addEventListener("popstate", e => {
+  clearPress(); document.querySelectorAll(".pressed").forEach(x => x.classList.remove("pressed")); // nach dem Zurückwischen bleibt sonst eine Kachel „gedrückt“ stehen
   if (!authKnown || state.view === "login" || state.view === "boot") return;
   const st = e.state && typeof e.state === "object" ? e.state : { v: "list", d: 0 };
   const pend = popPending; popPending = null;
