@@ -623,7 +623,7 @@ body.kb .toast.show { transform: none; }
 .lseg button.on { background: var(--bg); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
 .lseg .ic { width: 17px; height: 17px; }
 /* Kacheln: zwei Rezepte nebeneinander mit großem Bild */
-.tiles { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; }
+.tiles { list-style: none; margin: 22px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; }
 .tiles > li { content-visibility: auto; contain-intrinsic-size: auto 250px; min-width: 0; }
 .tiles > li.letter { grid-column: 1 / -1; content-visibility: visible; contain-intrinsic-size: none; padding: 4px 0 0; margin-bottom: -10px; font-size: 15px; font-weight: 700; color: var(--muted); }
 .tile { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: inherit; font: inherit; }
@@ -819,7 +819,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "70";
+const APP_VERSION = "71";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1030,6 +1030,7 @@ function subscribe() {
     onDataChanged();
     qsSave();
     setTimeout(queueTags, 3000);
+    setTimeout(queueTimes, 4000);
     if (snap.metadata && !snap.metadata.fromCache) repairCreatedAt(myUid);
   }, err => {
     if (uid !== myUid) return;
@@ -2881,7 +2882,7 @@ function nutritionHtml(r) {
   return `<section class="sec"><h2>Nährwerte</h2>
     <div class="nutri3">${big}</div>
     ${small ? `<p class="nutri-more">${small}</p>` : ""}
-    <p class="note">${n.kcal != null ? "Geschätzt" : per[0].toUpperCase() + per.slice(1) + ", geschätzt"}.${busy ? " Wird gerade ergänzt …" : ""}</p></section>`;
+    ${n.kcal == null || busy ? `<p class="note">${[n.kcal == null ? per[0].toUpperCase() + per.slice(1) + "." : "", busy ? "Wird gerade ergänzt …" : ""].filter(Boolean).join(" ")}</p>` : ""}</section>`;
 }
 // Woran die Nährwerte hängen: ändert sich das während des Schätzens (Zutaten korrigiert), gilt das Ergebnis nicht mehr
 const nutriSig = r => JSON.stringify([r.ingredients || [], Number(r.servings) || null]);
@@ -2987,7 +2988,52 @@ ${(r.steps || []).map(l => "- " + l).join("\n")}`;
     finally { tagBusy = false; setTimeout(queueTags, 1500); }
   })();
 }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(queueTags, 2000); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { setTimeout(queueTags, 2000); setTimeout(queueTimes, 2600); } });
+/* Zeit schätzen, wenn im Rezept keine steht (ältere und von Hand angelegte Rezepte; beim Einlesen schätzt Claude sie gleich mit).
+   Einmal je Rezept: „timeEst“ merkt, ob geschätzt wurde (true) oder die Zeit von Hand geändert bzw. gelöscht ist (false). Angezeigt wird sie wie jede andere Zeit. */
+const noCa = s => String(s || "").replace(/^\s*(?:ca\.?|circa|etwa|ungefähr)\s*/i, "").trim();
+const estTime = s => { s = noCa(typeof s === "string" ? s : "").slice(0, 24); const m = s ? parseMin(s) : 0; return m > 0 && m <= 1440 && pureTime(s) ? s : ""; };
+let timeBusy = false;
+const timeDone = new Set();
+function queueTimes() {
+  if (timeBusy || !col || !sample || document.visibilityState === "hidden") return;
+  const r = state.recipes.find(x => !x.prepTime && !x.cookTime && x.timeEst == null && !timeDone.has(x.id) && (x.ingredients || []).length && (x.steps || []).length);
+  if (!r) return;
+  timeBusy = true; timeDone.add(r.id);
+  const myUid = uid, base = Number(r.servings) > 0 ? Number(r.servings) : null;
+  const prompt = `Schätze für dieses Rezept die Vorbereitungszeit und die Koch- bzw. Backzeit, so wie sie in einem Kochbuch stünden.
+- "prepTime": was zu schneiden, zu rühren und vorzubereiten ist
+- "cookTime": Koch- bzw. Backzeit aus den Zeiten in den Schritten (z. B. „20 Minuten backen“) oder dem, was für das Gericht üblich ist; "" wenn nichts gekocht oder gebacken wird
+Ruhe-, Geh-, Kühl- und Marinierzeiten zählen nicht mit. Auf 5 Minuten gerundet, im Format "15 Min." oder "1 Std. 10 Min.", ohne „ca.“.
+Antworte nur mit JSON: {"prepTime": "…", "cookTime": "…"}
+
+Rezept: ${r.title || ""}
+Kategorie: ${r.category || ""}
+${base ? "Für: " + servText(base, r.category) + "\n" : ""}Zutaten:
+${(r.ingredients || []).map(l => "- " + l).join("\n")}
+Zubereitung:
+${(r.steps || []).map(l => "- " + l).join("\n")}`;
+  let again = true;
+  (async () => {
+    try {
+      const sig = JSON.stringify([r.ingredients, r.steps]);
+      const res = await sample.json(prompt, { fast: true });
+      if (uid !== myUid) return;
+      const now = state.recipes.find(x => x.id === r.id);
+      if (!now || now.prepTime || now.cookTime || now.timeEst != null) return; // inzwischen von Hand eingetragen
+      if (JSON.stringify([now.ingredients, now.steps]) !== sig) { timeDone.delete(r.id); return; } // inzwischen geändert: später neu
+      const prepTime = estTime(res && res.prepTime), cookTime = estTime(res && res.cookTime);
+      const patch = prepTime || cookTime ? { prepTime, cookTime, timeEst: true } : { timeEst: false }; // nichts Brauchbares: nicht immer wieder fragen
+      await withRetry(() => col.doc(r.id).update(patch));
+      patchLocal(r.id, patch);
+      onDataChanged();
+    } catch (e) {
+      console.warn("Zeit", e);
+      again = false; // Netz weg oder Claude nicht erreichbar: nicht alle Rezepte nacheinander ins Leere schicken
+      if (e && ["offline", "server_unreachable", "timeout", "cancelled"].includes(e.code)) timeDone.delete(r.id); // beim nächsten Anlass nochmal
+    } finally { timeBusy = false; if (again) setTimeout(queueTimes, 1500); }
+  })();
+}
 // Lupe und Markieren verhindern: Auswahl darf nur in Eingabefeldern starten, langes Drücken öffnet kein Menü
 const editable = t => !!(t && t.closest && t.closest("input, textarea, select, [contenteditable]"));
 document.addEventListener("selectstart", e => { if (!editable(e.target)) e.preventDefault(); });
@@ -3148,7 +3194,9 @@ async function saveRecipe() {
     if (!existing || !sameIngs || existing.prepTime !== doc.prepTime || existing.cookTime !== doc.cookTime || JSON.stringify(existing.steps || []) !== JSON.stringify(doc.steps)) {
       doc.tags = null; tagDone.delete(id); // werden im Hintergrund neu bestimmt
     }
-    if (!existing) Object.assign(doc, { link: d.link.trim(), favorite: false, createdAt: now, rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null });
+    // Zeit von Hand geändert oder gelöscht: gilt so, wird nicht (mehr) geschätzt
+    if (existing && ((existing.prepTime || "") !== doc.prepTime || (existing.cookTime || "") !== doc.cookTime)) { doc.timeEst = false; timeDone.add(id); }
+    if (!existing) Object.assign(doc, { link: d.link.trim(), favorite: false, createdAt: now, rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null, timeEst: d.timeEst ? true : null });
     else doc.createdAt = existing.createdAt || now; // ohne createdAt taucht ein Rezept nicht in der Liste auf (z. B. wenn es parallel auf dem anderen Handy gelöscht wurde)
     await withRetry(() => col.doc(id).set(doc, true));
     const i = state.recipes.findIndex(r => r.id === id);
@@ -3236,8 +3284,9 @@ ${transcribe ? `- "transcript": zuerst eine genaue Abschrift, so wie es ${imp.mo
 - "title": Rezeptname auf Deutsch, wie er in einem deutschen Kochbuch stehen würde: zuerst das Gericht, dann mit „mit“ die wichtigsten Zutaten, z. B. „Ofenpasta mit Spinat und Tomaten“ oder „Bananen-Brownie mit Schoko und Hafer“. Keine langen Bindestrich-Ketten wie „Spinat-Tomaten-Ofenpasta“. Höchstens etwa 6 Wörter. Ohne Werbewörter wie „High-Protein“, „einfach“, „lecker“, „schnell“, „gesund“ oder „aus dem Ofen“, ohne Hashtags und Emojis. Englische Gerichtsnamen schreibst du richtig, z. B. „Mac and Cheese“, „One-Pot-Pasta“ (nicht „Pasta One Pot“).
 - "category": genau eins von: ${CATEGORIES.join(", ")}
 - "servings": für wie viele Personen bzw. Portionen das Rezept ist, als Zahl. Bei Kuchen, Torten, Gebäck und Brot (Kategorie Backen) ist es die Anzahl der Stücke, z. B. 12 für einen Kuchen in der Springform. Bei Getränken die Anzahl Gläser, bei Snacks wie Energy Balls oder Riegeln und bei Sonstigem (z. B. Pesto, Gewürzmischung) die Anzahl Portionen. Steht nichts dabei, schätze sie aus den Mengen, wie viele davon üblicherweise satt werden (z. B. 500 g Nudeln für 4 Personen, eine Springform für 12 Stücke), und trag das in "unsure" ein. null nur, wenn sich gar nichts schätzen lässt
-- "prepTime": Vorbereitungszeit wie "15 Min." oder "1 Std. 10 Min.", sonst "". Ruhe-, Geh-, Kühl- und Marinierzeiten gehören weder hierher noch in "cookTime", sondern in die Schritte
-- "cookTime": Koch- bzw. Backzeit im selben Format, sonst ""
+- "prepTime": Vorbereitungszeit wie "15 Min." oder "1 Std. 10 Min.". Ruhe-, Geh-, Kühl- und Marinierzeiten gehören weder hierher noch in "cookTime", sondern in die Schritte
+- "cookTime": Koch- bzw. Backzeit im selben Format
+- "timeEstimated": true oder false. Steht im Material eine Zeit, übernimm nur, was dasteht (was fehlt, bleibt ""), und setz false. Steht gar keine Zeit da, schätze "prepTime" und "cookTime" so, wie sie in einem Kochbuch stünden, und setz true: die Vorbereitung aus dem, was zu schneiden, zu rühren und vorzubereiten ist, die Koch- bzw. Backzeit aus den Zeiten in den Schritten (z. B. „20 Minuten backen“) oder dem, was für das Gericht üblich ist ("" wenn nichts gekocht oder gebacken wird). Geschätzte Zeiten auf 5 Minuten gerundet und ohne „ca.“
 - "ingredients": Liste von Strings, eine Zutat pro Eintrag, Menge zuerst, z. B. "200 g Mehl", "2 EL Olivenöl", "1 TL Zimt". Steht keine Menge dabei, schreib die Zutat ohne Menge, z. B. "Salz", "Pfeffer nach Geschmack", "etwas Öl zum Braten", und erfinde keine. Schreib Mengen möglichst genau in g oder ml. Packungen, Dosen, Becher, Gläser und Tüten rechnest du in g oder ml um und schreibst die Packung in Klammern dahinter, z. B. "500 g Gnocchi (1 Packung)", "400 g gehackte Tomaten (1 Dose)", "200 g Sahne (1 Becher)"; ist das Gewicht nicht angegeben, nimm die übliche Packungsgröße in Deutschland mit „ca.“. Stückzutaten bleiben Stück, z. B. "2 Eier", "1 Zwiebel", "3 Knoblauchzehen". Steht bei Gewürzen eine Menge, schreib sie in EL, TL oder Prise. Die Menge steht immer ganz vorne, z. B. "1 Zitrone (Saft)" statt "Saft von 1 Zitrone". Zwischenüberschriften als eigener Eintrag mit "# " davor, z. B. "# Für die Soße".
 - "steps": Liste von Strings, ein Arbeitsschritt pro Eintrag, ohne Nummerierung. Bei Teilrezepten Zwischenüberschriften wie bei den Zutaten als eigener Eintrag mit "# " davor, z. B. "# Teig", "# Füllung", "# Fertigstellen". Backofen: Temperatur und Betriebsart so übernehmen, wie sie dastehen, z. B. "Ofen auf 180 °C Ober-/Unterhitze (160 °C Umluft) vorheizen"; stehen beide, beide nennen, steht nur eine, nur diese, nichts umrechnen (nur Gasherd-Stufen und °F in °C)
 - "notes": Tipps, Hinweise, Varianten und Austausch-Tipps aus dem Rezept ("statt Sahne geht auch …", "vegane Variante: …"), sonst "". Bei "A oder B" in den Zutaten nimm A und nenn B hier. Keine Bemerkungen dazu, woher du etwas hast oder wie du gelesen hast (z. B. „die Zeit stammt aus dem Titel im Bild“)
@@ -3247,7 +3296,7 @@ ${transcribe ? `- "transcript": zuerst eine genaue Abschrift, so wie es ${imp.mo
 ${imp.mode === "photo" ? `- "coverBox": Ist auf dem gewählten Bild außer dem Gericht noch anderes zu sehen (Text, Seitenrand, Knöpfe einer App), dann der Ausschnitt nur mit dem Gericht als [links, oben, rechts, unten] in Prozent der Bildbreite bzw. -höhe, so groß wie möglich. Zeigt fast das ganze Bild das Gericht, null
 ` : ""}- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
 - "tags": Liste der Merkmale, die sicher zutreffen, nur aus: ${TAGS.join(", ")} (${TAG_RULES}). Leere Liste, wenn keins passt.
-- "unsure": Liste der Stellen, bei denen du dir beim Lesen nicht sicher bist, z. B. schwer lesbare Handschrift, verwischte, verdeckte oder abgeschnittene Mengen, geratene Wörter. Je ein Objekt {"in": "title" | "ingredients" | "steps" | "servings" | "time", "n": Nummer des Eintrags in "ingredients" bzw. "steps" (ab 1, sonst weglassen), "note": kurz auf Deutsch, was unsicher ist, z. B. "250 oder 350 g?"}. Hast du die Personen, Stückzahl oder Portionen geschätzt, weil nichts dabeistand, trag das hier ein ({"in": "servings", "note": "geschätzt, stand nicht dabei"}). Sonst nur echte Unsicherheiten beim Lesen, keine Umrechnungen und keine Schätzungen, die schon „ca.“ haben. Leere Liste, wenn alles gut lesbar ist.
+- "unsure": Liste der Stellen, bei denen du dir beim Lesen nicht sicher bist, z. B. schwer lesbare Handschrift, verwischte, verdeckte oder abgeschnittene Mengen, geratene Wörter. Je ein Objekt {"in": "title" | "ingredients" | "steps" | "servings" | "time", "n": Nummer des Eintrags in "ingredients" bzw. "steps" (ab 1, sonst weglassen), "note": kurz auf Deutsch, was unsicher ist, z. B. "250 oder 350 g?"}. Hast du die Personen, Stückzahl oder Portionen geschätzt, weil nichts dabeistand, trag das hier ein ({"in": "servings", "note": "geschätzt, stand nicht dabei"}). Geschätzte Zeiten trägst du hier nicht ein. Sonst nur echte Unsicherheiten beim Lesen, keine Umrechnungen und keine Schätzungen, die schon „ca.“ haben. Leere Liste, wenn alles gut lesbar ist.
 - "nutrition": nur wenn im Material Nährwerte stehen: pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm). Übernimm sie nur, wenn sie zur Zahl in "servings" passen; Angaben pro 100 g oder für andere Portionen rechnest du um. Stehen keine Nährwerte im Material, null (schätze sie nicht, das passiert danach).
 
 Regeln:
@@ -3258,7 +3307,7 @@ Regeln:
 - Rechne amerikanische und alte Maße in metrische um (1 cup = 240 ml Flüssigkeit; 1 cup Mehl = 120 g, Zucker = 200 g, Butter = 225 g, Reis = 185 g, Haferflocken = 90 g; 1 oz = 28 g, aber 1 fl oz = 30 ml; 1 lb = 450 g; 1 stick butter = 113 g; °F in °C, tbsp in EL, tsp in TL; altes deutsches Pfund = 500 g; Tasse oder Trinkglas als Maß ca. 200 ml; ein Glas als Packung, z. B. Gurken, Kapern oder Pesto, behandelst du wie andere Packungen) und runde sinnvoll. Ist eine Umrechnung nur geschätzt, schreib „ca.“ davor. Gasherd-Stufen rechnest du in °C um.
 - Ungarische Maße: dkg = 10 g (25 dkg = 250 g), dl = 100 ml, ek / evőkanál = EL, kk / kávéskanál = TL, mokkáskanál = ca. ½ TL, bögre = ca. 250 ml, csipet = 1 Prise, egy kevés = etwas.
 - Serbische Maße: kašika / кашика = EL, kašičica / кашичица = TL, šolja / шоља = ca. 200 ml, čaša / чаша = ca. 200 ml, prstohvat / прстохват = 1 Prise, dl = 100 ml, kesica / кесица = 1 Päckchen (z. B. Backpulver oder Vanillezucker).
-- Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen. Schätzen darfst du nur das Gewicht von Packungen, dann mit „ca.“. Unleserliche Stellen markierst du mit [?].
+- Übernimm nur, was wirklich im Material steht. Erfinde keine Zutaten oder Mengen. Schätzen darfst du nur das Gewicht von Packungen (dann mit „ca.“) und, wie oben beschrieben, Personenzahl und Zeiten, wenn sie nicht dastehen. Unleserliche Stellen markierst du mit [?].
 - Wird in den Schritten eine Zutat verwendet, die in der Zutatenliste fehlt (z. B. „in Öl anbraten“, „mit Salz abschmecken“), nimm sie ohne Menge in "ingredients" auf, z. B. "Öl zum Braten", "Salz". Wasser nur, wenn es eine Menge hat.
 - Fehlen die Zubereitungsschritte, lass "steps" leer und schreib in "notes", dass die Zubereitung nur im Video gezeigt wird oder fehlt.
 - Lass Hashtags, Werbung, „Link in Bio“, Rabattcodes, Emojis und Danksagungen weg.
@@ -3281,6 +3330,8 @@ function resultToEdit(res, imp) {
   const sv = Number(res.servings);
   d.servings = sv > 0 && sv < 1000 ? String(Math.round(sv * 10) / 10).replace(".", ",") : "";
   d.prepTime = str(res.prepTime); d.cookTime = str(res.cookTime);
+  d.timeEst = res.timeEstimated === true && !!(d.prepTime || d.cookTime); // geschätzt, weil keine Zeit dastand
+  if (d.timeEst) { d.prepTime = noCa(d.prepTime); d.cookTime = noCa(d.cookTime); }
   d.ingredientsText = arr(res.ingredients).join("\n");
   d.stepsText = arr(res.steps).map(s => s.replace(/^schritt\s*\d+:?\s*/i, "")).map(stripNo).join("\n");
   d.notes = str(res.notes);
@@ -3428,7 +3479,7 @@ async function saveData(d, coverBlob, coverUrl, origBlobs) {
     notes: d.notes.trim(), source: d.source.trim(), link: d.link.trim(),
     favorite: false, cover, createdAt: now, updatedAt: now,
     rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null, unsure: cleanUnsure(d.unsure),
-    tags: Array.isArray(d.tags) ? cleanTags(d.tags) : null
+    tags: Array.isArray(d.tags) ? cleanTags(d.tags) : null, timeEst: d.timeEst ? true : null
   };
   const id = newId();
   await withRetry(() => col.doc(id).set(doc));
