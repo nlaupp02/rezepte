@@ -528,11 +528,14 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 }
 
 /* Login */
-.login { display: grid; gap: 14px; max-width: 420px; margin: 0 auto; padding: calc(56px + env(safe-area-inset-top)) 0 40px; }
-.login.boot { justify-items: center; padding-top: calc(140px + env(safe-area-inset-top)); }
-.login-logo { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
-.login .brand { margin: 4px 0 0; }
-.login .lead { margin-top: -8px; }
+/* Start und Anmeldung wie bei Gym: Symbol groß in der Mitte, Name darunter, beim Start ein Ladekreis an derselben Stelle */
+.login { display: grid; gap: 14px; max-width: 420px; margin: 0 auto; padding: calc(48px + env(safe-area-inset-top)) 0 40px; }
+.login-logo { width: 84px; height: 84px; border-radius: 20px; justify-self: center; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+.login .brand { margin: 0 0 -6px; text-align: center; }
+.login .lead { margin-top: -8px; text-align: center; }
+.login.boot .spinner { justify-self: center; width: 28px; height: 28px; border-width: 3px; border-color: var(--line); border-top-color: var(--accent); margin-top: 10px; }
+#boot { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow: hidden; transition: opacity .3s; }
+#boot.off { opacity: 0; pointer-events: none; }
 .gbtn { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); gap: 10px; }
 .or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 15px; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
@@ -805,7 +808,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "68";
+const APP_VERSION = "69";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -875,7 +878,7 @@ qsGet().then(c => {
   if (!c || !c.uid || !Array.isArray(c.recipes) || authKnown || quick || state.view !== "boot") return;
   quick = c.uid; uid = c.uid;
   state.recipes = c.recipes; state.loaded = true; state.storage = "ok"; state.slow = false;
-  state.view = "list"; render();
+  state.view = "list"; render(); bootSplash();
 });
 
 const initPromise = (async () => {
@@ -1272,12 +1275,19 @@ function renderLogin() {
       <p class="rc-note">Version ${APP_VERSION}</p>
     </main>`;
 }
+const bootHtml = () => `<main class="login boot"><img class="login-logo" src="icon-192.png?v=2" alt=""><h1 class="brand">Rezepte</h1><span class="spinner"></span></main>`;
+// Wie bei Gym: beim Start kurz Symbol und Name, dann blendet die schon fertige Liste darunter auf
+function bootSplash() {
+  const d = document.createElement("div"); d.id = "boot"; d.setAttribute("aria-hidden", "true");
+  d.innerHTML = bootHtml(); document.body.appendChild(d);
+  setTimeout(() => { d.classList.add("off"); setTimeout(() => d.remove(), 350); }, 900);
+}
 function renderBoot() {
   app.innerHTML = state.fbError
     ? `<main class="login"><h1 class="brand">Rezepte</h1>
         <div class="status err"><div><b>Die App ließ sich nicht laden.</b><span class="d">${navigator.onLine === false ? "Du bist offline. Sobald du wieder Internet hast, tipp auf „Nochmal versuchen“." : "Prüf deine Internetverbindung und versuch es nochmal."}</span></div></div>
         <button class="btn primary block" data-action="reload">Nochmal versuchen</button></main>`
-    : `<main class="login boot"><img class="login-logo" src="icon-192.png?v=2" alt=""><span class="spinner"></span></main>`;
+    : bootHtml();
 }
 function openAccount() {
   const mail = authUser ? (authUser.email || authUser.displayName || "") : "";
