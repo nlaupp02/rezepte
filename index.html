@@ -266,6 +266,17 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 }
 @media (prefers-reduced-motion: no-preference) { .spinner { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } } }
 
+/* Kamera: gesammelte Fotos (Vorder- und Rückseite) */
+.shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.shot { position: relative; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden; background: var(--fill); display: grid; place-items: center; }
+.shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.shot-x { position: absolute; top: 5px; right: 5px; width: 30px; height: 30px; border-radius: 50%; border: 0; padding: 0; background: rgba(0,0,0,.55); color: #fff; display: grid; place-items: center; }
+.shot-x .ic { width: 15px; height: 15px; stroke-width: 2.4; }
+.shot-w { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600; }
+.shot.add { background: var(--ph); color: var(--accent); align-content: center; justify-items: center; gap: 6px; text-align: center; font-size: 14px; font-weight: 600; line-height: 1.2; padding: 8px; }
+.shot.add .ic { width: 26px; height: 26px; }
+.shots-sheet .btn.block { min-height: 50px; }
+
 /* Forms / import */
 .stack { display: grid; gap: 18px; padding-top: 8px; }
 .lead { margin: 0; color: var(--muted); max-width: 62ch; }
@@ -721,7 +732,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "64";
+const APP_VERSION = "65";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1626,7 +1637,7 @@ function toast(msg) {
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2800);
 }
 // Fenster zu: wie früher sofort (Abdunklung und Leiste oben gleich wieder hell), nur ein Sheet gleitet noch nach unten weg
-function hardCloseLayer() { stopDim(); dimNow = 0; layer.classList.remove("open"); layer.innerHTML = ""; layer2.classList.remove("open"); layer2.innerHTML = ""; }
+function hardCloseLayer() { dropShots(); stopDim(); dimNow = 0; layer.classList.remove("open"); layer.innerHTML = ""; layer2.classList.remove("open"); layer2.innerHTML = ""; }
 function slideAway(sh) {
   const r = sh.getBoundingClientRect(), st = sh.scrollTop;
   if (!(r.height > 0) || r.top < 80) return; // sehr hohes Fenster: nicht bis unter die Uhr reichen lassen, dann ohne Gleiten
@@ -1767,6 +1778,51 @@ function endSheetDrag(e) {
 layer.addEventListener("pointerup", endSheetDrag);
 layer.addEventListener("pointercancel", endSheetDrag);
 document.addEventListener("click", e => { if (suppressClick) { e.preventDefault(); e.stopPropagation(); } }, true);
+// Kamera: Fotos erst sammeln (Rückseite, nächste Seite), dann zusammen lesen lassen
+let shots = null; // { items: [{ blob, url, q }], busy: Anzahl Fotos, die gerade verkleinert werden }
+async function prepShot(f) {
+  const { img, url } = await loadImg(f);
+  let blob, q = null;
+  try {
+    blob = await toJpegImg(img, AI_SIDE, 0.85, AI_PX);
+    if (!/png/i.test(f.type || "")) { try { q = photoCheckImg(img); } catch (x) { q = null; } }
+  } finally { URL.revokeObjectURL(url); }
+  return { blob, url: URL.createObjectURL(blob), q };
+}
+function dropShots() { if (!shots) return; shots.items.forEach(i => URL.revokeObjectURL(i.url)); shots = null; }
+function renderShots() {
+  const sh = shots; if (!sh) return;
+  const n = sh.items.length, all = n + sh.busy, max = maxImages();
+  const weakOf = it => it.q && (it.q.dark || it.q.blurry) ? (it.q.dark && it.q.blurry ? "unscharf und dunkel" : it.q.dark ? "zu dunkel" : "unscharf") : "";
+  const weak = sh.items.map((it, i) => [i, weakOf(it)]).filter(w => w[1]);
+  const note = weak.length === 1 ? `Foto ${weak[0][0] + 1} ist ${weak[0][1]}, die KI kann es wahrscheinlich nicht gut lesen. Tipp auf das × und mach es neu.`
+    : weak.length ? `${weak.length} Fotos sind unscharf oder dunkel. Tipp auf das × und mach sie neu.`
+    : all < max ? "Rückseite oder nächste Seite? Mach einfach noch ein Foto." : `Mehr als ${max} Fotos gehen nicht.`;
+  const html = `<div class="grip"></div>
+      <div class="sheet-head"><h2 id="s-t">${all === 1 ? "1 Foto" : all ? all + " Fotos" : "Fotos"}</h2><button class="tbtn" data-action="close-layer">Abbrechen</button></div>
+      <div class="shots">
+        ${sh.items.map((it, i) => `<div class="shot"><img src="${esc(it.url)}" alt="Foto ${i + 1}">${weakOf(it) ? `<span class="shot-w">${esc(weakOf(it))}</span>` : ""}<button class="shot-x" data-action="shot-drop" data-i="${i}" aria-label="Foto ${i + 1} entfernen">${icon("x")}</button></div>`).join("")}
+        ${sh.busy ? `<div class="shot"><span class="spinner"></span></div>`.repeat(sh.busy) : ""}
+        ${all < max ? `<label class="shot add" for="cam-pick">${icon("camera")}<span>Weiteres Foto</span></label>` : ""}
+      </div>
+      <p class="note">${esc(note)}</p>
+      <button class="btn primary block" data-action="shots-read"${sh.busy || !n ? " disabled" : ""}>Rezept lesen</button>`;
+  const cur = layer.classList.contains("open") && layer.querySelector(".shots-sheet");
+  if (cur) { cur.innerHTML = html; return; }
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div><div class="sheet shots-sheet" role="dialog" aria-modal="true" aria-labelledby="s-t">${html}</div>`;
+  layer.classList.add("open");
+}
+async function addShot(f) {
+  if (!shots) shots = { items: [], busy: 0 };
+  const sh = shots;
+  if (sh.items.length + sh.busy >= maxImages()) return;
+  sh.busy++; renderShots();
+  let it = null;
+  try { it = await prepShot(f); } catch (e) { toast("Das Foto ließ sich nicht öffnen."); }
+  if (shots !== sh) { if (it) URL.revokeObjectURL(it.url); return; } // inzwischen abgebrochen
+  sh.busy--; if (it) sh.items.push(it);
+  renderShots();
+}
 // Unscharfes oder dunkles Foto: fragen, bevor die KI liest (kostet sonst Guthaben und klappt meist nicht)
 let photoResolve = null;
 function photoDialog(weak, images, pickId) {
@@ -3580,6 +3636,21 @@ const actions = {
     const changes = state.recipes.filter(r => setsOf(r).includes(se.orig)).map(r => ({ id: r.id, sets: setsOf(r).filter(s => s !== se.orig) }));
     if (await writeSets(changes)) toast("Sammlung gelöscht");
   },
+  "shots-read": () => {
+    if (!shots || shots.busy || !shots.items.length) return;
+    const images = shots.items.map(i => ({ blob: i.blob, url: i.url }));
+    shots = null; // nicht verwerfen, die Fotos gehen jetzt an die KI
+    closeLayer();
+    if (state.view !== "list") { if (!histToList()) go("list", { nohist: true }); }
+    startJob({ mode: "photo", text: "", link: "", images });
+    if (state.view === "list") renderListBody();
+  },
+  "shot-drop": el => {
+    if (!shots) return;
+    const it = shots.items.splice(Number(el.dataset.i), 1)[0];
+    if (it) URL.revokeObjectURL(it.url);
+    renderShots();
+  },
   "q-read": () => { closeLayer(); if (photoResolve) { photoResolve("read"); photoResolve = null; } },
   "q-again": el => {
     closeLayer();
@@ -3734,6 +3805,11 @@ document.addEventListener("change", async e => {
   }
   if (t.type !== "file") return;
   const files = t.files;
+  if (t.id === "cam-pick") {
+    const f = files && files[0]; t.value = "";
+    if (f) addShot(f);
+    return;
+  }
   if (t.dataset.file === "quick") {
     const all = Array.from(files || []), list = all.slice(0, maxImages());
     t.value = "";
