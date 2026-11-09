@@ -94,7 +94,7 @@ img[data-ph]:not(.in) { opacity: 0; }
 .back .ic { width: 24px; height: 24px; stroke-width: 2.4; margin-right: -1px; }
 .tbtn.bold { font-weight: 600; }
 .tbtn[disabled] { opacity: .4; }
-.home-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: calc(34px + env(safe-area-inset-top)); margin: 0 -10px 10px 0; }
+.home-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .head-btns { display: flex; gap: 2px; }
 .brand { font-family: var(--serif); font-size: 34px; line-height: 1.15; font-weight: 700; margin: 0; }
 /* Fester weißer Streifen unter der Uhr: iOS zeichnet dort sonst die Inhalte weich (unscharf) */
@@ -121,7 +121,7 @@ img[data-ph]:not(.in) { opacity: 0; }
 /* Farbe setzt das Skript Bild für Bild, gleichzeitig mit der Abdunklung. Keine CSS-Überblendung: dann nimmt iOS die neue Farbe oben erst am Ende */
 html.dim .statusfill { z-index: 25; }
 /* Tastatur: schiebt iOS die Seite hoch, bleibt die Kopfleiste trotzdem oben stehen */
-.topbar, .statusfill { transform: translateY(var(--vvo, 0px)); }
+.topbar, .home-head, .statusfill { transform: translateY(var(--vvo, 0px)); }
 
 /* Seitenwechsel: Abbild der alten Seite in einer festen Ebene, die neue gleitet darüber (oder darunter hervor) */
 body { overflow-x: clip; }
@@ -182,8 +182,8 @@ body.typing .fab { display: none; }
 .fab[hidden] ~ .fab-fade, body.typing .fab-fade { display: none; }
 /* Leiste unten (Rezepte, Sammlungen, Profil): nur auf den drei Hauptseiten, nicht im Rezept und nicht in einer Sammlung */
 .tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 6px 12px max(6px, calc(2px + env(safe-area-inset-bottom)));
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 6px 4px max(6px, calc(2px + env(safe-area-inset-bottom)));
   background: rgba(255, 255, 255, .94); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 -.5px 0 rgba(0, 0, 0, .14);
 }
 .tabbar button { display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 48px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.2; }
@@ -194,7 +194,20 @@ body.typing .tabbar { display: none; }
 .app.tabs .fab { bottom: calc(68px + env(safe-area-inset-bottom)); }
 .app.tabs .fab-fade { display: none; }
 body:has(.app.tabs) .toast { bottom: calc(128px + env(safe-area-inset-bottom)); } /* Meldungen über dem Knopf, nicht dahinter */
-.app.tabs .head-btns { gap: 0; }
+.topbar .icon-btn { margin-right: 4px; }
+.topbar .icon-btn .ic { stroke-width: 2.6; }
+.opt.danger, .opt.danger > .ic { color: var(--danger); }
+.app.tabs .head-btns { gap: 0; flex: none; }
+/* Suche in der Kopfzeile: Pfeil zurück und Feld statt Titel und Symbole, gleiche Höhe */
+.home-head .head-search { display: none; }
+.home-head.searching { margin-right: 0; }
+.home-head.searching .brand, .home-head.searching .head-btns { display: none; }
+.home-head.searching .head-search { display: flex; flex: 1; min-width: 0; align-items: center; gap: 0; margin-left: -12px; }
+.home-head.searching .search { flex: 1; min-width: 0; height: 40px; }
+.app.tabs .home-head { gap: 4px; }
+.app.tabs .home-head .brand { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app.tabs .head-btns .icon-btn { width: 40px; }
+@media (max-width: 350px) { .app.tabs .home-head .brand { font-size: 28px; } .app.tabs .head-btns .icon-btn { width: 36px; } } /* sehr schmale Handys: „Sammlungen“ und drei Symbole in einer Zeile */
 
 /* Search + chips */
 .search {
@@ -387,7 +400,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 
 /* Detail */
 .detail { display: grid; gap: 22px; padding-top: 6px; }
-.hero { aspect-ratio: 4 / 3; max-height: 420px; margin: -6px -16px 0; overflow: hidden; background: var(--ph); }
+.hero { aspect-ratio: 16 / 9; max-height: 360px; margin: -6px -16px 0; overflow: hidden; background: var(--ph); }
 @media (min-width: 700px) { .hero { margin: 0; border-radius: 14px; } }
 .hero img { width: 100%; height: 100%; object-fit: cover; }
 .hero .ph .ic { width: 48px; height: 48px; stroke-width: 1.4; }
@@ -513,6 +526,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
    Nur das Fenster selbst gleitet noch nach unten, in einer eigenen Hülle unten am Rand (reicht nicht bis zur Uhr). */
 .sheet-ghost { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; pointer-events: none; }
 .sheet-ghost .sheet { max-height: none; }
+.sheet-ghost.full { top: 0; }
 .scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .35); }
 .sheet {
   position: absolute; left: 0; right: 0; bottom: 0; max-width: 680px; margin: 0 auto;
@@ -585,6 +599,16 @@ body.kb .toast.show { transform: none; }
 .picklist .opt span.t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .picklist .opt .chev.on { margin-left: auto; flex: none; }
 .picklist .opt.add { color: var(--accent); }
+/* Rezepte auswählen: wie die Liste, mit Bild; rechts ein Kreis, der sich mit Haken füllt */
+.picklist .opt.pick { gap: 12px; min-height: 68px; padding: 8px 14px 8px 10px; }
+.picklist .opt.pick .thumb-sm { width: 52px; height: 52px; border-radius: 9px; }
+.picklist .opt.pick .thumb-sm .ph .ic { width: 22px; height: 22px; }
+.picklist .opt.pick span.t { font-weight: 500; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.picklist li + li .opt.pick::before { left: 74px; }
+.tick { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; border: 1.6px solid #C7C7CC; color: transparent; transition: background .15s, border-color .15s; }
+.tick .ic { width: 15px; height: 15px; stroke-width: 3; }
+.opt[aria-pressed="true"] .tick { background: var(--accent); border-color: var(--accent); color: #fff; }
+.set-empty .btn .ic { width: 18px; height: 18px; }
 .picklist .opt.add > .ic { width: 20px; height: 20px; }
 .sheet .lbl-row { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; font-size: 15px; padding: 0 2px; margin-bottom: -6px; }
 .sheet .lbl-row span { font-weight: 400; color: var(--muted); }
@@ -722,6 +746,89 @@ body.kb .toast.show { transform: none; }
 .vdots { display: flex; justify-content: center; gap: 7px; margin-bottom: 8px; }
 .vdots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.3); }
 .vdots i.on { background: #fff; }
+
+/* V74: Kopfzeile der Hauptseiten bleibt beim Scrollen oben stehen (wie die Leiste im Rezept) */
+.home-head { position: sticky; top: 0; z-index: 5; background: var(--bg); margin: 0 -16px 8px; padding: calc(14px + env(safe-area-inset-top)) 6px 8px 16px; }
+.home-head.lined { box-shadow: 0 .5px 0 var(--line); }
+
+/* V74: Liste in der Sammlung mit größerem Bild und drei Punkten je Zeile */
+.thumb-lg { position: relative; width: 108px; height: 72px; flex: none; border-radius: 12px; overflow: hidden; background: var(--ph); }
+.thumb-lg img { width: 100%; height: 100%; object-fit: cover; }
+.list > li.has-more { display: flex; align-items: center; contain-intrinsic-size: auto 88px; }
+.list > li.has-more > .row { flex: 1; min-width: 0; padding: 8px 0; }
+.list > li.has-more > .row::before { display: none; }
+.list > li.has-more > button.row.pressed::after { inset: 0 0 0 -16px; }
+.list > li.has-more .row-t { -webkit-line-clamp: 2; }
+.row-more { flex: none; width: 40px; margin-right: -10px; color: var(--muted); }
+.row-more .ic { width: 22px; height: 22px; transform: rotate(90deg); }
+.sheet-head h2.clip { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
+.sheet-head h2.clip + .tbtn { flex: none; }
+.sheet-head:has(.clip) { min-width: 0; } /* sonst macht ein langer Name das Fenster breiter als den Bildschirm */
+
+/* V74: Foto-Fenster mit zwei runden Knöpfen */
+.round-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 0 8px; }
+.rp { display: grid; justify-items: center; gap: 10px; padding: 8px 4px; border-radius: 14px; font-size: 16px; font-weight: 600; color: var(--ink); text-align: center; }
+.rp-c { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); color: var(--accent); transition: transform .2s cubic-bezier(.2, .8, .2, 1), filter .2s; }
+.rp-c .ic { width: 30px; height: 30px; stroke-width: 1.7; }
+.rp.pressed .rp-c, .rp:active .rp-c { transform: scale(.94); filter: brightness(.95); }
+
+/* V74: Rezepte für eine Sammlung auswählen – ganze Seite mit Knopf unten */
+.sheet.full { top: 0; max-height: none; border-radius: 0; background: var(--bg); padding: 0; display: flex; flex-direction: column; gap: 0; overflow: hidden; touch-action: none; } /* nur die Liste scrollt, die Seite dahinter nicht */
+.pick-head { flex: none; display: flex; align-items: center; gap: 4px; padding: calc(6px + env(safe-area-inset-top)) 6px 8px; box-shadow: 0 .5px 0 var(--line); }
+.pick-head .icon-btn { flex: none; color: var(--ink); }
+.pick-title { flex: 1; min-width: 0; text-align: center; display: grid; gap: 1px; }
+.sheet .pick-title h2 { font-size: 20px; padding: 0; margin: 0; }
+.pick-title span { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picks { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; list-style: none; margin: 0; padding: 10px 10px 16px; display: grid; gap: 4px; align-content: start; }
+.pick-row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 6px 12px 6px 6px; border: 0; border-radius: 16px; background: none; color: var(--ink); text-align: left; font-size: 17px; font-weight: 600; line-height: 1.25; transition: background .15s; }
+.pick-row .t { flex: 1; min-width: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pick-row[aria-pressed="true"] { background: var(--accent-soft); }
+.pick-row[aria-pressed="true"] .tick { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pick-foot { flex: none; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -.5px 0 var(--line); background: var(--bg); }
+.picks .note { padding: 24px 12px; text-align: center; }
+
+/* V74: Einkaufsliste */
+.shop { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; padding-top: 4px; }
+.shop-add { display: flex; align-items: center; height: 46px; padding: 0 2px 0 14px; background: var(--fill); border-radius: 12px; }
+.shop-add input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; outline: none; font-size: 17px; color: var(--ink); }
+.shop-add button { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--accent); display: grid; place-items: center; }
+.shop-add button .ic { width: 24px; height: 24px; stroke-width: 2.2; }
+#shop-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.shop-h { font-size: 15px; font-weight: 600; color: var(--muted); margin: 0 0 6px; padding: 0 2px; overflow-wrap: anywhere; }
+.shop-list { list-style: none; margin: 0; padding: 0; background: var(--group); border-radius: 14px; overflow: hidden; }
+.shop-row { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 10px 14px; border: 0; background: none; color: var(--ink); text-align: left; font-size: 17px; line-height: 1.3; }
+.shop-list li + li .shop-row::before { content: ""; position: absolute; top: 0; left: 50px; right: 0; border-top: 1px solid var(--line); }
+.shop-row .box { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 1.6px solid #C7C7CC; display: grid; place-items: center; color: transparent; background: var(--bg); transition: background .15s, border-color .15s; }
+.shop-row .box .ic { width: 15px; height: 15px; stroke-width: 3; }
+.shop-row .t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.shop-row .t b { font-weight: 600; }
+.shop-row[aria-pressed="true"] .box { background: var(--accent); border-color: var(--accent); color: #fff; }
+.shop-row[aria-pressed="true"] .t { color: var(--muted); text-decoration: line-through; }
+.shop-row.pressed { background: rgba(0, 0, 0, .05); }
+.shop .empty { padding-top: 28px; }
+.shop-btn { margin-top: 14px; }
+.shop-btn .ic { width: 20px; height: 20px; }
+
+/* V74: Rezept übersichtlicher – feine Linien zwischen den Zutaten, Schritt-Nummern im Kreis, nichts zum Durchstreichen */
+.ings > li { border-top: 1px solid var(--line); }
+.ings > li:first-child, .ings > li.ing-h, .ings > li.ing-h + li { border-top: 0; }
+.ing { padding: 11px 0; }
+.ings > li.ing-h { padding-top: 18px; }
+.steps { gap: 0; }
+.step { gap: 14px; padding: 11px 0; }
+.step .no { width: 28px; height: 28px; margin-top: -1px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-size: 15px; text-align: center; }
+.steps > li.step-h { padding-top: 16px; }
+
+/* V74: Drucken – nur die vorbereiteten Seiten, sonst nichts */
+#print { display: none; }
+@media print {
+  body > *:not(#print) { display: none !important; }
+  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  #print { display: block; }
+  #print img { display: block; width: 100%; height: auto; break-after: page; page-break-after: always; }
+  #print img:last-child { break-after: auto; page-break-after: auto; }
+  @page { size: A4; margin: 0; }
+}
 </style>
 </head>
 <body>
@@ -794,6 +901,9 @@ const ICONS = {
   sort: '<path d="M8 4v16M4.5 16.5L8 20l3.5-3.5M16 20V4M12.5 7.5L16 4l3.5 3.5"/>',
   addsq: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/>',
   menu: '<path d="M4 6.5h16M4 12h16M4 17.5h10.5"/>',
+  dots: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  print: '<path d="M7 8.5V4h10v4.5"/><rect x="3.5" y="8.5" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/>',
+  cart: '<path d="M3 4.5h2.3l2.2 10h10.2l1.8-7H6.4"/><circle cx="9.3" cy="18.8" r="1.3"/><circle cx="16.8" cy="18.8" r="1.3"/>',
   more: '<path d="M6 9.5l6 6 6-6"/>',
   home: '<path d="M4.5 10.6 12 4.3l7.5 6.3V19a1.4 1.4 0 0 1-1.4 1.4h-3.5v-5.6H9.4v5.6H5.9A1.4 1.4 0 0 1 4.5 19z"/>',
   sortl: '<path d="M4 7h16M7 12h10M10 17h4"/>',
@@ -822,8 +932,11 @@ const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-h
 const HOME_TILES = true; // Rezepte-Seite: immer Kacheln. In einer Sammlung immer die Liste. Eine Auswahl gibt es nicht mehr.
 const state = {
   view: "boot",
-  tab: "rez",              // Leiste unten: rez | sam | pro
+  tab: "rez",              // Leiste unten: rez | sam | ein | pro
   searchOpen: false,       // Suchfeld auf der Rezepte-Seite aufgeklappt
+  samQuery: "",            // Suche auf der Sammlungen-Seite (nach dem Namen der Sammlung)
+  samSearchOpen: false,
+  setSort: (() => { try { const v = localStorage.getItem("rezepte-setsort"); return v === "count" || v === "new" ? v : "az"; } catch (e) { return "az"; } })(), // Reihenfolge der Sammlungen
   recipes: [],
   loaded: false,
   slow: false,
@@ -852,7 +965,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "73";
+const APP_VERSION = "74";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -961,12 +1074,13 @@ function onAuth(u) {
   // Schnellstart mit demselben Konto: Liste, geöffnetes Rezept und Scrollstelle bleiben, nur die Verbindung kommt dazu
   if (quick && authUser && authUser.uid === quick && !col) {
     quick = null; uid = authUser.uid; col = makeCol(uid); state.login = null;
-    if (state.view === "list" && state.tab === "pro" && curSet() == null) renderList(); // Profil zeigt jetzt das Konto
+    if (state.view === "list" && (state.tab === "pro" || state.tab === "ein") && curSet() == null) renderList(); // Profil zeigt jetzt das Konto, die Einkaufsliste die Liste dieses Kontos
     subscribe(); readyResolve(); resumeJobs();
     return;
   }
   if (quick) { quick = null; qsClear(); state.recipes = []; state.loaded = false; } // abgemeldet oder anderes Konto: gemerkte Rezepte weg
   if (unsub) { unsub(); unsub = null; }
+  if (shopUnsub) { shopUnsub(); shopUnsub = null; }
   if (!authUser || (prev && prev !== authUser.uid)) {
     // Kontowechsel: laufende Lese-Aufträge gehören zum alten Konto
     state.jobs.forEach(j => { j.dead = true; if (j.ctl) j.ctl.abort(); (j.src.images || []).forEach(i => { if (i.url) URL.revokeObjectURL(i.url); }); });
@@ -975,7 +1089,7 @@ function onAuth(u) {
   if (!authUser) {
     qsClear();
     col = null; uid = null; state.recipes = []; state.loaded = false; state.storage = "pending";
-    state.tab = "rez"; state.searchOpen = false;
+    state.tab = "rez"; state.searchOpen = false; state.samQuery = ""; state.samSearchOpen = false;
     state.edit = null; state.imp = null; state.view = "login"; render(); return;
   }
   if (prev === authUser.uid && col) return;
@@ -1048,6 +1162,7 @@ function subscribe() {
   clearTimeout(loadTimer);
   loadTimer = setTimeout(() => { if (!state.loaded) { state.slow = true; state.loaded = true; state.storage = "ok"; onDataChanged(); } }, 10000);
   const myUid = uid;
+  shopSubscribe(); // die Einkaufsliste dieses Kontos
   // includeMetadataChanges: Sonst meldet Firestore ein leeres Konto nie als „fertig geladen“ (vom Server bestätigt ändert sich nur das Metadatum),
   // und die App wartet 10 Sekunden auf Rezepte, die es gar nicht gibt.
   // Nur Rezepte (haben immer createdAt). Originalfotos liegen im selben Ordner, aber ohne createdAt: die lädt die Liste nicht mit,
@@ -1399,9 +1514,30 @@ function findSimilar(d) {
 /* Eigene Sammlungen: stehen als Namen am Rezept (sets). Eine Sammlung gibt es, solange ein Rezept darin ist. */
 const setsOf = r => Array.isArray(r && r.sets) ? r.sets.filter(s => typeof s === "string" && s.trim()) : [];
 const cleanSetName = s => String(s || "").replace(/\s+/g, " ").trim().slice(0, 30);
+/* Leere Sammlungen: Eine Sammlung steht eigentlich nur in ihren Rezepten. Damit man sie leer anlegen und später füllen kann
+   (und sie nicht verschwindet, wenn man das letzte Rezept herausnimmt), merkt sich das Gerät die Namen der leeren.
+   Sobald ein Rezept drin ist, steht sie wie bisher im Rezept und ist auf allen Geräten da. */
+let knownCache = null, knownUid = null;
+const sameName = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+function knownSets() {
+  if (knownCache && knownUid === uid) return knownCache;
+  let v = [];
+  try { v = JSON.parse(localStorage.getItem("rezepte-sammlungen:" + (uid || "")) || "[]"); } catch (e) { v = []; }
+  knownUid = uid; knownCache = (Array.isArray(v) ? v : []).map(cleanSetName).filter(Boolean).slice(0, 60);
+  return knownCache;
+}
+function saveKnown(list) {
+  knownCache = list.slice(0, 60); knownUid = uid;
+  try { localStorage.setItem("rezepte-sammlungen:" + (uid || ""), JSON.stringify(knownCache)); } catch (e) { /* egal */ }
+}
+function rememberSet(name) { const k = knownSets(); if (name && !k.some(s => sameName(s, name))) saveKnown([...k, name]); }
+function forgetSet(name) { const k = knownSets(); if (k.some(s => sameName(s, name))) saveKnown(k.filter(s => !sameName(s, name))); }
+const inSetCount = name => state.recipes.filter(r => setsOf(r).includes(name)).length;
 function allSets() {
   const m = new Map();
   state.recipes.forEach(r => setsOf(r).forEach(s => m.set(s, (m.get(s) || 0) + 1)));
+  const have = [...m.keys()];
+  knownSets().forEach(s => { if (!have.some(k => sameName(k, s))) m.set(s, 0); }); // leer, nur auf diesem Gerät gemerkt
   return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], "de", { sensitivity: "base" }));
 }
 
@@ -1838,9 +1974,23 @@ function slideAway(sh) {
   queueMicrotask(() => { if (layer.classList.contains("open")) g.remove(); });
 }
 function closeLayer() {
-  const sh = layer.classList.contains("open") && layer.querySelector(".scrim") && layer.querySelector(".sheet");
-  if (sh && !noMotion()) slideAway(sh);
+  const open = layer.classList.contains("open");
+  const full = open && layer.querySelector(".sheet.full");
+  const sh = open && layer.querySelector(".scrim") && layer.querySelector(".sheet");
+  if (full && !noMotion()) fadeAway(full);
+  else if (sh && !noMotion()) slideAway(sh);
   hardCloseLayer();
+}
+function fadeAway(sh) { // ganze Seite (Rezepte auswählen): kurz ausblenden statt hart verschwinden
+  const ul = sh.querySelector(".picks"), st = ul ? ul.scrollTop : 0;
+  const g = document.createElement("div");
+  g.className = "sheet-ghost full"; g.setAttribute("aria-hidden", "true");
+  g.appendChild(sh); document.body.appendChild(g);
+  if (ul) ul.scrollTop = st;
+  void sh.offsetHeight;
+  sh.style.transition = "opacity .16s ease-out, transform .16s ease-out"; sh.style.opacity = "0"; sh.style.transform = "translateY(10px)";
+  setTimeout(() => g.remove(), 220);
+  queueMicrotask(() => { if (layer.classList.contains("open")) g.remove(); });
 }
 /* Fenster (Sheets) mit dem Finger nach unten wegwischen, wie in iOS */
 /* Streifen unter der Uhr (und Safari-Leiste oben) mit abdunkeln, solange ein Fenster mit Abdunklung offen ist */
@@ -1910,7 +2060,7 @@ if (window.visualViewport) {
 }
 
 /* Antippen sichtbar machen wie in iOS: erst nach kurzem Halten grau, beim Wischen über die Liste gar nicht */
-const PRESSABLE = "button.row, .opt, .cell, .album, .add-tile, .tile";
+const PRESSABLE = "button.row, .opt, .cell, .album, .add-tile, .tile, .rp, .shop-row";
 let pressEl = null, pressT = 0, pressX = 0, pressY = 0;
 function clearPress() { clearTimeout(pressT); if (pressEl) pressEl.classList.remove("pressed"); pressEl = null; }
 document.addEventListener("pointerdown", e => {
@@ -1928,13 +2078,16 @@ document.addEventListener("pointerup", () => {
   el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 140); // kurzer Tipp: kurz grau
 }, { passive: true });
 window.addEventListener("scroll", clearPress, { passive: true });
-window.addEventListener("scroll", () => { const t = app.querySelector(".topbar"); if (t) t.classList.toggle("lined", window.scrollY > 2); }, { passive: true });
+// feine Linie unter der Kopfzeile, sobald Inhalt darunter durchläuft
+function headLine() { const t = app.querySelector(".topbar, .home-head"); if (t) t.classList.toggle("lined", window.scrollY > 2); }
+window.addEventListener("scroll", headLine, { passive: true });
 
 let sheetDrag = null, suppressClick = false, shotsFor = null;
 document.addEventListener("cancel", e => { if (e.target && e.target.id === "quick-pick") shotsFor = null; }, true);
 layer.addEventListener("pointerdown", e => {
   const sh = e.target.closest(".sheet");
   if (!sh || (e.pointerType === "mouse" && e.button !== 0)) return;
+  if (sh.classList.contains("full")) return; // ganze Seite (Rezepte auswählen): die Liste scrollt, geschlossen wird über das Kreuz
   if (sh.classList.contains("scrolls") && !e.target.closest(".grip, .sheet-head")) return;
   sheetDrag = { sh, id: e.pointerId, y0: e.clientY, t0: performance.now(), dy: 0, moved: false };
 });
@@ -2080,14 +2233,24 @@ function confirmDialog({ title, text, yes, danger }) {
   });
 }
 const ADD_OPTIONS = [
-  { mode: "link", icon: "reel", t: "Reel, Link oder Text einfügen", k: "Reel, Link\noder Text" }, // Instagram-Links erkennt die App selbst
-  { mode: "camera", icon: "camera", t: "Foto aufnehmen", pick: "cam-pick", k: "Foto\naufnehmen" },
-  { mode: "photo", icon: "image", t: "Fotos oder Screenshots", pick: "quick-pick", k: "Fotos oder\nScreenshots" },
-  { mode: "manual", icon: "pen", t: "Selbst eintippen", k: "Selbst\neintippen" }
+  { mode: "insta", icon: "reel", k: "Instagram" },
+  { mode: "photo", icon: "camera", k: "Foto", act: "add-photo" }, // öffnet die Auswahl: Bild hochladen oder Foto aufnehmen
+  { mode: "link", icon: "link", k: "Link oder Text" },
+  { mode: "manual", icon: "pen", k: "Selbst eintippen" }
 ];
-const addTiles = () => `<div class="add-grid">${ADD_OPTIONS.map(o => { const k = esc(o.k).replace("\n", "<br>"); return o.pick
-  ? `<label class="add-tile" for="${o.pick}">${icon(o.icon)}<span>${k}</span></label>`
-  : `<button class="add-tile" data-action="start" data-mode="${o.mode}">${icon(o.icon)}<span>${k}</span></button>`; }).join("")}</div>`;
+const addTiles = () => `<div class="add-grid">${ADD_OPTIONS.map(o => `<button class="add-tile" data-action="${o.act || "start"}" data-mode="${o.mode}">${icon(o.icon)}<span>${esc(o.k)}</span></button>`).join("")}</div>`;
+function openPhotoSheet() {
+  const inner = `<div class="grip"></div>
+      <div class="sheet-head"><h2 id="s-t">Rezept vom Foto</h2><button class="tbtn" data-action="close-layer">Abbrechen</button></div>
+      <div class="round-pick">
+        <label class="rp" for="quick-pick"><span class="rp-c">${icon("image")}</span><span>Bild hochladen</span></label>
+        <label class="rp" for="cam-pick"><span class="rp-c">${icon("camera")}</span><span>Foto aufnehmen</span></label>
+      </div>`;
+  const sh = layer.classList.contains("open") && layer.querySelector(".scrim") && layer.querySelector(".sheet:not(.full)");
+  if (sh) { sh.className = "sheet"; sh.innerHTML = inner; return; } // aus „Neues Rezept“: im selben Fenster weiter, ohne neues Hochfahren
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="s-t">${inner}</div>`;
+  layer.classList.add("open");
+}
 function openSheet() {
   layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="s-t">
@@ -2265,19 +2428,24 @@ function renderList() {
   const set = curSet(), tab = set == null ? state.tab : null;
   app.dataset.set = set == null ? "" : "set:" + set; // welcher Kopf gerade steht (alle Rezepte oder eine Sammlung)
   app.classList.toggle("tabs", set == null);
+  // Suche: auf den Hauptseiten ersetzt sie die obere Zeile (Pfeil zurück und Feld statt Titel und Symbole), in einer Sammlung steht das Feld unter dem Namen
+  const searching = set == null && (tab === "sam" ? state.samSearchOpen || !!state.samQuery : tab === "rez" && (state.searchOpen || !!state.query));
+  const field = `<div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="${set != null ? "In der Sammlung suchen" : tab === "sam" ? "Sammlung suchen" : "Suchen"}" value="${esc(tab === "sam" ? state.samQuery : state.query)}" autocomplete="off" aria-label="${tab === "sam" ? "Sammlungen durchsuchen" : "Rezepte durchsuchen"}"></div>`;
   const hs = history.state;
   if (set != null && hs && hs.v === "list" && hs.set && hs.set !== set) try { history.replaceState(Object.assign({}, hs, { set }), ""); } catch (e) { /* egal */ }
   app.innerHTML = `
-    ${set == null ? `<header class="home-head">
-      <h1 class="brand">${tab === "sam" ? "Sammlungen" : tab === "pro" ? "Profil" : "Rezepte"}</h1>
+    ${set == null ? `<header class="home-head${searching ? " searching" : ""}">
+      <h1 class="brand">${tab === "sam" ? "Sammlungen" : tab === "pro" ? "Profil" : tab === "ein" ? "Einkaufsliste" : "Rezepte"}</h1>
       <span class="head-btns">${tab === "rez" ? `<button class="icon-btn" data-action="search-open" aria-label="Suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sortieren">${icon("sortl")}</button>`
-        : tab === "sam" ? `<button class="icon-btn" data-action="new-set" aria-label="Neue Sammlung">${icon("plus")}</button>` : ""}</span>
+        : tab === "sam" ? `<button class="icon-btn" data-action="search-open" aria-label="Sammlung suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sammlungen sortieren">${icon("sortl")}</button><button class="icon-btn" data-action="new-set" aria-label="Neue Sammlung">${icon("plus")}</button>`
+        : tab === "ein" ? `<button class="icon-btn" data-action="shop-clear" aria-label="Liste aufräumen"${shopItems().length ? "" : " hidden"}>${icon("trash")}</button>` : ""}</span>
+      ${tab === "pro" || tab === "ein" ? "" : `<span class="head-search"><button class="icon-btn" data-action="search-close" aria-label="Suche schließen">${icon("back")}</button>${field}</span>`}
     </header>` : `<div class="topbar"><button class="back" data-action="set-back">${icon("back")}Sammlungen</button><span class="grow"></span>
-      <button class="tbtn" data-action="edit-set">Bearbeiten</button></div>
+      <button class="icon-btn" data-action="set-menu" aria-label="Optionen der Sammlung">${icon("dots")}</button></div>
     <h1 class="brand set-title">${esc(set)}</h1>`}
     ${installBanner()}
     <div class="stack" style="padding:0 0 10px;gap:12px">${banner()}</div>
-    ${tab === "pro" ? profileHtml() : `<div class="search" id="search-wrap"${set == null && !(state.searchOpen || state.query) ? " hidden" : ""}>${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="${set == null ? "Suchen" : "In der Sammlung suchen"}" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
+    ${tab === "pro" ? profileHtml() : tab === "ein" ? shopHtml() : `${set != null ? field : ""}
     <div id="albums"></div>
     <div id="chips" class="chips"></div>
     <div id="grid"></div>
@@ -2287,9 +2455,10 @@ function renderList() {
   renderListBody();
   reuseImgs(app, oldImgs);
   if (y) window.scrollTo(0, y);
+  headLine();
 }
-/* Leiste unten: drei Hauptseiten. Wechseln legt keinen Schritt im Verlauf an (wie in iOS). */
-const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "gridv"], ["pro", "Profil", "user"]];
+/* Leiste unten: vier Hauptseiten. Wechseln legt keinen Schritt im Verlauf an (wie in iOS). */
+const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "gridv"], ["ein", "Einkaufsliste", "cart"], ["pro", "Profil", "user"]];
 function tabbarHtml() {
   return `<nav class="tabbar" aria-label="Bereiche">${TABS.map(([k, l, ic]) => `<button data-action="tab" data-t="${k}" class="${state.tab === k ? "on" : ""}"${state.tab === k ? ' aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></button>`).join("")}</nav>`;
 }
@@ -2300,8 +2469,10 @@ function switchTab(t) {
   tabScroll[state.tab] = window.scrollY;
   state.tab = t;
   if (!state.query) state.searchOpen = false;
+  if (!state.samQuery) state.samSearchOpen = false;
   renderList();
   window.scrollTo(0, tabScroll[t] || 0);
+  headLine();
 }
 function profileHtml() {
   const mail = authUser ? (authUser.email || authUser.displayName || "") : "";
@@ -2316,6 +2487,246 @@ function profileHtml() {
     <p class="rc-note ver-box" style="margin:0">Version ${APP_VERSION}</p>
   </div>`;
 }
+/* ---------- Einkaufsliste ---------- */
+// Liegt im Konto: ein eigenes Dokument im Rezepte-Ordner – ohne createdAt und mit orig: true, so wie die Originalfotos.
+// Dadurch laden es die Rezeptliste und ältere App-Versionen nicht mit, und es braucht keine neue Firebase-Regel.
+// Auf dem Gerät liegt zusätzlich eine Kopie: Die Liste ist sofort da, auch beim Schnellstart und ohne Netz.
+const SHOP_DOC = "_einkaufsliste", SHOP_MAX = 400;
+let shopCache = null, shopUid = null, shopUnsub = null, shopT = 0, shopBusy = 0, shopWarned = false;
+const shopStr = (v, n) => String(v == null ? "" : v).slice(0, n);
+const cleanShop = v => (Array.isArray(v) ? v : []).filter(x => x && typeof x.t === "string" && x.id).slice(0, SHOP_MAX)
+  .map(x => ({ id: shopStr(x.id, 40), q: shopStr(x.q, 40), t: shopStr(x.t, 200), rid: shopStr(x.rid, 60), rt: shopStr(x.rt, 120), done: !!x.done }));
+function shopItems() {
+  const u = uid || "";
+  if (shopCache && shopUid === u) return shopCache;
+  let v = [];
+  try { v = JSON.parse(localStorage.getItem("rezepte-einkauf:" + u) || "[]"); } catch (e) { v = []; }
+  shopUid = u; shopCache = cleanShop(v);
+  return shopCache;
+}
+// „offen“: auf diesem Gerät geändert und noch nicht ins Konto geschrieben. Dann gilt der Stand vom Gerät.
+const shopOpenKey = () => "rezepte-einkauf-offen:" + (shopUid || "");
+const shopOpen = () => { try { return !!localStorage.getItem(shopOpenKey()); } catch (e) { return false; } };
+function shopStore() { try { localStorage.setItem("rezepte-einkauf:" + (shopUid || ""), JSON.stringify(shopCache || [])); } catch (e) { /* Speicher voll oder gesperrt */ } }
+function shopSave() { // geändert: auf dem Gerät merken und ins Konto schreiben
+  shopStore();
+  try { localStorage.setItem(shopOpenKey(), "1"); } catch (e) { /* egal */ }
+  shopPush(500);
+}
+function shopPush(ms) { // kurz sammeln (mehrere Haken hintereinander), dann ein einziger Schreibvorgang
+  clearTimeout(shopT);
+  shopT = setTimeout(async () => {
+    shopT = 0;
+    if (!col || !uid || shopUid !== uid) return; // noch nicht verbunden: geht hoch, sobald das Konto da ist (shopSubscribe)
+    const myUid = uid, items = cleanShop(shopCache);
+    shopBusy++;
+    try {
+      await col.doc(SHOP_DOC).set({ orig: true, shop: true, items, t: Date.now() });
+      if (uid === myUid && !shopT) { try { localStorage.removeItem(shopOpenKey()); } catch (e) { /* egal */ } }
+    } catch (e) {
+      if (!shopWarned) { shopWarned = true; toast("Die Einkaufsliste ließ sich nicht im Konto speichern. Auf diesem Gerät bleibt sie stehen."); }
+    }
+    shopBusy--;
+  }, ms || 0);
+}
+function shopSubscribe() { // Liste aus dem Konto holen und Änderungen von einem anderen Gerät mitziehen
+  if (shopUnsub) { shopUnsub(); shopUnsub = null; }
+  if (!fb || !uid) return;
+  const myUid = uid, { F } = fb;
+  shopCache = null; shopItems();
+  if (shopOpen()) shopPush(0); // hier wurde geändert, bevor die Verbindung stand: dieser Stand gilt
+  try {
+    shopUnsub = F.onSnapshot(F.doc(fb.db, "recipes", myUid, "list", SHOP_DOC), snap => {
+      if (uid !== myUid) return;
+      if (snap.metadata && snap.metadata.hasPendingWrites) return; // der eigene, noch nicht bestätigte Stand
+      if (shopT || shopBusy || shopOpen()) return; // hier wird gerade geändert: der eigene Stand geht gleich hoch
+      if (!snap.exists()) { if (shopItems().length) shopPush(0); return; } // noch nichts im Konto: die Liste vom Gerät hochladen
+      const items = cleanShop((snap.data() || {}).items);
+      if (JSON.stringify(items) === JSON.stringify(shopItems())) return;
+      shopCache = items; shopUid = myUid; shopStore(); shopRefresh();
+    }, err => { console.warn("Einkaufsliste laden", err); });
+  } catch (e) { console.warn("Einkaufsliste", e); }
+}
+function shopBodyHtml() {
+  const items = shopItems();
+  if (!items.length) return `<section class="empty"><div class="empty-ic">${icon("cart")}</div><h2>Noch nichts auf der Liste</h2>
+    <p>Tipp im Rezept unter den Zutaten auf „Auf die Einkaufsliste“ oder schreib oben einen Artikel hinein.</p></section>`;
+  const groups = []; // eigene Artikel zuerst, dann je Rezept in der Reihenfolge, in der sie dazukamen
+  items.forEach(x => { const k = x.rid || ""; let g = groups.find(y => y.k === k); if (!g) { g = { k, name: k ? (x.rt || "Rezept") : "Eigene Artikel", list: [] }; groups.push(g); } g.list.push(x); });
+  groups.sort((a, b) => (a.k ? 1 : 0) - (b.k ? 1 : 0));
+  return groups.map(g => `<section class="shop-g"><div class="shop-h">${esc(g.name)}</div>
+    <ul class="shop-list">${g.list.map(x => `<li><button class="shop-row" data-action="shop-toggle" data-id="${esc(x.id)}" aria-pressed="${!!x.done}"><span class="box">${icon("check")}</span><span class="t">${x.q ? `<b>${esc(x.q)}</b> ` : ""}${esc(x.t)}</span></button></li>`).join("")}</ul></section>`).join("");
+}
+function shopHtml() {
+  return `<div class="shop">
+    <form class="shop-add" id="shop-form"><input id="shop-in" type="text" enterkeyhint="done" autocomplete="off" maxlength="120" placeholder="Artikel hinzufügen …" aria-label="Artikel hinzufügen"><button type="submit" aria-label="Hinzufügen">${icon("plus")}</button></form>
+    <div id="shop-body">${shopBodyHtml()}</div>
+  </div>`;
+}
+function shopRefresh() { // nur die Liste neu zeichnen: das Eingabefeld (und die Tastatur) bleibt stehen
+  const b = document.getElementById("shop-body");
+  if (b) b.innerHTML = shopBodyHtml();
+  const c = app.querySelector("[data-action=shop-clear]"); if (c) c.hidden = !shopItems().length;
+}
+function shopAddText() {
+  const inp = document.getElementById("shop-in"); if (!inp) return;
+  const v = inp.value.replace(/\s+/g, " ").trim().slice(0, 120);
+  if (!v) return;
+  shopItems().unshift({ id: newId(), q: "", t: v, rid: "", rt: "", done: false });
+  if (shopCache.length > SHOP_MAX) shopCache.length = SHOP_MAX;
+  inp.value = "";
+  shopSave(); shopRefresh();
+}
+const factorOf = r => { const base = Number(r.servings) > 0 ? Number(r.servings) : null; return base && state.currentId === r.id && state.servings ? state.servings / base : (state.currentId === r.id ? state.factor : 1); };
+function shopAddRecipe(r, factor) {
+  if (!r) return;
+  // Menge und Name wie im Rezept („650 g“ fett, dann der Name); Gewürze einzeln, Zwischenüberschriften weg
+  const lines = [];
+  ingItems((r.ingredients || []).filter(Boolean), factor || 1).forEach(it => {
+    if (it.head) return;
+    if (it.spices) it.spices.forEach(sp => lines.push({ q: "", t: spiceName(sp) }));
+    else lines.push(it.qty ? { q: it.qty, t: it.name } : { q: "", t: it.full });
+  });
+  if (!lines.length) { toast("Bei diesem Rezept stehen keine Zutaten."); return; }
+  const had = shopItems().some(x => x.rid === r.id);
+  shopCache = shopCache.filter(x => x.rid !== r.id); // steht das Rezept schon drauf: ersetzen statt verdoppeln
+  lines.forEach(l => shopCache.push({ id: newId(), q: l.q, t: l.t, rid: r.id, rt: r.title || "Rezept", done: false }));
+  if (shopCache.length > SHOP_MAX) shopCache = shopCache.slice(-SHOP_MAX);
+  shopSave(); shopRefresh();
+  toast(had ? "Einkaufsliste aktualisiert" : (lines.length === 1 ? "1 Zutat" : lines.length + " Zutaten") + " auf der Einkaufsliste");
+}
+function openShopClear() {
+  const items = shopItems(), done = items.filter(x => x.done).length;
+  if (!items.length) return;
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sc-t">
+      <div class="grip"></div>
+      <div class="sheet-head"><h2 id="sc-t">Einkaufsliste</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
+      <div class="options">
+        ${done ? `<button class="opt" data-action="shop-clear-done">${icon("check")}<span>Abgehakte entfernen (${done})</span></button>` : ""}
+        <button class="opt danger" data-action="shop-clear-all">${icon("trash")}<span>Ganze Liste leeren</span></button>
+      </div>
+    </div>`;
+  layer.classList.add("open");
+}
+
+/* ---------- Drei Punkte an einem Rezept in der Sammlung ---------- */
+let rowMenuId = null;
+const rowRecipe = () => state.recipes.find(r => r.id === rowMenuId) || null;
+function openRowMenu(id) {
+  const r = state.recipes.find(x => x.id === id); if (!r) return;
+  rowMenuId = id;
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rm-t">
+      <div class="grip"></div>
+      <div class="sheet-head"><h2 id="rm-t" class="clip">${esc(r.title || "Rezept")}</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
+      <div class="options">
+        <button class="opt" data-action="row-shop">${icon("cart")}<span>Zur Einkaufsliste hinzufügen</span></button>
+        <button class="opt" data-action="row-sets">${icon("folder")}<span>Zur Sammlung hinzufügen</span></button>
+        <button class="opt" data-action="row-print">${icon("print")}<span>Rezept drucken</span></button>
+        <button class="opt danger" data-action="row-delete">${icon("trash")}<span>Rezept löschen</span></button>
+      </div>
+    </div>`;
+  layer.classList.add("open");
+}
+async function removeRecipe(r, toList) {
+  if (!r || !col) return;
+  const ok = await confirmDialog({ title: "Rezept löschen?", text: `„${r.title}“ wird endgültig entfernt.`, yes: "Löschen", danger: true });
+  if (!ok) return;
+  try {
+    setsOf(r).forEach(s => { if (inSetCount(s) === 1) rememberSet(s); }); // war es das letzte Rezept einer Sammlung, bleibt sie leer bestehen
+    await withRetry(() => col.doc(r.id).delete());
+    for (let i = 0; i < 6; i++) col.doc(origKey(r.id, i)).delete().catch(() => {}); // Originalfotos mit weg (auch wenn gerade noch welche hochgeladen wurden)
+    state.recipes = state.recipes.filter(x => x.id !== r.id);
+    if (!toList) { if (state.view === "list") renderListBody(); }
+    else if (!histToList()) go("list", { nohist: true });
+    toast("Rezept gelöscht");
+  } catch (e) { toast(dbErrorText(e)); }
+}
+
+/* ---------- Drucken ---------- */
+// Das Rezept wird als A4-Seite(n) gezeichnet. Auf dem iPhone geht es damit ins Teilen-Menü (dort steht „Drucken“):
+// Die App vom Home-Bildschirm führt window.print() nicht aus. Am Computer öffnet sich der normale Druckdialog.
+function recipePages(r) {
+  const W = 1240, H = 1754, M = 110; // A4 bei 150 dpi
+  const SANS = '-apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif', SERIF = 'Georgia, "Times New Roman", serif';
+  const pages = []; let c = null, y = 0;
+  const page = () => { const cv = document.createElement("canvas"); cv.width = W; cv.height = H; c = cv.getContext("2d"); c.fillStyle = "#fff"; c.fillRect(0, 0, W, H); c.textBaseline = "top"; pages.push(cv); y = M; };
+  const put = (text, o) => {
+    o = o || {};
+    const size = o.size || 27, lh = Math.round(size * 1.42), x = M + (o.indent || 0), width = W - M - x;
+    const font = `${o.bold ? "700" : "400"} ${size}px ${o.serif ? SERIF : SANS}`;
+    c.font = font;
+    const lines = []; let cur = "";
+    String(text).split(/\s+/).filter(Boolean).forEach(w => {
+      while (c.measureText(w).width > width && w.length > 1) { // ein Wort breiter als die Zeile (langer Link): hart umbrechen
+        let k = w.length - 1; while (k > 1 && c.measureText(w.slice(0, k)).width > width) k--;
+        if (cur) { lines.push(cur); cur = ""; }
+        lines.push(w.slice(0, k)); w = w.slice(k);
+      }
+      const t = cur ? cur + " " + w : w;
+      if (cur && c.measureText(t).width > width) { lines.push(cur); cur = w; } else cur = t;
+    });
+    if (cur) lines.push(cur);
+    lines.forEach((l, i) => {
+      if (y + lh > H - M) { page(); c.font = font; }
+      c.fillStyle = o.color || "#111";
+      if (!i && o.mark) c.fillText(o.mark, M, y);
+      c.fillText(l, x, y); y += lh;
+    });
+    y += o.gap || 0;
+  };
+  page();
+  put(r.title || "Rezept", { size: 50, bold: true, serif: true, gap: 10 });
+  const base = Number(r.servings) > 0 ? Number(r.servings) : null;
+  const facts = [base ? servText(base, r.category) : "", r.prepTime ? "Vorbereitung " + r.prepTime : "", r.cookTime ? servWords(r.category).time + " " + r.cookTime : ""].filter(Boolean);
+  if (facts.length) put(facts.join("  ·  "), { size: 24, color: "#555" });
+  y += 34;
+  const ings = r.ingredients || [];
+  if (ings.length) {
+    put("Zutaten", { size: 32, bold: true, gap: 10 });
+    ings.forEach(l => { if (isHead(l)) { y += 10; put(headText(l), { bold: true, gap: 4 }); } else { const q = splitQty(l, 1); put(q.qty + q.rest, { indent: 34, mark: "•", gap: 4 }); } });
+    y += 30;
+  }
+  const steps = r.steps || [];
+  if (steps.length) {
+    put("Zubereitung", { size: 32, bold: true, gap: 10 });
+    let n = 0;
+    steps.forEach(st => { if (/^#/.test(st)) { y += 10; put(headText(st), { bold: true, gap: 4 }); } else put(st, { indent: 50, mark: (++n) + ".", gap: 12 }); });
+    y += 18;
+  }
+  if (r.notes) { put("Notizen", { size: 32, bold: true, gap: 10 }); String(r.notes).split(/\n+/).forEach(p => put(p, { gap: 8 })); y += 18; }
+  const src = [r.source, r.link].filter(Boolean).join(" · ");
+  if (src) put("Quelle: " + src, { size: 21, color: "#555" });
+  return pages;
+}
+function canvasFile(cv, name) {
+  const d = cv.toDataURL("image/png"), bin = atob(d.slice(d.indexOf(",") + 1)), u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return new File([u8], name, { type: "image/png" });
+}
+function printRecipe(r) {
+  if (!r) return;
+  let pages = [];
+  try { pages = recipePages(r); } catch (e) { pages = []; }
+  if (!pages.length) { toast("Das Rezept ließ sich nicht fürs Drucken vorbereiten."); return; }
+  const ios = navigator.standalone === true || /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (ios && navigator.share) { // gleich beim Tippen und ohne Warten, sonst lässt iOS das Teilen-Menü nicht zu
+    try {
+      const name = (r.title || "Rezept").replace(/[^\wäöüÄÖÜß \-]+/g, "").trim().slice(0, 40) || "Rezept";
+      const files = pages.map((cv, i) => canvasFile(cv, name + (pages.length > 1 ? " " + (i + 1) : "") + ".png"));
+      if (!navigator.canShare || navigator.canShare({ files })) { navigator.share({ files }).catch(() => {}); return; }
+    } catch (e) { /* weiter mit dem Druckdialog */ }
+  }
+  let box = document.getElementById("print");
+  if (!box) { box = document.createElement("div"); box.id = "print"; document.body.appendChild(box); }
+  box.innerHTML = "";
+  const imgs = pages.map(cv => { const im = new Image(); im.alt = ""; im.src = cv.toDataURL("image/png"); box.appendChild(im); return im; });
+  Promise.all(imgs.map(im => im.decode ? im.decode().catch(() => {}) : null)).then(() => {
+    try { window.print(); } catch (e) { toast("Drucken geht auf diesem Gerät nicht."); }
+  });
+}
+
 const SORTS = [["added", "Zuletzt hinzugefügt"], ["viewed", "Zuletzt angesehen"], ["az", "Name A–Z"], ["rating", "Beste Bewertung"]];
 function sorted(list) {
   const by = state.sort, t = r => String(r.title || "");
@@ -2327,12 +2738,15 @@ function sorted(list) {
   }[by] || null;
   return cmp ? list.slice().sort(cmp) : list;
 }
+const SET_SORTS = [["az", "Name A–Z"], ["count", "Meiste Rezepte"], ["new", "Zuletzt hinzugefügt"]];
 function openSort() {
+  const sam = curSet() == null && state.tab === "sam"; // Sammlungen-Seite: Reihenfolge der Sammlungen, sonst die der Rezepte
+  const list = sam ? SET_SORTS : SORTS, cur = sam ? state.setSort : state.sort;
   layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="so-t">
       <div class="grip"></div>
       <div class="sheet-head"><h2 id="so-t">Sortieren</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
-      <div class="options">${SORTS.map(([k, l]) => `<button class="opt" data-action="set-sort" data-s="${k}" aria-pressed="${state.sort === k}"><span>${l}</span>${state.sort === k ? icon("check", "chev on") : ""}</button>`).join("")}</div>
+      <div class="options">${list.map(([k, l]) => `<button class="opt" data-action="${sam ? "set-setsort" : "set-sort"}" data-s="${k}" aria-pressed="${cur === k}"><span>${l}</span>${cur === k ? icon("check", "chev on") : ""}</button>`).join("")}</div>
     </div>`;
   layer.classList.add("open");
 }
@@ -2350,13 +2764,14 @@ function filtered() {
 function chip(f, label, ic) {
   return `<button class="chip ${state.filter === f ? "on" : ""}" data-action="filter" data-f="${esc(f)}" aria-pressed="${state.filter === f}">${ic ? icon(ic) : ""}${esc(label)}</button>`;
 }
-function card(r) {
+function card(r, more) { // more: Zeile in einer Sammlung – größeres Bild und drei Punkte für die Optionen
   const meta = [r.category, totalTime(r)].filter(Boolean).join(" · ");
-  return `<li><button class="row" data-action="open-recipe" data-id="${esc(r.id)}">
-    <span class="thumb-sm">${coverHtml(r)}</span>
+  const row = `<button class="row" data-action="open-recipe" data-id="${esc(r.id)}">
+    <span class="${more ? "thumb-lg" : "thumb-sm"}">${coverHtml(r)}</span>
     <span class="row-b"><span class="row-t">${esc(r.title || "Ohne Titel")}</span>
       <span class="row-m">${cleanUnsure(r.unsure).length ? `<span class="chk">Bitte prüfen</span>` : ""}${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}<span>${esc(meta || " ")}</span></span></span>
-  </button></li>`;
+  </button>`;
+  return more ? `<li class="has-more">${row}<button class="icon-btn row-more" data-action="row-menu" data-id="${esc(r.id)}" aria-label="Optionen für ${esc(r.title || "Rezept")}">${icon("dots")}</button></li>` : `<li>${row}</li>`;
 }
 // Lange Namen: Hauptname und Zusatz („Schupfnudel-Pfanne“ + „mit Feta und Tomaten“). Nur zum Anzeigen, der Titel bleibt wie er ist.
 function splitTitle(t) {
@@ -2380,27 +2795,25 @@ function renderListBody() {
   const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab"), albums = $("#albums");
   if (!grid) return; // Profil: nichts zu füllen
   const sam = curSet() == null && state.tab === "sam";
+  const hh = $(".home-head"); // Hauptseite: die Suche ersetzt die Kopfzeile; in einer Sammlung wird das Feld selbst ein- und ausgeblendet
+  const showSearch = on => { if (hh) { hh.classList.toggle("searching", !!on); sw.hidden = false; } else sw.hidden = !on; };
   const noAlbums = () => { if (albums) albums.innerHTML = ""; };
   lastListSig = listSig();
   const rs = state.recipes;
   const skeleton = () => {
-    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true;
+    chips.innerHTML = ""; showSearch(false); fab.hidden = true;
     grid.innerHTML = `<div class="skel-top skel"><div class="search"></div><div class="chips">${"<span class=\"chip\"></span>".repeat(3)}</div></div>
       <ul class="list">${Array.from({ length: 4 }, () => `<li><div class="row skel"><span class="thumb-sm"></span><span class="row-b"><span class="bar"></span><span class="bar s"></span></span></div></li>`).join("")}</ul>`;
   };
   if (!state.loaded) { noAlbums(); skeleton(); return; }
   if (!rs.length && !state.jobs.length && state.slow) { noAlbums(); skeleton(); return; } // dauert lange: weiter laden zeigen, nicht „Noch keine Rezepte“
   if (!rs.length && !state.jobs.length && state.storage === "error") { // Laden fehlgeschlagen: nur die rote Meldung oben, kein „Noch keine Rezepte“
-    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true; grid.innerHTML = ""; noAlbums();
+    chips.innerHTML = ""; showSearch(false); fab.hidden = true; grid.innerHTML = ""; noAlbums();
     return;
   }
-  if (!rs.length && !state.jobs.length) {
-    chips.innerHTML = ""; sw.hidden = true; fab.hidden = true; noAlbums();
-    grid.innerHTML = sam ? `<section class="empty">
-      <div class="empty-ic">${icon("folder")}</div>
-      <h2>Noch keine Sammlungen</h2>
-      <p>Sammlungen ordnen deine Rezepte, z. B. „Von Oma“ oder „Schnell“. Leg zuerst unter „Rezepte“ ein Rezept an.</p>
-    </section>` : `<section class="empty">
+  if (!rs.length && !state.jobs.length && !sam && curSet() == null) {
+    chips.innerHTML = ""; showSearch(false); fab.hidden = true; noAlbums();
+    grid.innerHTML = `<section class="empty">
       <div class="empty-ic">${icon("pot")}</div>
       <h2>Noch keine Rezepte</h2>
       <p>Fotografier ein Rezept aus dem Kochbuch oder einen Zettel, nimm einen Screenshot oder füg einen Link ein.</p>
@@ -2408,7 +2821,8 @@ function renderListBody() {
     </section>`;
     return;
   }
-  sw.hidden = curSet() == null ? !(state.searchOpen || state.query) || sam : !rs.length; fab.hidden = false;
+  const inSet = curSet() != null ? inSetCount(curSet()) : -1; // Rezepte in der geöffneten Sammlung
+  showSearch(curSet() != null ? inSet > 0 : sam ? state.samSearchOpen || state.samQuery : state.searchOpen || state.query); fab.hidden = false;
   const cats = CATEGORIES.filter(c => rs.some(r => r.category === c));
   const favN = rs.filter(r => r.favorite).length;
   const sets = allSets(), set = curSet();
@@ -2419,8 +2833,19 @@ function renderListBody() {
   // Sammlungen haben ihre eigene Seite (Leiste unten): große Karten mit Bild, Name und Anzahl, am Ende „Neue Sammlung“.
   if (sam) {
     chips.innerHTML = ""; grid.innerHTML = "";
-    setHTMLKeepImgs(albums, `<div class="albums big">${sets.map(([s, n]) => albumCard(s, n)).join("")}
-      <button class="album add" data-action="new-set"><span class="album-c">${icon("plus")}</span><span class="album-b"><span class="album-t">Neue</span><span class="album-n">Sammlung</span></span></button></div>`);
+    const sq = norm(state.samQuery).trim();
+    let shown = sq ? sets.filter(([s]) => sq.split(/\s+/).every(t => norm(s).includes(t))) : sets.slice();
+    if (state.setSort === "count") shown.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "de", { sensitivity: "base" }));
+    else if (state.setSort === "new") { // die Sammlung mit dem neuesten Rezept zuerst
+      const newest = new Map();
+      rs.forEach(r => setsOf(r).forEach(s => newest.set(s, Math.max(newest.get(s) || 0, r.createdAt || 0))));
+      shown.sort((a, b) => (newest.get(b[0]) || 0) - (newest.get(a[0]) || 0) || a[0].localeCompare(b[0], "de", { sensitivity: "base" }));
+    }
+    // Beim Suchen nur die Treffer, ohne die Karte „Neue Sammlung“
+    setHTMLKeepImgs(albums, sq && !shown.length ? `<p class="none">Keine Sammlung gefunden für „${esc(state.samQuery.trim())}“.</p>`
+      : `<div class="albums big">${shown.map(([s, n]) => albumCard(s, n)).join("")}
+      ${sq ? "" : `<button class="album add" data-action="new-set"><span class="album-c">${icon("plus")}</span><span class="album-b"><span class="album-t">Neue</span><span class="album-n">Sammlung</span></span></button>`}</div>
+      ${sets.length || sq ? "" : `<p class="note" style="margin-top:16px">Sammlungen ordnen deine Rezepte, zum Beispiel „Von Oma“, „Weihnachten“ oder „Für Gäste“.</p>`}`);
     return;
   }
   noAlbums();
@@ -2438,12 +2863,22 @@ function renderListBody() {
   // Nach Namen sortiert: Buchstaben als Zwischenüberschrift, damit man in langen Listen schnell hinfindet
   let last = null;
   const rows = list.map(r => {
-    const c = tiles ? tile(r) : card(r);
+    const c = tiles ? tile(r) : card(r, set != null);
     if (state.sort !== "az") return c;
     const L = letterOf(r.title);
     const h = L !== last ? `<li class="letter">${L}</li>` : "";
     last = L; return h + c;
   }).join("");
+  // Leere Sammlung: sagen, was fehlt, und gleich zum Hinzufügen
+  if (set != null && !inSet) {
+    setHTMLKeepImgs(grid, (jobsHtml ? `<ul class="list">${jobsHtml}</ul>` : "") + `<section class="empty set-empty">
+      <div class="empty-ic">${icon("folder")}</div>
+      <h2>Noch keine Rezepte</h2>
+      <p>Diese Sammlung ist noch leer. Die Rezepte bleiben auch unter „Rezepte“ stehen.</p>
+      <button class="btn primary" data-action="edit-set">${icon("plus")}Rezepte hinzufügen</button>
+    </section>`);
+    return;
+  }
   setHTMLKeepImgs(grid, ((jobsHtml || list.length)
     ? head + (tiles ? (jobsHtml ? `<ul class="list">${jobsHtml}</ul>` : "") + `<ul class="tiles">${rows}</ul>` : `<ul class="list">${jobsHtml}${rows}</ul>`)
     : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`));
@@ -2454,7 +2889,7 @@ function albumCard(name, n) {
   const pics = withCover.slice(0, 4); // 1 Bild ganz, 2 nebeneinander, 3 = eins links und zwei rechts, 4 im Raster
   return `<button class="album" data-action="open-set" data-s="${esc(name)}">
     <span class="album-c${pics.length > 1 ? " m" + pics.length : ""}">${pics.length ? pics.map(coverHtml).join("") : placeholder("folder")}</span>
-    <span class="album-b"><span class="album-t">${esc(name)}</span><span class="album-n">${n === 1 ? "1 Rezept" : n + " Rezepte"}</span></span></button>`;
+    <span class="album-b"><span class="album-t">${esc(name)}</span><span class="album-n">${n === 1 ? "1 Rezept" : n ? n + " Rezepte" : "Noch leer"}</span></span></button>`;
 }
 
 /* ---------- Sammlungen ---------- */
@@ -2498,49 +2933,98 @@ async function newSetFor() {
   if (!mine.includes(known)) await writeSets([{ id: now.id, sets: [...mine, known].slice(0, 20) }]);
   else if (layer.querySelector("#sets-for")) openSetsFor(now, true);
 }
-// In der Liste: Sammlung anlegen oder bearbeiten (Name, welche Rezepte, löschen)
-function openSetEdit() {
-  const se = state.setEdit; if (!se) return;
-  const list = state.recipes.slice().sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "de", { sensitivity: "base" }));
+// In der Sammlung, hinter den drei Punkten: Rezepte hinzufügen, umbenennen, löschen
+function openSetMenu() {
+  const set = curSet(); if (set == null) return;
   layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="se-t">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sm-t">
       <div class="grip"></div>
-      <div class="sheet-head"><button class="tbtn" data-action="close-layer" style="margin:0 0 0 -10px">Abbrechen</button><h2 id="se-t">${se.isNew ? "Neue Sammlung" : "Sammlung"}</h2><button class="tbtn bold" data-action="set-save">Fertig</button></div>
-      <div class="group"><button class="cell" data-action="set-rename"><span>Name</span><span class="v">${esc(se.name)} ${icon("chev", "chev")}</span></button></div>
-      <div class="lbl-row">Rezepte <span id="se-n">${se.sel.size} ausgewählt</span></div>
-      <ul class="picklist">${list.map(r => `<li><button class="opt" data-action="set-pick" data-id="${esc(r.id)}" aria-pressed="${se.sel.has(r.id)}"><span class="t">${esc(r.title || "Ohne Titel")}</span>${se.sel.has(r.id) ? icon("check", "chev on") : ""}</button></li>`).join("")}</ul>
-      ${se.isNew ? "" : `<button class="btn danger quiet block" data-action="set-delete">Sammlung löschen</button>`}
+      <div class="sheet-head"><h2 id="sm-t">${esc(set)}</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
+      <div class="options">
+        <button class="opt" data-action="edit-set">${icon("plus")}<span>Rezepte hinzufügen</span></button>
+        <button class="opt" data-action="set-rename">${icon("pen")}<span>Sammlung umbenennen</span></button>
+        <button class="opt danger" data-action="set-delete">${icon("trash")}<span>Sammlung löschen</span></button>
+      </div>
     </div>`;
   layer.classList.add("open");
 }
+// Rezepte der Sammlung auswählen: Liste mit Bild, antippen setzt oder nimmt den Haken
+function openSetEdit() {
+  const se = state.setEdit; if (!se) return;
+  const list = state.recipes.slice().sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "de", { sensitivity: "base" }));
+  layer.innerHTML = `<div class="sheet full" role="dialog" aria-modal="true" aria-labelledby="se-t">
+      <div class="pick-head"><button class="icon-btn" data-action="close-layer" aria-label="Schließen">${icon("x")}</button>
+        <div class="pick-title"><h2 id="se-t"></h2><span>für „${esc(se.name)}“</span></div>
+        <span class="icon-btn" aria-hidden="true" style="visibility:hidden"></span></div>
+      <ul class="picks">${list.length ? list.map(r => `<li><button class="pick-row" data-action="set-pick" data-id="${esc(r.id)}" aria-pressed="${se.sel.has(r.id)}"><span class="thumb-lg">${coverHtml(r)}</span><span class="t">${esc(r.title || "Ohne Titel")}</span><span class="tick">${icon("check")}</span></button></li>`).join("")
+        : `<li><p class="note">Du hast noch keine Rezepte. Leg zuerst unter „Rezepte“ eins an.</p></li>`}</ul>
+      <div class="pick-foot"><button class="btn primary block" id="se-save" data-action="set-save"></button></div>
+    </div>`;
+  layer.classList.add("open");
+  setEditHead();
+}
+function setEditHead() { // Überschrift und Knopf folgen der Auswahl
+  const se = state.setEdit; if (!se) return;
+  const t = document.getElementById("se-t"), b = document.getElementById("se-save");
+  if (t) t.textContent = se.sel.size + " ausgewählt";
+  if (b) b.textContent = (se.had || []).some(id => !se.sel.has(id)) ? "Speichern" : "Hinzufügen"; // wurde etwas abgewählt, ist es mehr als Hinzufügen
+}
 async function startNewSet() {
-  const v = cleanSetName(await promptDialog({ title: "Neue Sammlung", text: "Danach wählst du die Rezepte aus.", yes: "Weiter" }));
+  const v = cleanSetName(await promptDialog({ title: "Neue Sammlung", text: "Rezepte kannst du gleich danach oder später hinzufügen.", yes: "Anlegen" }));
   if (!v) return;
-  const known = allSets().map(([s]) => s).find(s => s.toLowerCase() === v.toLowerCase());
-  if (known) { editSet(known); return; } // gibt es schon: einfach bearbeiten
-  state.setEdit = { isNew: true, orig: null, name: v, sel: new Set() };
-  openSetEdit();
+  const known = allSets().map(([s]) => s).find(s => sameName(s, v)); // gibt es schon: einfach öffnen
+  if (!known) rememberSet(v);
+  // Die Sammlung ist sofort da und öffnet sich als eigene Seite, leer mit „Rezepte hinzufügen“
+  if (state.view === "list" && curSet() == null) openSet(known || v); else refreshSets();
 }
 function editSet(name) {
-  state.setEdit = { isNew: false, orig: name, name, sel: new Set(state.recipes.filter(r => setsOf(r).includes(name)).map(r => r.id)) };
+  const had = state.recipes.filter(r => setsOf(r).includes(name)).map(r => r.id);
+  state.setEdit = { name, sel: new Set(had), had };
   openSetEdit();
 }
 async function saveSetEdit() {
   const se = state.setEdit; if (!se) return;
-  if (se.isNew && !se.sel.size) { toast("Wähl mindestens ein Rezept aus."); return; }
   const changes = [];
   state.recipes.forEach(r => {
     const cur = setsOf(r), want = se.sel.has(r.id);
-    let next = cur.filter(s => s !== se.orig && s !== se.name);
+    let next = cur.filter(s => s !== se.name);
     if (want) next.push(se.name);
     next = next.slice(0, 20);
     if (JSON.stringify(next) !== JSON.stringify(cur)) changes.push({ id: r.id, sets: next });
   });
   state.setEdit = null; closeLayer();
-  state.filter = se.sel.size ? "set:" + se.name : "all";
+  // Ohne Rezepte bleibt die Sammlung bestehen (leer). Gelöscht wird sie nur über „Sammlung löschen“.
+  if (se.sel.size) forgetSet(se.name); else rememberSet(se.name);
+  state.filter = "set:" + se.name;
   if (!changes.length) { renderListBody(); return; }
-  const ok = await writeSets(changes);
-  if (ok && !se.sel.size) toast("Sammlung entfernt. Die Rezepte bleiben.");
+  await writeSets(changes);
+}
+// Umbenennen. Gibt es den Namen schon, werden beide Sammlungen zusammengelegt (statt die andere stillschweigend zu leeren).
+async function renameSet(orig) {
+  const v = cleanSetName(await promptDialog({ title: "Name der Sammlung", value: orig, yes: "Fertig" }));
+  if (!v || v === orig || curSet() !== orig || !col) return;
+  const known = allSets().map(([x]) => x).find(x => x !== orig && sameName(x, v));
+  const name = known || v, changes = [];
+  state.recipes.forEach(r => {
+    const cur = setsOf(r);
+    if (cur.includes(orig)) changes.push({ id: r.id, sets: [...new Set(cur.map(s => s === orig ? name : s))].slice(0, 20) });
+  });
+  forgetSet(orig);
+  if (!changes.length && !known) rememberSet(name); // leere Sammlung: unter dem neuen Namen merken
+  state.filter = "set:" + name;
+  if (known) toast(`„${known}“ gibt es schon. Die Sammlungen wurden zusammengelegt.`);
+  if (!changes.length) { renderListBody(); return; }
+  await writeSets(changes);
+}
+async function deleteSet(orig) {
+  const ok = await confirmDialog({ title: "Sammlung löschen?", text: `„${orig}“ wird entfernt. Die Rezepte selbst bleiben erhalten.`, yes: "Löschen", danger: true });
+  if (!ok || curSet() !== orig) return;
+  state.filter = "all";
+  forgetSet(orig);
+  const changes = state.recipes.filter(r => setsOf(r).includes(orig)).map(r => ({ id: r.id, sets: setsOf(r).filter(s => s !== orig) }));
+  // zurück zur Seite „Sammlungen“: der Schritt im Verlauf gehört zur gelöschten Sammlung
+  if (!(history.state && history.state.set && histBack())) renderList();
+  if (await writeSets(changes)) toast("Sammlung gelöscht");
 }
 
 /* ---------- Detail view ---------- */
@@ -2614,11 +3098,9 @@ function renderDetail() {
   // Gewürze ohne Menge (Salz, Pfeffer, Paprikapulver …) stehen zusammen in einer Zeile; Mengen in einer eigenen Spalte
   const items = ingItems(ings, factor);
   const qw = Math.min(7.5, Math.max(3, ...items.filter(x => x.qty).map(x => x.qty.length * 0.92)));
-  const ingRow = (i, unsure, inner) => {
-    const done = state.checked.has(i);
-    return `<li><button class="ing ${done ? "done" : ""}${unsure ? " unsure" : ""}" data-action="toggle-ing" data-i="${i}" aria-pressed="${done}">
-      <span class="ing-t${/^<span class="ing-q">/.test(inner) ? " cols" : ""}">${inner}</span></button></li>`;
-  };
+  // Zeilen ohne Antippen: nichts wird durchgestrichen, die Liste bleibt ruhig
+  const ingRow = (i, unsure, inner) => `<li><div class="ing${unsure ? " unsure" : ""}">
+      <span class="ing-t${/^<span class="ing-q">/.test(inner) ? " cols" : ""}">${inner}</span></div></li>`;
   let ingHtml = "";
   for (const it of items) {
     if (it.head) { ingHtml += `<li class="ing-h">${esc(headText(it.head))}</li>`; continue; }
@@ -2637,8 +3119,7 @@ function renderDetail() {
   steps.forEach((s, i) => {
     if (/^#/.test(s)) { stepHtml += `<li class="step-h">${esc(headText(s))}</li>`; return; }
     n++;
-    const done = state.doneSteps.has(i);
-    stepHtml += `<li><button class="step ${done ? "done" : ""}${unsLine("steps", s) ? " unsure" : ""}" data-action="toggle-step" data-i="${i}" aria-pressed="${done}"><span class="no">${n}</span><span>${esc(s)}</span></button></li>`;
+    stepHtml += `<li><div class="step${unsLine("steps", s) ? " unsure" : ""}"><span class="no">${n}</span><span>${esc(s)}</span></div></li>`;
   });
 
   const hasCover = !!(r.cover && (r.cover.url || r.cover.dataUrl));
@@ -2660,7 +3141,8 @@ function renderDetail() {
       ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
       <section class="sec">
         <div class="sec-head"><h2>Zutaten</h2>${ings.length ? scaler : ""}</div>
-        ${ings.length ? `<ul class="ings" style="--qw:${qw.toFixed(1)}ch">${ingHtml}</ul>`
+        ${ings.length ? `<ul class="ings" style="--qw:${qw.toFixed(1)}ch">${ingHtml}</ul>
+        <button class="btn block shop-btn" data-action="shop-add">${icon("cart")}Auf die Einkaufsliste</button>`
           : `<p class="muted">Noch keine Zutaten eingetragen.</p>`}
       </section>
       <section class="sec">
@@ -3305,7 +3787,7 @@ function renderImport() {
   app.innerHTML = `
     <div class="topbar">
       <button class="tbtn" data-action="back">Abbrechen</button>
-      <h2 class="bar-title">${ig ? "Instagram-Reel" : "Reel, Link oder Text"}</h2>
+      <h2 class="bar-title">${ig ? "Instagram" : "Link oder Text"}</h2>
       <span class="tbtn" aria-hidden="true" style="visibility:hidden">Abbrechen</span>
     </div>
     ${ig ? "" : `<main class="stack imp">
@@ -3869,6 +4351,11 @@ const actions = {
     patchLocal(r.id, { unsure: [] }); renderDetail();
     try { await withRetry(() => col.doc(r.id).update({ unsure: [] })); } catch (e) { console.warn("Prüfen", e); }
   },
+  "set-setsort": el => {
+    state.setSort = SET_SORTS.some(x => x[0] === el.dataset.s) ? el.dataset.s : "az";
+    try { localStorage.setItem("rezepte-setsort", state.setSort); } catch (e) { /* egal */ }
+    closeLayer(); renderListBody();
+  },
   "set-sort": el => {
     state.sort = el.dataset.s;
     try { localStorage.setItem("rezepte-sort", state.sort); } catch (e) { /* egal */ }
@@ -3904,19 +4391,27 @@ const actions = {
   },
   account: () => switchTab("pro"),
   tab: el => switchTab(el.dataset.t),
-  "search-open": () => { // Lupe: Suchfeld auf- und (leer) wieder zuklappen
-    const sw = $("#search-wrap"), q = $("#q");
-    if (!sw || !q) return;
-    if (!sw.hidden && !state.query) { state.searchOpen = false; sw.hidden = true; q.blur(); return; }
-    state.searchOpen = true; sw.hidden = false; q.focus();
+  "search-open": () => { // Lupe: die obere Zeile wird zur Suche
+    const hh = $(".home-head"), q = $("#q");
+    if (!hh || !q) return;
+    state[curSet() == null && state.tab === "sam" ? "samSearchOpen" : "searchOpen"] = true;
+    hh.classList.add("searching"); q.focus();
+  },
+  "search-close": () => { // Pfeil: Suche beenden, wieder alles zeigen
+    const hh = $(".home-head"), q = $("#q");
+    if (!hh || !q) return;
+    if (curSet() == null && state.tab === "sam") { state.samSearchOpen = false; state.samQuery = ""; } else { state.searchOpen = false; state.query = ""; }
+    q.value = ""; q.blur(); hh.classList.remove("searching"); renderListBody();
   },
   "verify-mail": async () => {
     if (!fb || !authUser) return;
     try { await fb.U.sendEmailVerification(authUser); closeLayer(); toast("Link ist unterwegs. Schau auch im Spam-Ordner nach."); }
     catch (e) { toast(authMsg(e)); }
   },
-  logout: async () => {
+  logout: async () => { // immer nachfragen: ein versehentlicher Tipp soll niemanden abmelden
     closeLayer();
+    const ok = await confirmDialog({ title: "Abmelden?", text: "Deine Rezepte bleiben gespeichert. Zum Weitermachen meldest du dich wieder an.", yes: "Abmelden", danger: true });
+    if (!ok) return;
     try { await fb.U.signOut(fb.auth); } catch (e) { toast("Abmelden hat nicht geklappt. Versuch es nochmal."); }
   },
   reload: () => location.reload(),
@@ -3960,6 +4455,7 @@ const actions = {
   "toggle-set": async el => {
     const r = current(); if (!r || !col) return;
     const s = el.dataset.s, mine = setsOf(r);
+    if (mine.includes(s) && inSetCount(s) === 1) rememberSet(s); // letztes Rezept herausgenommen: die Sammlung bleibt, leer
     await writeSets([{ id: r.id, sets: mine.includes(s) ? mine.filter(x => x !== s) : [...mine, s].slice(0, 20) }]);
   },
   "new-set-for": () => newSetFor(),
@@ -3969,36 +4465,13 @@ const actions = {
     const se = state.setEdit; if (!se) return;
     const id = el.dataset.id, on = !se.sel.has(id);
     if (on) se.sel.add(id); else se.sel.delete(id);
-    el.setAttribute("aria-pressed", on);
-    const c = el.querySelector(".chev"); if (c) c.remove();
-    if (on) el.insertAdjacentHTML("beforeend", icon("check", "chev on"));
-    const n = $("#se-n"); if (n) n.textContent = se.sel.size + " ausgewählt";
+    el.setAttribute("aria-pressed", on); // Haken-Kreis und Farbe der Zeile folgen per CSS
+    setEditHead();
   },
-  "set-rename": async () => {
-    const se = state.setEdit; if (!se) return;
-    const v = cleanSetName(await promptDialog({ title: "Name der Sammlung", value: se.name, yes: "Fertig" }));
-    if (state.setEdit !== se || !v || v === se.name) return;
-    // Gibt es den Namen schon, werden beide Sammlungen zusammengelegt (statt die andere stillschweigend zu leeren)
-    const known = allSets().map(([x]) => x).find(x => x !== se.orig && x.toLowerCase() === v.toLowerCase());
-    if (known) {
-      se.name = known;
-      state.recipes.filter(r => setsOf(r).includes(known)).forEach(r => se.sel.add(r.id));
-      toast(`„${known}“ gibt es schon. Die Sammlungen werden zusammengelegt.`);
-      openSetEdit();
-    } else {
-      se.name = v;
-      const cell = $("[data-action=set-rename] .v"); if (cell) cell.innerHTML = `${esc(se.name)} ${icon("chev", "chev")}`;
-    }
-  },
+  "set-menu": () => openSetMenu(),
+  "set-rename": () => { const set = curSet(); if (set == null) return; closeLayer(); renameSet(set); },
   "set-save": () => saveSetEdit(),
-  "set-delete": async () => {
-    const se = state.setEdit; if (!se || !se.orig) return;
-    const ok = await confirmDialog({ title: "Sammlung löschen?", text: `„${se.orig}“ wird entfernt. Die Rezepte selbst bleiben erhalten.`, yes: "Löschen", danger: true });
-    if (!ok || state.setEdit !== se) return;
-    state.setEdit = null; state.filter = "all"; closeLayer();
-    const changes = state.recipes.filter(r => setsOf(r).includes(se.orig)).map(r => ({ id: r.id, sets: setsOf(r).filter(s => s !== se.orig) }));
-    if (await writeSets(changes)) toast("Sammlung gelöscht");
-  },
+  "set-delete": () => { const set = curSet(); if (set == null || !col) return; closeLayer(); deleteSet(set); },
   "shots-read": () => {
     if (!shots || shots.busy || !shots.items.length) return;
     const images = shots.items.map(i => ({ blob: i.blob, url: i.url }));
@@ -4063,17 +4536,26 @@ const actions = {
     const r = current(); if (!r) return;
     openEditor({ id: r.id, isNew: false, data: toEditData(r) });
   },
-  delete: async () => {
-    const r = current(); if (!r || !col) return;
-    const ok = await confirmDialog({ title: "Rezept löschen?", text: `„${r.title}“ wird endgültig entfernt.`, yes: "Löschen", danger: true });
+  delete: () => removeRecipe(current(), true),
+  "add-photo": () => openPhotoSheet(),
+  "row-menu": el => openRowMenu(el.dataset.id),
+  "row-shop": () => { const r = rowRecipe(); closeLayer(); shopAddRecipe(r, 1); },
+  "row-sets": () => { const r = rowRecipe(); if (!r) return; state.currentId = r.id; openSetsFor(r); },
+  "row-print": () => { const r = rowRecipe(); closeLayer(); printRecipe(r); },
+  "row-delete": () => { const r = rowRecipe(); closeLayer(); removeRecipe(r, false); },
+  "shop-add": () => { const r = current(); if (r) shopAddRecipe(r, factorOf(r)); },
+  "shop-toggle": el => {
+    const x = shopItems().find(i => i.id === el.dataset.id); if (!x) return;
+    x.done = !x.done; shopSave();
+    el.setAttribute("aria-pressed", x.done); // Haken und Durchstreichen folgen per CSS, die Zeile bleibt an ihrem Platz
+  },
+  "shop-clear": () => openShopClear(),
+  "shop-clear-done": () => { closeLayer(); shopCache = shopItems().filter(x => !x.done); shopSave(); shopRefresh(); toast("Abgehakte entfernt"); },
+  "shop-clear-all": async () => {
+    closeLayer();
+    const ok = await confirmDialog({ title: "Ganze Liste leeren?", text: "Alle Artikel werden von der Einkaufsliste entfernt.", yes: "Leeren", danger: true });
     if (!ok) return;
-    try {
-      await withRetry(() => col.doc(r.id).delete());
-      for (let i = 0; i < 6; i++) col.doc(origKey(r.id, i)).delete().catch(() => {}); // Originalfotos mit weg (auch wenn gerade noch welche hochgeladen wurden)
-      state.recipes = state.recipes.filter(x => x.id !== r.id);
-      if (!histToList()) go("list", { nohist: true });
-      toast("Rezept gelöscht");
-    } catch (e) { toast(dbErrorText(e)); }
+    shopItems(); shopCache = []; shopSave(); shopRefresh();
   },
   serv: el => {
     const d = Number(el.dataset.d), r = current(), base = r && Number(r.servings) > 0 ? Number(r.servings) : 1;
@@ -4145,7 +4627,7 @@ function tick() {
 const TICK = new Set(["fav", "rate", "toggle-ing", "toggle-step", "serv", "factor", "cook-next", "cook-prev"]);
 // Nur Ansehen und Blättern: geht schon im Schnellstart. Alles andere (speichern, einlesen, abmelden …) wartet, bis Firebase bereit ist.
 const VIEW_ONLY = new Set(["open-recipe", "back", "filter", "sort", "set-sort", "open-set", "set-back", "toggle-ing", "toggle-step", "serv", "factor",
-  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear", "tab", "search-open"]);
+  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear", "tab", "search-open", "search-close", "set-setsort", "set-menu", "add-photo", "row-menu", "row-shop", "row-print", "shop-add", "shop-toggle", "shop-clear", "shop-clear-done", "shop-clear-all"]);
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-action]");
   if (!el) return;
@@ -4169,7 +4651,7 @@ document.addEventListener("keydown", e => {
 let searchT = 0;
 document.addEventListener("input", e => {
   const t = e.target;
-  if (t.id === "q") { state.query = t.value; clearTimeout(searchT); searchT = setTimeout(renderListBody, state.recipes.length > 60 ? 120 : 0); return; }
+  if (t.id === "q") { if (curSet() == null && state.tab === "sam") state.samQuery = t.value; else state.query = t.value; clearTimeout(searchT); searchT = setTimeout(renderListBody, state.recipes.length > 60 ? 120 : 0); return; }
   if (t.id === "imp-link" && state.imp) { state.imp.link = t.value; autosize(t); const st = $("#imp-status"); if (st && t.value.trim()) st.innerHTML = ""; return; }
   if (t.dataset && t.dataset.k && state.edit) {
     state.edit.data[t.dataset.k] = t.value; state.edit.dirty = true;
@@ -4248,6 +4730,7 @@ document.addEventListener("focusout", e => { if (e.target && e.target.id === "q"
 document.addEventListener("submit", e => {
   e.preventDefault();
   if (e.target && e.target.id === "login-form") loginEmail();
+  if (e.target && e.target.id === "shop-form") shopAddText();
 });
 
 render();
