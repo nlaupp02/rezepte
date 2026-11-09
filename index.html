@@ -70,6 +70,8 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
 
 .ic { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ic.filled { fill: currentColor; }
+img[data-ph]:not(.in) { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) { img[data-ph] { transition: opacity .3s ease-out; } }
 
 .app { max-width: 680px; margin: 0 auto; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); }
 .app.home { padding-bottom: 120px; } /* Platz für den Knopf „Neues Rezept“ */
@@ -120,6 +122,16 @@ h1, h2, h3 { font-weight: 700; text-wrap: balance; margin: 0; }
 html.dim .statusfill { z-index: 25; }
 /* Tastatur: schiebt iOS die Seite hoch, bleibt die Kopfleiste trotzdem oben stehen */
 .topbar, .statusfill { transform: translateY(var(--vvo, 0px)); }
+
+/* Seitenwechsel: Abbild der alten Seite in einer festen Ebene, die neue gleitet darüber (oder darunter hervor) */
+body { overflow-x: clip; }
+.nav-ghost { position: fixed; inset: 0; overflow: hidden; background: var(--bg); pointer-events: none; z-index: 1; }
+.nav-shade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 2; }
+body.nav-anim #app { position: relative; z-index: 3; background: var(--bg); min-height: 100lvh; will-change: transform; }
+body.nav-push #app { box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
+body.nav-pop .nav-ghost { z-index: 3; box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
+body.nav-pop #app { z-index: 1; }
+body.nav-anim #app .fab, body.nav-anim #app .fab-fade { visibility: hidden; }
 
 /* Buttons */
 .btn {
@@ -199,6 +211,15 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .row-m span { overflow: hidden; text-overflow: ellipsis; }
 .chev { width: 16px; height: 16px; color: var(--faint); stroke-width: 2.4; }
 .none { color: var(--muted); text-align: center; padding: 32px 0; }
+/* Einlesen: Schritte statt nur Drehkreis */
+.jsteps { display: flex; gap: 4px; margin-top: 7px; max-width: 220px; }
+.jsteps i { flex: 1; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; position: relative; }
+.jsteps i.on { background: var(--accent); }
+.jsteps i.now { background: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+@media (prefers-reduced-motion: no-preference) {
+  .jsteps i.now::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--accent); border-radius: 3px; animation: jrun 1.4s ease-in-out infinite; }
+  @keyframes jrun { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+}
 .job-spin { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(255, 255, 255, .6); }
 .row.job img { filter: saturate(.5); }
 .job-err { font-size: 15px; color: var(--muted); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
@@ -225,6 +246,13 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .empty-ic .ic { width: 38px; height: 38px; stroke-width: 1.5; }
 .empty h2 { font-size: 22px; margin-bottom: 6px; }
 .empty p { color: var(--muted); margin: 0 auto 22px; max-width: 34ch; }
+.empty .add-tile { background: var(--group); }
+.empty .add-tile.pressed { background: #E6E6EA; }
+/* Neues Rezept: vier große Kacheln */
+.add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.add-tile { display: grid; justify-items: center; align-content: center; gap: 10px; min-height: 118px; padding: 14px 10px; border-radius: 14px; border: 0; background: var(--bg); color: var(--ink); font-size: 16px; font-weight: 600; line-height: 1.25; text-align: center; }
+.add-tile .ic { width: 30px; height: 30px; stroke-width: 1.7; color: var(--accent); }
+.add-tile.pressed { background: #E9E9EC; }
 .options { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-align: left; }
 .sheet .options { border: 0; }
 .opt {
@@ -344,6 +372,12 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .d-head { display: grid; gap: 4px; }
 /* Kategorie und Zeit direkt unter dem Titel, Merkmale als kleine Etiketten */
 .d-meta { margin: 0; font-size: 16px; line-height: 1.35; color: var(--muted); }
+/* Infozeile mit kleinen Symbolen: Zeit, Kategorie, dann die Merkmale */
+.d-meta2 { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 16px; line-height: 1.35; color: var(--muted); }
+.d-meta2 > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.d-meta2 .ic { width: 18px; height: 18px; stroke-width: 1.8; color: var(--accent); }
+.vidbtn { width: 100%; margin-top: 6px; }
+.vidbtn .ic { width: 18px; height: 18px; }
 .d-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
 .tag { padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: #7A5209; font-size: 14px; font-weight: 500; line-height: 1.3; }
 .d-title { font-family: var(--serif); font-size: 29px; line-height: 1.15; overflow-wrap: anywhere; }
@@ -418,6 +452,19 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .nutri .sub dt { color: var(--muted); padding-left: 14px; }
 .nutri .sub dd { font-weight: 500; color: var(--muted); }
 /* Nährwerte: vier große Werte im Raster, darunter der Rest in einer Zeile */
+/* Nährwerte: Kalorien groß, Balken mit den Anteilen von Eiweiß, Kohlenhydraten und Fett, darunter die Gramm */
+.nutri3 { display: grid; gap: 12px; background: var(--warm); border-radius: 12px; padding: 14px 14px 12px; }
+.nk { display: flex; align-items: baseline; gap: 6px; font-size: 15px; color: var(--muted); }
+.nk b { font-size: 26px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.3px; }
+.mbar { display: flex; gap: 3px; height: 8px; }
+.mbar i { display: block; border-radius: 4px; min-width: 8px; }
+.mp { background: #9E680D; } .mc { background: #D9B56B; } .mf { background: #C8714B; }
+.macros { margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.macros div { display: grid; gap: 1px; }
+.macros dt { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+.macros dt i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.macros dd { margin: 0; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.nutri3 + .nutri-more { margin-top: 4px; }
 .nutri2 { margin: 0; display: grid; grid-template-columns: 1fr 1fr; background: var(--warm); border-radius: 12px; overflow: hidden; }
 .nutri2 div { padding: 11px 14px 12px; display: grid; gap: 1px; }
 .nutri2 div:nth-child(2n) { border-left: 1px solid var(--warm-line); }
@@ -554,6 +601,23 @@ body.kb .toast.show { transform: none; }
 .sortbtn .ic { width: 16px; height: 16px; stroke-width: 2.4; }
 .list > li.letter { content-visibility: visible; contain-intrinsic-size: none; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: var(--muted); }
 .list > li.letter + li > .row::before { display: none; }
+.lh-r { display: inline-flex; align-items: center; gap: 4px; }
+.layoutbtn { width: 36px; height: 36px; margin: -8px 0; border: 0; background: none; display: grid; place-items: center; color: var(--accent); }
+.layoutbtn .ic { width: 20px; height: 20px; }
+/* Kacheln: zwei Rezepte nebeneinander mit großem Bild */
+.tiles { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; }
+.tiles > li { content-visibility: auto; contain-intrinsic-size: auto 250px; min-width: 0; }
+.tiles > li.letter { grid-column: 1 / -1; content-visibility: visible; contain-intrinsic-size: none; padding: 4px 0 0; margin-bottom: -10px; font-size: 15px; font-weight: 700; color: var(--muted); }
+.tile { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: inherit; font: inherit; }
+.tile-img { position: relative; display: block; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: var(--ph); }
+.tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tile-img .ph .ic { width: 44px; height: 44px; stroke-width: 1.4; }
+.tile.pressed .tile-img { opacity: .75; }
+.tile .row-m { margin-top: 3px; font-size: 14px; }
+/* Langer Name: Hauptname bis 2 Zeilen, Zusatz („mit Feta und Tomaten“) grau in 1 Zeile. Jede Kachel gleich hoch, damit die Reihen gleichmäßig sind. */
+.tile-t { display: block; height: calc(2.5em + 19.2px); margin-top: 8px; font-size: 16px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; }
+.t-main { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.t-more { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; font-size: 14px; font-weight: 400; line-height: 1.3; color: var(--muted); }
 .set-title { margin: 6px 0 14px; overflow-wrap: anywhere; }
 /* Reel, Link oder Text: Feld, zwei Knöpfe, drei kurze Hinweise */
 .imp-in {
@@ -681,6 +745,8 @@ const ICONS = {
   addsq: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/>',
   menu: '<path d="M4 6.5h16M4 12h16M4 17.5h10.5"/>',
   more: '<path d="M6 9.5l6 6 6-6"/>',
+  gridv: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
+  listv: '<rect x="3.5" y="5" width="5" height="5" rx="1.2"/><rect x="3.5" y="14" width="5" height="5" rx="1.2"/><path d="M11.5 7.5h9M11.5 16.5h9"/>',
   folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
   salad: '<path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" />',
   icecream: '<path d="M12 17c5 0 8-2.69 8-6H4c0 3.31 3 6 8 6m-4 4h8m-4-3v3M5.14 11a3.5 3.5 0 1 1 6.71 0" /><path d="M12.14 11a3.5 3.5 0 1 1 6.71 0" /><path d="M15.5 6.5a3.5 3.5 0 1 0-7 0" />',
@@ -704,6 +770,7 @@ const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-h
 /* ---------- State ---------- */
 const state = {
   view: "boot",
+  layout: (() => { try { return localStorage.getItem("rezepte-layout") === "grid" ? "grid" : "list"; } catch (e) { return "list"; } })(),
   recipes: [],
   loaded: false,
   slow: false,
@@ -732,7 +799,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "66";
+const APP_VERSION = "67";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1273,10 +1340,16 @@ function reuseImgs(el, pool) {
   });
 }
 function setHTMLKeepImgs(el, html) { const old = keepImgs(el); el.innerHTML = html; reuseImgs(el, old); }
+// Fotos blenden beim ersten Laden weich ein. Schon einmal geladene (zurück aus dem Rezept, neu gezeichnete Liste) stehen sofort da.
+const seenImg = new Set();
 function coverHtml(r) {
   const src = coverSrc(r.cover, r.id + ":" + (r.updatedAt || 0)), ic = catIcon(r.category);
-  return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="${ic}">` : placeholder(ic);
+  return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="${ic}"${seenImg.has(src) ? ' class="in"' : ""}>` : placeholder(ic);
 }
+document.addEventListener("load", e => {
+  const t = e.target;
+  if (t && t.tagName === "IMG" && t.dataset && "ph" in t.dataset) { seenImg.add(t.getAttribute("src")); t.classList.add("in"); }
+}, true);
 document.addEventListener("error", e => {
   const t = e.target;
   if (t && t.tagName === "IMG" && t.dataset && "ph" in t.dataset) t.outerHTML = placeholder(ICONS[t.dataset.ph] ? t.dataset.ph : "pot");
@@ -1725,7 +1798,7 @@ if (window.visualViewport) {
 }
 
 /* Antippen sichtbar machen wie in iOS: erst nach kurzem Halten grau, beim Wischen über die Liste gar nicht */
-const PRESSABLE = "button.row, .opt, .cell, .album";
+const PRESSABLE = "button.row, .opt, .cell, .album, .add-tile, .tile";
 let pressEl = null, pressT = 0, pressX = 0, pressY = 0;
 function clearPress() { clearTimeout(pressT); if (pressEl) pressEl.classList.remove("pressed"); pressEl = null; }
 document.addEventListener("pointerdown", e => {
@@ -1895,21 +1968,20 @@ function confirmDialog({ title, text, yes, danger }) {
   });
 }
 const ADD_OPTIONS = [
-  { mode: "camera", icon: "camera", t: "Foto aufnehmen", pick: "cam-pick" },
-  { mode: "photo", icon: "image", t: "Fotos oder Screenshots", pick: "quick-pick" },
-  { mode: "link", icon: "link", t: "Reel, Link oder Text einfügen" }, // Instagram-Links erkennt die App selbst
-  { mode: "manual", icon: "pen", t: "Selbst eintippen" }
+  { mode: "link", icon: "reel", t: "Reel, Link oder Text einfügen", k: "Reel, Link\noder Text" }, // Instagram-Links erkennt die App selbst
+  { mode: "camera", icon: "camera", t: "Foto aufnehmen", pick: "cam-pick", k: "Foto\naufnehmen" },
+  { mode: "photo", icon: "image", t: "Fotos oder Screenshots", pick: "quick-pick", k: "Fotos oder\nScreenshots" },
+  { mode: "manual", icon: "pen", t: "Selbst eintippen", k: "Selbst\neintippen" }
 ];
-const addOptions = () => ADD_OPTIONS.map(o => o.pick
-  ? `<label class="opt" for="${o.pick}">${icon(o.icon)}<span>${o.t}</span></label>`
-  : `<button class="opt" data-action="start" data-mode="${o.mode}">${icon(o.icon)}<span>${o.t}</span></button>`
-).join("");
+const addTiles = () => `<div class="add-grid">${ADD_OPTIONS.map(o => { const k = esc(o.k).replace("\n", "<br>"); return o.pick
+  ? `<label class="add-tile" for="${o.pick}">${icon(o.icon)}<span>${k}</span></label>`
+  : `<button class="add-tile" data-action="start" data-mode="${o.mode}">${icon(o.icon)}<span>${k}</span></button>`; }).join("")}</div>`;
 function openSheet() {
   layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="s-t">
       <div class="grip"></div>
       <div class="sheet-head"><h2 id="s-t">Neues Rezept</h2><button class="tbtn" data-action="close-layer">Abbrechen</button></div>
-      <div class="options">${addOptions()}</div>
+      ${addTiles()}
     </div>`;
   layer.classList.add("open");
 }
@@ -1933,12 +2005,57 @@ function histToList() { // ganz zurück zur Liste
 }
 function go(view, opts) {
   const from = state.view;
+  // Nur bei eigenem Tippen gleiten. Zurückwischen vom Rand macht das iPhone selbst, da kommt keine zweite Bewegung obendrauf.
+  const kind = from === "list" && view === "detail" && !(opts && opts.nohist) ? "push"
+    : from === "detail" && view === "list" && Date.now() - navOwn < 1500 ? "pop" : null;
+  navOwn = 0;
   if (!(opts && opts.nohist) && view !== "list" && (from === "list" || (view === "edit" && from === "detail"))) histPush(view);
   if (from === "list") state.listScroll = window.scrollY;
-  state.view = view;
-  render();
-  window.scrollTo(0, view === "list" ? state.listScroll : 0);
+  navAnim(kind, () => {
+    state.view = view;
+    render();
+    window.scrollTo(0, view === "list" ? state.listScroll : 0);
+  });
   keepAwake(view === "detail");
+}
+/* ---------- Seitenwechsel wie in iOS ---------- */
+// Die neue Seite schiebt sich von rechts herein, die alte rückt ein Stück nach links und wird etwas dunkler; zurück umgekehrt.
+// Die alte Seite ist ein Abbild in einem abgeschlossenen Schatten-Baum (nicht antippbar, für querySelector unsichtbar).
+let navOwn = 0, navStop = null, ghostCss = null;
+const canCopy = () => !!(Element.prototype.attachShadow && "adoptedStyleSheets" in Document.prototype && window.CSSStyleSheet && app.animate);
+function pageCopy() {
+  const g = document.createElement("div");
+  g.className = "nav-ghost"; g.setAttribute("aria-hidden", "true"); g.inert = true;
+  const root = g.attachShadow({ mode: "closed" });
+  if (!ghostCss) {
+    ghostCss = new CSSStyleSheet();
+    ghostCss.replaceSync([...document.querySelectorAll("style")].map(st => st.sheet ? [...st.sheet.cssRules].map(r => r.cssText).join("\n") : "").join("\n"));
+  }
+  root.adoptedStyleSheets = [ghostCss];
+  const c = document.createElement("div");
+  c.className = app.className; c.innerHTML = app.innerHTML;
+  c.querySelectorAll("[id]").forEach(e => e.removeAttribute("id"));
+  c.style.cssText = `margin-top:${-window.scrollY}px;min-height:100lvh`;
+  root.appendChild(c);
+  return g;
+}
+function navAnim(kind, draw) {
+  if (navStop) navStop();
+  if (!kind || noMotion() || !app.firstElementChild || !canCopy()) { draw(); return; }
+  let ghost;
+  try { ghost = pageCopy(); } catch (e) { draw(); return; }
+  draw();
+  const shade = document.createElement("div"); shade.className = "nav-shade";
+  document.body.append(ghost, shade);
+  document.body.classList.add("nav-anim", "nav-" + kind);
+  const D = 380, o = { duration: D, easing: "cubic-bezier(.32, .72, 0, 1)" }, T = v => ({ transform: v }), an = [];
+  if (kind === "push") an.push(app.animate([T("translateX(100%)"), T("none")], o), ghost.animate([T("none"), T("translateX(-28%)")], o), shade.animate([{ opacity: 0 }, { opacity: .1 }], o));
+  else an.push(ghost.animate([T("none"), T("translateX(100%)")], o), app.animate([T("translateX(-28%)"), T("none")], o), shade.animate([{ opacity: .1 }, { opacity: 0 }], o));
+  let over = false;
+  const end = () => { if (over) return; over = true; navStop = null; ghost.remove(); shade.remove(); document.body.classList.remove("nav-anim", "nav-" + kind); };
+  navStop = () => { an.forEach(a => { try { a.finish(); } catch (e) { /* egal */ } }); end(); };
+  Promise.all(an.map(a => a.finished)).then(end, end);
+  setTimeout(end, D + 400); // falls eine Animation hängen bleibt
 }
 
 /* Sammlung öffnen und wieder verlassen (wie eine eigene Seite) */
@@ -2096,6 +2213,24 @@ function card(r) {
       <span class="row-m">${cleanUnsure(r.unsure).length ? `<span class="chk">Bitte prüfen</span>` : ""}${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}<span>${esc(meta || " ")}</span></span></span>
   </button></li>`;
 }
+// Lange Namen: Hauptname und Zusatz („Schupfnudel-Pfanne“ + „mit Feta und Tomaten“). Nur zum Anzeigen, der Titel bleibt wie er ist.
+function splitTitle(t) {
+  t = String(t || "").trim();
+  if (t.length <= 20) return [t, ""];
+  const m = t.slice(5).match(/\s[–-]\s|,\s|\s\(|\s(?:mit|aus|vom|von|im|in|auf|nach|wie|ohne|für|zum|zur|à la|a la)\s/i);
+  if (!m) return [t, ""];
+  const i = 5 + m.index, rest = t.slice(i).replace(/^\s*[–-]\s*|^,\s*|^\s+/, "");
+  return rest.length < 4 ? [t, ""] : [t.slice(0, i), rest];
+}
+function tile(r) {
+  const meta = totalTime(r) || r.category || ""; // in der schmalen Kachel nur die Zeit (Kategorie, wenn keine Zeit da ist)
+  const [main, more] = splitTitle(r.title || "Ohne Titel");
+  return `<li><button class="tile" data-action="open-recipe" data-id="${esc(r.id)}">
+    <span class="tile-img">${coverHtml(r)}</span>
+    <span class="tile-t"><span class="t-main">${esc(main)}</span>${more ? `<span class="t-more">${esc(more)}</span>` : ""}</span>
+    <span class="row-m">${cleanUnsure(r.unsure).length ? `<span class="chk">Prüfen</span>` : ""}${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}<span>${esc(meta || " ")}</span></span>
+  </button></li>`;
+}
 function renderListBody() {
   const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab"), albums = $("#albums");
   if (!grid) return;
@@ -2119,7 +2254,7 @@ function renderListBody() {
       <div class="empty-ic">${icon("pot")}</div>
       <h2>Noch keine Rezepte</h2>
       <p>Fotografier ein Rezept aus dem Kochbuch oder einen Zettel, nimm einen Screenshot oder füg einen Link ein.</p>
-      <div class="options">${addOptions()}</div>
+      ${addTiles()}
     </section>`;
     return;
   }
@@ -2146,19 +2281,21 @@ function renderListBody() {
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
   const n = list.length, sortName = (SORTS.find(([k]) => k === state.sort) || SORTS[0])[1];
+  const tiles = state.layout === "grid";
   const head = n ? `<div class="list-head"><span>${q ? (n === 1 ? "1 Treffer" : n + " Treffer") : (n === 1 ? "1 Rezept" : n + " Rezepte")}</span>
-    <button class="sortbtn" data-action="sort">${esc(sortName)}${icon("more")}</button></div>` : "";
+    <span class="lh-r"><button class="layoutbtn" data-action="layout" aria-label="${tiles ? "Als Liste zeigen" : "Als Kacheln zeigen"}">${icon(tiles ? "listv" : "gridv")}</button>
+    <button class="sortbtn" data-action="sort">${esc(sortName)}${icon("more")}</button></span></div>` : "";
   // Nach Namen sortiert: Buchstaben als Zwischenüberschrift, damit man in langen Listen schnell hinfindet
   let last = null;
   const rows = list.map(r => {
-    const c = card(r);
+    const c = tiles ? tile(r) : card(r);
     if (state.sort !== "az") return c;
     const L = letterOf(r.title);
     const h = L !== last ? `<li class="letter">${L}</li>` : "";
     last = L; return h + c;
   }).join("");
   setHTMLKeepImgs(grid, ((jobsHtml || list.length)
-    ? head + `<ul class="list">${jobsHtml}${rows}</ul>`
+    ? head + (tiles ? (jobsHtml ? `<ul class="list">${jobsHtml}</ul>` : "") + `<ul class="tiles">${rows}</ul>` : `<ul class="list">${jobsHtml}${rows}</ul>`)
     : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`));
 }
 const letterOf = t => { const c = norm(t).trim().charAt(0).toUpperCase(); return /[A-Z]/.test(c) ? c : "#"; };
@@ -2293,8 +2430,9 @@ function renderDetail() {
   let link = typeof r.link === "string" && /^https?:\/\//i.test(r.link) ? r.link : "";
   const info = [];
   const orig = Number(r.orig) > 0;
-  if (r.source || link || orig) info.push(["Quelle", [esc(r.source || ""),
-    link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${/instagram\.com\/(?:[\w.]+\/)?(reels?|tv)\//i.test(link) ? "Reel öffnen" : /instagram\.com/i.test(link) ? "Auf Instagram öffnen" : "Link öffnen"}</a>` : "",
+  const vidLink = link && /instagram\.com\/(?:[\w.]+\/)?(reels?|tv|p)\/|tiktok\.com|youtube\.com|youtu\.be|vimeo\.com/i.test(link);
+  if (r.source || (link && !vidLink) || orig) info.push(["Quelle", [esc(r.source || ""),
+    link && !vidLink ? `<a href="${esc(link)}" target="_blank" rel="noopener">${/instagram\.com\/(?:[\w.]+\/)?(reels?|tv)\//i.test(link) ? "Reel öffnen" : /instagram\.com/i.test(link) ? "Auf Instagram öffnen" : "Link öffnen"}</a>` : "",
     orig ? `<button class="linkbtn" data-action="orig">${Number(r.orig) > 1 ? "Originalfotos ansehen" : "Original ansehen"}</button>` : ""].filter(Boolean).join(" · ")]);
   const sw = servWords(r.category);
   // Kategorie und Zeit in einer Zeile unter dem Titel, z. B. „Hauptgericht · 1 Std. (15 Min. vorbereiten + 45 Min. kochen)“
@@ -2303,7 +2441,11 @@ function renderDetail() {
   const timeTxt = both ? (tot || `${r.prepTime} vorbereiten + ${r.cookTime} ${verb}`) : (tot || r.prepTime || r.cookTime || "");
   const tg = cleanTags(r.tags);
   // Eine ruhige Zeile: „Hauptgericht · 25 Min. · vegetarisch · schnell“ – nur die Gesamtzeit (Vorbereiten und Kochen stehen beim Bearbeiten)
-  const metaHtml = [r.category, timeTxt, ...tg].filter(Boolean).map(esc).join(" · ");
+  const metaHtml = [timeTxt && `<span>${icon("clock")}${esc(timeTxt)}</span>`, r.category && `<span>${icon(catIcon(r.category))}${esc(r.category)}</span>`,
+    tg.length && `<span>${esc(tg.join(" · "))}</span>`].filter(Boolean).join("");
+  // Reel oder Video: großer Knopf unter dem Titel, dann steht unter „Quelle“ nur noch der Kanal
+  const vid = !link ? "" : /instagram\.com\/(?:[\w.]+\/)?(reels?|tv)\//i.test(link) ? "Reel ansehen" : /instagram\.com\/(?:[\w.]+\/)?p\//i.test(link) ? "Beitrag ansehen"
+    : /(tiktok\.com|youtube\.com|youtu\.be|vimeo\.com)/i.test(link) ? "Video ansehen" : "";
   const rs = setsOf(r);
   info.push([rs.length > 1 ? "Sammlungen" : "Sammlung", (rs.length ? esc(rs.join(" · ")) + " · " : "") +
     `<button class="linkbtn" data-action="sets">${rs.length ? "Ändern" : "Hinzufügen"}</button>`]);
@@ -2361,8 +2503,9 @@ function renderDetail() {
     <article class="detail">
       ${hasCover ? `<div class="hero">${coverHtml(r)}</div>` : ""}
       <div class="d-head"><h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>
-        ${metaHtml.trim() ? `<p class="d-meta">${metaHtml}</p>` : ""}
-        ${starsHtml(r)}</div>
+        ${metaHtml ? `<p class="d-meta2">${metaHtml}</p>` : ""}
+        ${starsHtml(r)}
+        ${vid ? `<a class="btn vidbtn" href="${esc(link)}" target="_blank" rel="noopener">${icon("play", "filled")}${vid}</a>` : ""}</div>
       ${uns.length ? checkHtml(uns, r) : ""}
       ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
       <section class="sec">
@@ -2655,15 +2798,18 @@ function nutritionHtml(r) {
       : `Ließen sich gerade nicht schätzen. <button class="btn small quiet" data-action="nutri" style="margin-left:-8px">Nochmal</button>`}</p></section>`;
   }
   const g = x => String(x).replace(".", ",");
-  // Das Wichtigste groß (2 × 2), der Rest klein in einer Zeile darunter
-  const big = [["Kalorien", n.kcal, " kcal"], ["Eiweiß", n.protein, " g"], ["Kohlenhydrate", n.carbs, " g"], ["Fett", n.fat, " g"]]
-    .filter(x => x[1] != null).map(([l, v, u]) => `<div><dt>${l}</dt><dd>${g(v)}${u}</dd></div>`).join("");
+  // Kalorien groß, ein Balken mit den Anteilen (Eiweiß und Kohlenhydrate 4 kcal/g, Fett 9 kcal/g), darunter die drei Werte
+  const mac = [["Eiweiß", n.protein, 4, "mp"], ["Kohlenhydrate", n.carbs, 4, "mc"], ["Fett", n.fat, 9, "mf"]].filter(x => x[1] != null);
+  const tot = mac.reduce((a, m) => a + m[1] * m[2], 0);
+  const bar = tot > 0 ? `<div class="mbar" aria-hidden="true">${mac.map(m => `<i class="${m[3]}" style="flex:${(m[1] * m[2] / tot).toFixed(3)}"></i>`).join("")}</div>` : "";
+  const big = `${n.kcal != null ? `<div class="nk"><b>${g(n.kcal)}</b> kcal ${per}</div>` : ""}${bar}
+    <dl class="macros">${mac.map(m => `<div><dt><i class="${m[3]}"></i>${m[0]}</dt><dd>${g(m[1])} g</dd></div>`).join("")}</dl>`;
   const small = [["Zucker", n.sugar], ["gesättigte Fette", n.satFat], ["Ballaststoffe", n.fiber], ["Salz", n.salt]]
     .filter(x => x[1] != null).map(([l, v]) => `<span>${l} <b>${g(v)} g</b></span>`).join("");
   return `<section class="sec"><h2>Nährwerte</h2>
-    <dl class="nutri2">${big}</dl>
+    <div class="nutri3">${big}</div>
     ${small ? `<p class="nutri-more">${small}</p>` : ""}
-    <p class="note">${per[0].toUpperCase() + per.slice(1)}, geschätzt.${busy ? " Wird gerade ergänzt …" : ""}</p></section>`;
+    <p class="note">${n.kcal != null ? "Geschätzt" : per[0].toUpperCase() + per.slice(1) + ", geschätzt"}.${busy ? " Wird gerade ergänzt …" : ""}</p></section>`;
 }
 // Woran die Nährwerte hängen: ändert sich das während des Schätzens (Zutaten korrigiert), gilt das Ergebnis nicht mehr
 const nutriSig = r => JSON.stringify([r.ingredients || [], Number(r.servings) || null]);
@@ -3305,6 +3451,7 @@ function startJob(src, job) {
 async function runJob(job) {
   await initPromise;
   job.status = "busy"; job.error = []; job.t0 = Date.now(); job.title = "";
+  job.phase = job.conv ? "save" : job.src.mode === "link" ? "fetch" : "read";
   job.ctl = new AbortController();
   refreshJobs();
   if (!sample) { job.status = "error"; job.error = ["Lesen geht gerade nicht", "Lade die App neu und versuch es nochmal."]; refreshJobs(); return; }
@@ -3318,6 +3465,7 @@ async function runJob(job) {
         return;
       }
     }
+    job.phase = "save"; refreshJobs();
     const savedId = await saveData(conv.data, conv.coverBlob, conv.coverUrl, conv.orig);
     removeJob(job);
     toast(`„${conv.data.title}“ gespeichert`);
@@ -3361,6 +3509,7 @@ async function runJob(job) {
       }
     }
     const imgs = (src.images || []).map(i => i.blob);
+    if (job.phase !== "read") { job.phase = "read"; refreshJobs(); }
     const opts = { signal: job.ctl.signal };
     if (imgs.length) opts.images = imgs;
     const res = await sample.json(buildPrompt(src, imgs.length), opts);
@@ -3467,10 +3616,15 @@ function jobCard(j) {
   if (j.status === "prep") meta = "Bilder werden vorbereitet …";
   if (j.src.mode === "link") { try { meta = new URL(j.src.link).hostname.replace(/^www\./, ""); } catch (e) { meta = "Link"; } }
   if (j.src.mode === "text") meta = "Eingefügter Text";
+  // Fortschritt in Schritten: bei Links erst die Seite holen, dann lesen, dann speichern
+  const ph = j.src.mode === "link" ? ["fetch", "read", "save"] : ["read", "save"];
+  const at = Math.max(0, ph.indexOf(j.phase || ph[0]));
+  const what = { fetch: j.src.mode === "link" && isIgLink(j.src.link) ? "Holt das Reel" : "Holt die Seite", read: "Liest das Rezept", save: "Speichert" }[ph[at]];
   return `<li><div class="row job">
-    <span class="thumb-sm">${pic}<span class="job-spin"><span class="spinner"></span></span></span>
+    <span class="thumb-sm">${pic}</span>
     <span class="row-b"><span class="row-t">${esc(j.title || "Rezept wird eingelesen …")}</span>
-      <span class="row-m"><span>${esc(meta)}</span></span></span></div></li>`;
+      <span class="row-m"><span>${j.status === "prep" ? esc(meta) : `${what} … · ${esc(meta)}`}</span></span>
+      <span class="jsteps" aria-hidden="true">${ph.map((p, i) => `<i class="${i < at ? "on" : i === at ? "now" : ""}"></i>`).join("")}</span></span></div></li>`;
 }
 
 async function recognize() {
@@ -3666,11 +3820,16 @@ const actions = {
     else startImport(mode);
   },
   filter: el => { state.filter = el.dataset.f; renderListBody(); },
+  layout: () => {
+    state.layout = state.layout === "grid" ? "list" : "grid";
+    try { localStorage.setItem("rezepte-layout", state.layout); } catch (e) { /* egal */ }
+    renderListBody();
+  },
   "open-set": el => openSet(el.dataset.s),
   "set-back": () => { if (history.state && history.state.set && histBack()) return; leaveSet(); },
   "open-recipe": el => openDetail(el.dataset.id),
   back: async () => {
-    if (state.view === "detail") { if (!histBack()) go("list", { nohist: true }); return; }
+    if (state.view === "detail") { navOwn = Date.now(); if (!histBack()) go("list", { nohist: true }); return; }
     if (state.view === "import") { state.imp = null; if (!histBack()) go("list", { nohist: true }); return; }
     if (state.view === "edit") {
       const ed = state.edit;
@@ -3765,11 +3924,26 @@ const actions = {
   }
 };
 
+// Spürbares Tippen wie in Apple-Apps (iPhone ab iOS 18): ein unsichtbarer Schalter, dessen Umlegen das iPhone kurz vibrieren lässt
+let hapEl = null;
+function tick() {
+  try {
+    if (!hapEl) {
+      hapEl = document.createElement("label"); hapEl.setAttribute("aria-hidden", "true");
+      hapEl.style.cssText = "position:fixed;left:-100px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none";
+      const i = document.createElement("input"); i.type = "checkbox"; i.setAttribute("switch", ""); i.tabIndex = -1;
+      hapEl.appendChild(i); document.body.appendChild(hapEl);
+      ["click", "change", "input"].forEach(t => hapEl.addEventListener(t, ev => ev.stopPropagation()));
+    }
+    hapEl.click();
+  } catch (e) { /* egal */ }
+}
+const TICK = new Set(["fav", "rate", "toggle-ing", "toggle-step", "serv", "factor", "cook-next", "cook-prev"]);
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-action]");
   if (!el) return;
   const fn = actions[el.dataset.action];
-  if (fn) { e.preventDefault(); fn(el, e); }
+  if (fn) { e.preventDefault(); if (TICK.has(el.dataset.action) && !el.disabled) tick(); fn(el, e); }
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && (layer.classList.contains("open") || layer2.classList.contains("open"))) {
