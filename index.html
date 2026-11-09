@@ -139,7 +139,15 @@ body.nav-anim #app .fab, body.nav-anim #app .fab-fade { visibility: hidden; }
   min-height: 50px; padding: 12px 18px; border-radius: 12px; border: 0;
   background: var(--ph); color: var(--ink); font-size: 17px; font-weight: 600; text-decoration: none; /* Knöpfe warm, Felder grau */
 }
-.btn:active { opacity: .65; }
+.btn:active { transform: scale(.97); filter: brightness(.94); }
+/* Eindrücken wie in Apple-Apps: Kacheln, Sammlungen und Knöpfe geben beim Antippen leicht nach */
+@media (prefers-reduced-motion: no-preference) {
+  .btn, .album, .tile-img, .add-tile, .chip, .cookbtn, .scaler button, .shot.add { transition: transform .22s cubic-bezier(.2, .8, .2, 1), filter .22s; }
+  .fab { transition: transform .22s cubic-bezier(.2, .8, .2, 1), filter .22s; }
+}
+.chip:active, .cookbtn:active, .shot.add:active { transform: scale(.95); filter: brightness(.94); }
+.scaler button:active { transform: scale(.9); }
+.fab:active { transform: translateX(-50%) scale(.96); filter: brightness(.94); }
 .opt.pressed, .cell.pressed { background: #E9E9EC; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); }
 .btn.quiet { background: transparent; color: var(--accent); font-weight: 500; }
@@ -164,7 +172,6 @@ body.nav-anim #app .fab, body.nav-anim #app .fab-fade { visibility: hidden; }
   box-shadow: 0 2px 6px rgba(0, 0, 0, .12), 0 8px 22px rgba(0, 0, 0, .1);
 }
 .fab .ic { width: 22px; height: 22px; stroke-width: 2.4; }
-.fab:active { opacity: .85; }
 body.typing .fab { display: none; }
 /* Weicher Übergang hinter „Neues Rezept“: die Liste verschwindet nach unten hin, statt unter dem Knopf angeschnitten zu werden */
 .fab-fade {
@@ -252,7 +259,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .add-tile { display: grid; justify-items: center; align-content: center; gap: 10px; min-height: 118px; padding: 14px 10px; border-radius: 14px; border: 0; background: var(--bg); color: var(--ink); font-size: 16px; font-weight: 600; line-height: 1.25; text-align: center; }
 .add-tile .ic { width: 30px; height: 30px; stroke-width: 1.7; color: var(--accent); }
-.add-tile.pressed { background: #E9E9EC; }
+.add-tile.pressed { transform: scale(.96); background: #E9E9EC; }
 .options { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-align: left; }
 .sheet .options { border: 0; }
 .opt {
@@ -579,7 +586,7 @@ body.kb .toast.show { transform: none; }
   position: relative; flex: none; display: flex; align-items: center; gap: 10px; max-width: 230px;
   padding: 7px 14px 7px 7px; border: 0; border-radius: 14px; background: var(--group); text-align: left; color: var(--ink);
 }
-.album.pressed { opacity: .65; }
+.album.pressed { transform: scale(.96); filter: brightness(.92); }
 .album-c {
   width: 46px; height: 46px; flex: none; border-radius: 9px; overflow: hidden; background: var(--ph);
   display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); gap: 1.5px;
@@ -612,7 +619,7 @@ body.kb .toast.show { transform: none; }
 .tile-img { position: relative; display: block; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: var(--ph); }
 .tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tile-img .ph .ic { width: 44px; height: 44px; stroke-width: 1.4; }
-.tile.pressed .tile-img { opacity: .75; }
+.tile.pressed .tile-img { transform: scale(.96); filter: brightness(.9); }
 .tile .row-m { margin-top: 3px; font-size: 14px; }
 /* Langer Name: Hauptname bis 2 Zeilen, Zusatz („mit Feta und Tomaten“) grau in 1 Zeile. Jede Kachel gleich hoch, damit die Reihen gleichmäßig sind. */
 .tile-t { display: block; height: calc(2.5em + 19.2px); margin-top: 8px; font-size: 16px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; }
@@ -637,7 +644,6 @@ body.kb .toast.show { transform: none; }
   font-size: 15px; font-weight: 600; padding: 8px 15px 8px 12px; white-space: nowrap;
 }
 .cookbtn .ic { width: 13px; height: 13px; stroke-width: 2.4; }
-.cookbtn:active { opacity: .7; }
 .cook { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; }
 .cook-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 44px; padding: calc(env(safe-area-inset-top) + 4px) 6px 2px 16px; }
 .cook-pos { grid-column: 2; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -799,7 +805,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "67";
+const APP_VERSION = "68";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -837,6 +843,40 @@ function openInstall() {
 }
 const isStandalone = () => !!(navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches));
 let fb = null, authUser = null, authKnown = false, unsub = null, loadTimer = 0;
+/* ---------- Schnellstart wie bei Gym: die zuletzt geladenen Rezepte liegen auf dem iPhone und stehen beim Öffnen sofort da.
+   Firebase lädt im Hintergrund; ist die Anmeldung bestätigt, laufen die Rezepte von dort weiter (neu gezeichnet wird nur, wenn sich etwas geändert hat).
+   Bis dahin kann man schon blättern, suchen und Rezepte öffnen; Speichern und Einlesen warten kurz auf Firebase. */
+let quick = null; // Konto, dessen Rezepte gerade aus dem Gerätespeicher stehen
+let readyResolve = null;
+const readyP = new Promise(r => { readyResolve = r; });
+const whenReady = () => col ? Promise.resolve() : readyP;
+const QS_DB = "rezepte-start";
+function qsOpen() {
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open(QS_DB, 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore("c");
+    rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+  });
+}
+async function qsGet() {
+  try { const db = await qsOpen(); return await new Promise(res => { const t = db.transaction("c").objectStore("c").get("last"); t.onsuccess = () => res(t.result || null); t.onerror = () => res(null); }); }
+  catch (e) { return null; }
+}
+let qsTimer = 0;
+function qsSave() { // nach dem Laden und nach Änderungen, gebündelt
+  clearTimeout(qsTimer);
+  qsTimer = setTimeout(async () => {
+    if (!uid || !col || !state.loaded || state.storage !== "ok" || state.slow) return;
+    try { const db = await qsOpen(); db.transaction("c", "readwrite").objectStore("c").put({ uid, at: Date.now(), recipes: state.recipes }, "last"); } catch (e) { /* egal */ }
+  }, 1200);
+}
+async function qsClear() { clearTimeout(qsTimer); try { const db = await qsOpen(); db.transaction("c", "readwrite").objectStore("c").delete("last"); } catch (e) { /* egal */ } }
+qsGet().then(c => {
+  if (!c || !c.uid || !Array.isArray(c.recipes) || authKnown || quick || state.view !== "boot") return;
+  quick = c.uid; uid = c.uid;
+  state.recipes = c.recipes; state.loaded = true; state.storage = "ok"; state.slow = false;
+  state.view = "list"; render();
+});
 
 const initPromise = (async () => {
   try {
@@ -860,6 +900,7 @@ const initPromise = (async () => {
   } catch (e) {
     console.error("Firebase konnte nicht laden", e);
     initDone = true; state.fbError = true; render();
+    if (quick) toast("Keine Verbindung. Deine Rezepte kannst du ansehen, Speichern geht gerade nicht.");
   }
 })();
 
@@ -867,6 +908,13 @@ function onAuth(u) {
   const prev = authUser ? authUser.uid : null;
   authKnown = true;
   authUser = u || null;
+  // Schnellstart mit demselben Konto: Liste, geöffnetes Rezept und Scrollstelle bleiben, nur die Verbindung kommt dazu
+  if (quick && authUser && authUser.uid === quick && !col) {
+    quick = null; uid = authUser.uid; col = makeCol(uid); state.login = null;
+    subscribe(); readyResolve(); resumeJobs();
+    return;
+  }
+  if (quick) { quick = null; qsClear(); state.recipes = []; state.loaded = false; } // abgemeldet oder anderes Konto: gemerkte Rezepte weg
   if (unsub) { unsub(); unsub = null; }
   if (!authUser || (prev && prev !== authUser.uid)) {
     // Kontowechsel: laufende Lese-Aufträge gehören zum alten Konto
@@ -874,6 +922,7 @@ function onAuth(u) {
     state.jobs = [];
   }
   if (!authUser) {
+    qsClear();
     col = null; uid = null; state.recipes = []; state.loaded = false; state.storage = "pending";
     state.edit = null; state.imp = null; state.view = "login"; render(); return;
   }
@@ -882,7 +931,7 @@ function onAuth(u) {
   col = makeCol(uid);
   state.recipes = []; state.loaded = false; state.storage = "pending"; state.slow = false;
   state.login = null;
-  subscribe();
+  subscribe(); readyResolve();
   if (histDepth() > 0) { try { history.replaceState({ v: "list", d: 0 }, ""); } catch (e) { /* egal */ } }
   state.view = "list"; state.listScroll = 0; render(); window.scrollTo(0, 0);
   resumeJobs();
@@ -955,7 +1004,8 @@ function subscribe() {
   unsub = F.onSnapshot(q, { includeMetadataChanges: true }, snap => {
     if (uid !== myUid) return;
     // Leerer Zwischenspeicher beim ersten Start: noch kurz warten, der Server antwortet gleich
-    if (!state.loaded && snap.empty && snap.metadata && snap.metadata.fromCache) return;
+    // Ebenso nach dem Schnellstart: eine leere Meldung aus dem Zwischenspeicher würde die schon gezeigten Rezepte kurz wegnehmen
+    if (snap.empty && snap.metadata && snap.metadata.fromCache && !snap.metadata.hasPendingWrites && (!state.loaded || state.recipes.length)) return;
     const changes = typeof snap.docChanges === "function" ? snap.docChanges() : null;
     if (state.loaded && !state.slow && state.storage === "ok" && changes && !changes.length) return; // nichts Neues: nicht neu zeichnen
     state.recipes = snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
@@ -964,6 +1014,7 @@ function subscribe() {
     clearTimeout(loadTimer); state.slow = false;
     fixOldNames();
     onDataChanged();
+    qsSave();
     setTimeout(queueTags, 3000);
     if (snap.metadata && !snap.metadata.fromCache) repairCreatedAt(myUid);
   }, err => {
@@ -2128,7 +2179,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 function render() {
   app.classList.toggle("home", state.view === "list");
   if (state.view === "login") { renderLogin(); return; }
-  if (state.view === "boot" || !authKnown) { renderBoot(); return; }
+  if (state.view === "boot" || (!authKnown && !quick)) { renderBoot(); return; }
   if (state.view === "list") renderList();
   else if (state.view === "detail") renderDetail();
   else if (state.view === "edit") renderEdit();
@@ -3450,6 +3501,7 @@ function startJob(src, job) {
 }
 async function runJob(job) {
   await initPromise;
+  if (quick) await whenReady(); // Schnellstart: erst die Anmeldung abwarten
   job.status = "busy"; job.error = []; job.t0 = Date.now(); job.title = "";
   job.phase = job.conv ? "save" : job.src.mode === "link" ? "fetch" : "read";
   job.ctl = new AbortController();
@@ -3939,11 +3991,18 @@ function tick() {
   } catch (e) { /* egal */ }
 }
 const TICK = new Set(["fav", "rate", "toggle-ing", "toggle-step", "serv", "factor", "cook-next", "cook-prev"]);
+// Nur Ansehen und Blättern: geht schon im Schnellstart. Alles andere (speichern, einlesen, abmelden …) wartet, bis Firebase bereit ist.
+const VIEW_ONLY = new Set(["open-recipe", "back", "filter", "sort", "set-sort", "open-set", "set-back", "layout", "toggle-ing", "toggle-step", "serv", "factor",
+  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear"]);
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-action]");
   if (!el) return;
-  const fn = actions[el.dataset.action];
-  if (fn) { e.preventDefault(); if (TICK.has(el.dataset.action) && !el.disabled) tick(); fn(el, e); }
+  const a = el.dataset.action, fn = actions[a];
+  if (!fn) return;
+  e.preventDefault();
+  if (TICK.has(a) && !el.disabled) tick();
+  if (!col && quick && !VIEW_ONLY.has(a)) { whenReady().then(() => fn(el, e)); return; }
+  fn(el, e);
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && (layer.classList.contains("open") || layer2.classList.contains("open"))) {
