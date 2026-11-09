@@ -533,7 +533,10 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .login-logo { width: 84px; height: 84px; border-radius: 20px; justify-self: center; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
 .login .brand { margin: 0 0 -6px; text-align: center; }
 .login .lead { margin-top: -8px; text-align: center; }
-.login.boot .spinner { justify-self: center; width: 28px; height: 28px; border-width: 3px; border-color: var(--line); border-top-color: var(--accent); margin-top: 10px; }
+.login.boot .brand { line-height: 1.1; margin-bottom: 0; } /* Startbild: Name und Lade-Kreis genau an derselben Stelle wie bei Gym */
+.login.boot > * { visibility: hidden; } /* Symbol, Name und Kreis erscheinen zusammen in einem Bild, sobald das Symbol fertig ist */
+.login.boot.fx > * { visibility: visible; }
+.login.boot .spinner { justify-self: center; width: 28px; height: 28px; border-width: 3px; border-color: var(--line); border-top-color: var(--accent); margin-top: 12px; }
 #boot { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow: hidden; transition: opacity .3s; }
 #boot.off { opacity: 0; pointer-events: none; }
 .gbtn { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); gap: 10px; }
@@ -819,7 +822,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "71";
+const APP_VERSION = "72";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -885,11 +888,14 @@ function qsSave() { // nach dem Laden und nach Änderungen, gebündelt
   }, 1200);
 }
 async function qsClear() { clearTimeout(qsTimer); try { const db = await qsOpen(); db.transaction("c", "readwrite").objectStore("c").delete("last"); } catch (e) { /* egal */ } }
+let qsPending = true; // noch offen, ob es einen Schnellstart gibt: so lange bleibt das Startbild über allem
+setTimeout(() => { if (qsPending) { qsPending = false; bootDrop(); } }, 1500); // Sicherung, falls der Speicher nicht antwortet
 qsGet().then(c => {
-  if (!c || !c.uid || !Array.isArray(c.recipes) || authKnown || quick || state.view !== "boot") return;
+  qsPending = false;
+  if (!c || !c.uid || !Array.isArray(c.recipes) || authKnown || quick || state.view !== "boot") { bootDrop(); return; }
   quick = c.uid; uid = c.uid;
   state.recipes = c.recipes; state.loaded = true; state.storage = "ok"; state.slow = false;
-  state.view = "list"; render(); bootSplash();
+  bootFade(); state.view = "list"; render();
 });
 
 const initPromise = (async () => {
@@ -1262,7 +1268,7 @@ function renderLogin() {
   const btn = L.mode === "new" ? "Konto erstellen" : L.mode === "reset" ? "Link zum Zurücksetzen senden" : "Anmelden";
   app.innerHTML = `
     <main class="login">
-      <img class="login-logo" src="icon-192.png?v=2" alt="">
+      <img class="login-logo" src="${APP_ICON}" alt="">
       <h1 class="brand">Rezepte</h1>
       <p class="lead">Deine Rezepte, auf allen Geräten gespeichert.</p>
       ${installBanner()}
@@ -1287,14 +1293,32 @@ function renderLogin() {
       <p class="rc-note">Version ${APP_VERSION}</p>
     </main>`;
 }
-const bootHtml = () => `<main class="login boot"><img class="login-logo" src="icon-192.png?v=2" alt=""><h1 class="brand">Rezepte</h1><span class="spinner"></span></main>`;
-// Wie bei Gym: beim Start kurz Symbol und Name, dann blendet die schon fertige Liste darunter auf
-function bootSplash() {
-  const d = document.createElement("div"); d.id = "boot"; d.setAttribute("aria-hidden", "true");
-  d.innerHTML = bootHtml(); document.body.appendChild(d);
-  setTimeout(() => { d.classList.add("off"); setTimeout(() => d.remove(), 350); }, 900);
+// App-Symbol fest in der Seite (wie bei Gym): Es ist beim Start sofort da und muss nicht erst geladen werden
+const APP_ICON = "data:image/png;base64,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";
+// Startbild wie bei Gym: Symbol, Name und Lade-Kreis stehen vom ersten Bild an zusammen da, bleiben 0,9 s
+// und blenden dann in 0,3 s in die schon fertige Liste über.
+let iconReady = false;
+const bootHtml = () => `<main class="login boot${iconReady ? " fx" : ""}"><img class="login-logo" src="${APP_ICON}" alt="" decoding="sync"><h1 class="brand">Rezepte</h1><span class="spinner"></span></main>`;
+let bootEl = null, bootT0 = 0, bootTimer = 0;
+// Gleich beim Start über allem zeigen. Darunter steht dasselbe Bild in der Seite, bis klar ist, wie es weitergeht.
+function bootShow() {
+  const d = bootEl = document.createElement("div"); d.id = "boot"; d.setAttribute("aria-hidden", "true");
+  d.innerHTML = bootHtml(); document.body.appendChild(d); bootT0 = Date.now();
+  // erst zeigen, wenn das Symbol fertig ist: so erscheint alles zusammen in einem Bild
+  const img = d.querySelector("img");
+  const ok = () => { if (iconReady) return; iconReady = true; bootT0 = Date.now(); $$(".login.boot").forEach(m => m.classList.add("fx")); };
+  if (img.decode) img.decode().then(ok, ok); else ok();
+  setTimeout(ok, 300);
 }
+// Schnellstart: Die Liste liegt schon darunter. 0,9 s nach dem Erscheinen sanft ausblenden.
+function bootFade() {
+  const d = bootEl; if (!d || bootTimer) return;
+  bootTimer = setTimeout(() => { d.classList.add("off"); setTimeout(() => { d.remove(); if (bootEl === d) bootEl = null; }, 350); }, Math.max(0, 900 - (Date.now() - bootT0)));
+}
+// Kein Schnellstart (abgemeldet oder erster Start): Darunter steht dasselbe Bild in der Seite, also ohne Übergang wegnehmen.
+function bootDrop() { if (bootEl && !bootTimer) { bootEl.remove(); bootEl = null; } }
 function renderBoot() {
+  if (state.fbError && !qsPending) bootDrop();
   app.innerHTML = state.fbError
     ? `<main class="login"><h1 class="brand">Rezepte</h1>
         <div class="status err"><div><b>Die App ließ sich nicht laden.</b><span class="d">${navigator.onLine === false ? "Du bist offline. Sobald du wieder Internet hast, tipp auf „Nochmal versuchen“." : "Prüf deine Internetverbindung und versuch es nochmal."}</span></div></div>
@@ -2200,8 +2224,9 @@ async function keepAwake(on) {
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.view === "detail") keepAwake(true); });
 function render() {
   app.classList.toggle("home", state.view === "list");
-  if (state.view === "login") { renderLogin(); return; }
+  if (state.view === "login") { bootDrop(); renderLogin(); return; }
   if (state.view === "boot" || (!authKnown && !quick)) { renderBoot(); return; }
+  bootDrop(); // Sicherung: Ab hier steht eine echte Ansicht da. Ein Startbild ohne Ausblend-Uhr würde sie sonst verdecken.
   if (state.view === "list") renderList();
   else if (state.view === "detail") renderDetail();
   else if (state.view === "edit") renderEdit();
@@ -4173,6 +4198,7 @@ document.addEventListener("submit", e => {
 });
 
 render();
+bootShow();
 // Offline-Speicher für die App-Dateien (Rezepte liegen schon im Firestore-Speicher)
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
