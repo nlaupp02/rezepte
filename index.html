@@ -131,7 +131,7 @@ body.nav-anim #app { position: relative; z-index: 3; background: var(--bg); min-
 body.nav-push #app { box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
 body.nav-pop .nav-ghost { z-index: 3; box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
 body.nav-pop #app { z-index: 1; }
-body.nav-anim #app .fab, body.nav-anim #app .fab-fade { visibility: hidden; }
+body.nav-anim #app .fab, body.nav-anim #app .fab-fade, body.nav-anim #app .tabbar { visibility: hidden; }
 
 /* Buttons */
 .btn {
@@ -147,7 +147,7 @@ body.nav-anim #app .fab, body.nav-anim #app .fab-fade { visibility: hidden; }
 }
 .chip:active, .cookbtn:active, .shot.add:active { transform: scale(.95); filter: brightness(.94); }
 .scaler button:active { transform: scale(.9); }
-.fab:active { transform: translateX(-50%) scale(.96); filter: brightness(.94); }
+.fab:active { transform: scale(.96); filter: brightness(.94); }
 .opt.pressed, .cell.pressed { background: #E9E9EC; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); }
 .btn.quiet { background: transparent; color: var(--accent); font-weight: 500; }
@@ -165,10 +165,10 @@ body.nav-anim #app .fab, body.nav-anim #app .fab-fade { visibility: hidden; }
 .icon-btn.on { color: var(--heart); }
 
 .fab {
-  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
   z-index: 6; display: inline-flex; align-items: center; gap: 8px;
-  padding: 14px 22px; border-radius: 999px;
-  border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 17px; white-space: nowrap;
+  padding: 12px 18px; border-radius: 999px;
+  border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 16px; white-space: nowrap;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .12), 0 8px 22px rgba(0, 0, 0, .1);
 }
 .fab .ic { width: 22px; height: 22px; stroke-width: 2.4; }
@@ -180,6 +180,21 @@ body.typing .fab { display: none; }
   background: linear-gradient(to top, rgba(255, 255, 255, 1) 0, rgba(255, 255, 255, 1) 30%, rgba(255, 255, 255, .75) 58%, rgba(255, 255, 255, 0) 100%);
 }
 .fab[hidden] ~ .fab-fade, body.typing .fab-fade { display: none; }
+/* Leiste unten (Rezepte, Sammlungen, Profil): nur auf den drei Hauptseiten, nicht im Rezept und nicht in einer Sammlung */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 6px 12px max(6px, calc(2px + env(safe-area-inset-bottom)));
+  background: rgba(255, 255, 255, .94); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 -.5px 0 rgba(0, 0, 0, .14);
+}
+.tabbar button { display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 48px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.2; }
+.tabbar button.on { color: var(--accent); font-weight: 600; }
+.tabbar .ic { width: 26px; height: 26px; stroke-width: 1.8; }
+body.typing .tabbar { display: none; }
+.app.tabs { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+.app.tabs .fab { bottom: calc(68px + env(safe-area-inset-bottom)); }
+.app.tabs .fab-fade { display: none; }
+body:has(.app.tabs) .toast { bottom: calc(128px + env(safe-area-inset-bottom)); } /* Meldungen über dem Knopf, nicht dahinter */
+.app.tabs .head-btns { gap: 0; }
 
 /* Search + chips */
 .search {
@@ -609,6 +624,24 @@ body.kb .toast.show { transform: none; }
 .album-t { font-size: 15px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .album-n { font-size: 13px; line-height: 1.3; color: var(--muted); white-space: nowrap; }
 /* Anzahl und Sortierung direkt über der Liste */
+/* Sammlungen als eigene Seite: große Karten, zwei nebeneinander */
+.albums.big { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; overflow: visible; margin: 0; padding: 8px 0 0; }
+.albums.big .album { display: block; max-width: none; padding: 0; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--bg); }
+.albums.big .album-c { width: 100%; height: auto; aspect-ratio: 16 / 11; border-radius: 0; }
+.albums.big .album-c .ph .ic { width: 34px; height: 34px; }
+.albums.big .album-b { padding: 11px 14px 13px; }
+.albums.big .album-t { font-size: 17px; }
+.albums.big .album-n { font-size: 14px; margin-top: 1px; }
+.albums.big .album.add { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 150px; background: var(--warm); border-color: transparent; text-align: center; }
+.albums.big .album.add .album-c { width: 40px; height: 40px; aspect-ratio: auto; background: none; }
+.albums.big .album.add .album-c .ic { width: 28px; height: 28px; }
+.albums.big .album.add .album-b { padding: 0; }
+.albums.big .album.add .album-t, .albums.big .album.add .album-n { font-size: 16px; font-weight: 600; color: var(--accent); }
+#grid > .tiles:first-child { margin-top: 14px; }
+/* Profil als Seite */
+.profile { display: grid; gap: 18px; padding-top: 8px; }
+.profile .group { background: var(--group); border-radius: 14px; }
+.profile .cell { background: none; }
 .list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 16px 0 -4px; font-size: 15px; color: var(--muted); }
 .sortbtn { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none; padding: 10px 0 10px 12px; margin: -10px 0; color: var(--accent); font-size: 15px; white-space: nowrap; }
 .sortbtn .ic { width: 16px; height: 16px; stroke-width: 2.4; }
@@ -619,12 +652,6 @@ body.kb .toast.show { transform: none; }
 .sortbtn { min-width: 0; }
 .sortbtn .ic { flex-shrink: 0; }
 .sortbtn .sl { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* sehr schmale Handys: Sortierung kürzen statt umbrechen */
-/* Ansicht: kleiner Schalter am rechten Rand, beide Ansichten sichtbar, die aktive hell (grau = Felder/Filter) */
-.lseg { display: inline-flex; flex-shrink: 0; gap: 2px; margin: -6px 0 -6px 8px; padding: 2px; border-radius: 9px; background: var(--fill); }
-.lseg button { position: relative; width: 34px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: none; display: grid; place-items: center; color: var(--muted); transition: background .2s, color .2s, box-shadow .2s; }
-.lseg button::after { content: ""; position: absolute; inset: -9px 0; } /* Tippfläche höher als der sichtbare Knopf */
-.lseg button.on { background: var(--bg); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
-.lseg .ic { width: 17px; height: 17px; }
 /* Kacheln: zwei Rezepte nebeneinander mit großem Bild */
 .tiles { list-style: none; margin: 22px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; }
 .tiles > li { content-visibility: auto; contain-intrinsic-size: auto 250px; min-width: 0; }
@@ -768,8 +795,9 @@ const ICONS = {
   addsq: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/>',
   menu: '<path d="M4 6.5h16M4 12h16M4 17.5h10.5"/>',
   more: '<path d="M6 9.5l6 6 6-6"/>',
+  home: '<path d="M4.5 10.6 12 4.3l7.5 6.3V19a1.4 1.4 0 0 1-1.4 1.4h-3.5v-5.6H9.4v5.6H5.9A1.4 1.4 0 0 1 4.5 19z"/>',
+  sortl: '<path d="M4 7h16M7 12h10M10 17h4"/>',
   gridv: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
-  listv: '<rect x="3.5" y="5" width="5" height="5" rx="1.2"/><rect x="3.5" y="14" width="5" height="5" rx="1.2"/><path d="M11.5 7.5h9M11.5 16.5h9"/>',
   folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
   salad: '<path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" />',
   icecream: '<path d="M12 17c5 0 8-2.69 8-6H4c0 3.31 3 6 8 6m-4 4h8m-4-3v3M5.14 11a3.5 3.5 0 1 1 6.71 0" /><path d="M12.14 11a3.5 3.5 0 1 1 6.71 0" /><path d="M15.5 6.5a3.5 3.5 0 1 0-7 0" />',
@@ -791,9 +819,11 @@ const catIcon = c => CAT_ICON[c] || "pot";
 const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 
 /* ---------- State ---------- */
+const HOME_TILES = true; // Rezepte-Seite: immer Kacheln. In einer Sammlung immer die Liste. Eine Auswahl gibt es nicht mehr.
 const state = {
   view: "boot",
-  layout: (() => { try { return localStorage.getItem("rezepte-layout") === "grid" ? "grid" : "list"; } catch (e) { return "list"; } })(),
+  tab: "rez",              // Leiste unten: rez | sam | pro
+  searchOpen: false,       // Suchfeld auf der Rezepte-Seite aufgeklappt
   recipes: [],
   loaded: false,
   slow: false,
@@ -822,7 +852,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "72";
+const APP_VERSION = "73";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -931,6 +961,7 @@ function onAuth(u) {
   // Schnellstart mit demselben Konto: Liste, geöffnetes Rezept und Scrollstelle bleiben, nur die Verbindung kommt dazu
   if (quick && authUser && authUser.uid === quick && !col) {
     quick = null; uid = authUser.uid; col = makeCol(uid); state.login = null;
+    if (state.view === "list" && state.tab === "pro" && curSet() == null) renderList(); // Profil zeigt jetzt das Konto
     subscribe(); readyResolve(); resumeJobs();
     return;
   }
@@ -944,6 +975,7 @@ function onAuth(u) {
   if (!authUser) {
     qsClear();
     col = null; uid = null; state.recipes = []; state.loaded = false; state.storage = "pending";
+    state.tab = "rez"; state.searchOpen = false;
     state.edit = null; state.imp = null; state.view = "login"; render(); return;
   }
   if (prev === authUser.uid && col) return;
@@ -1325,23 +1357,6 @@ function renderBoot() {
         <button class="btn primary block" data-action="reload">Nochmal versuchen</button></main>`
     : bootHtml();
 }
-function openAccount() {
-  const mail = authUser ? (authUser.email || authUser.displayName || "") : "";
-  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="a-t">
-      <div class="grip"></div>
-      <div class="sheet-head"><h2 id="a-t">Konto</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
-      <div class="group">
-        <div class="cell col"><small>Angemeldet als</small><span class="v">${esc(mail)}</span></div>
-        ${authUser && authUser.email && !authUser.emailVerified ? `<button class="cell" data-action="verify-mail"><span>E-Mail bestätigen</span><span class="v">Link senden ›</span></button>` : ""}
-      </div>
-      ${authUser && authUser.email && !authUser.emailVerified ? `<p class="note">Zum Einlesen von Rezepten muss die E-Mail bestätigt sein. Bei Google-Konten ist sie das schon.</p>` : ""}
-      <div class="group"><button class="cell danger" data-action="logout">Abmelden</button></div>
-      <p class="rc-note ver-box" style="margin:0">Version ${APP_VERSION}</p>
-    </div>`;
-  layer.classList.add("open");
-}
-
 /* ---------- Helpers: recipes ---------- */
 const current = () => state.recipes.find(r => r.id === state.currentId) || null;
 function patchLocal(id, patch) {
@@ -2224,6 +2239,7 @@ async function keepAwake(on) {
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.view === "detail") keepAwake(true); });
 function render() {
   app.classList.toggle("home", state.view === "list");
+  if (state.view !== "list") app.classList.remove("tabs");
   if (state.view === "login") { bootDrop(); renderLogin(); return; }
   if (state.view === "boot" || (!authKnown && !quick)) { renderBoot(); return; }
   bootDrop(); // Sicherung: Ab hier steht eine echte Ansicht da. Ein Startbild ohne Ausblend-Uhr würde sie sonst verdecken.
@@ -2246,28 +2262,59 @@ function renderList() {
   lastBanner = bannerKey();
   const y = window.scrollY;
   const oldImgs = keepImgs(app); // zurück aus dem Rezept: Bilder nicht neu laden
-  const set = curSet();
+  const set = curSet(), tab = set == null ? state.tab : null;
   app.dataset.set = set == null ? "" : "set:" + set; // welcher Kopf gerade steht (alle Rezepte oder eine Sammlung)
+  app.classList.toggle("tabs", set == null);
   const hs = history.state;
   if (set != null && hs && hs.v === "list" && hs.set && hs.set !== set) try { history.replaceState(Object.assign({}, hs, { set }), ""); } catch (e) { /* egal */ }
   app.innerHTML = `
     ${set == null ? `<header class="home-head">
-      <h1 class="brand">Rezepte</h1>
-      <span class="head-btns"><button class="icon-btn" data-action="account" aria-label="Konto">${icon("user")}</button></span>
-    </header>` : `<div class="topbar"><button class="back" data-action="set-back">${icon("back")}Rezepte</button><span class="grow"></span>
+      <h1 class="brand">${tab === "sam" ? "Sammlungen" : tab === "pro" ? "Profil" : "Rezepte"}</h1>
+      <span class="head-btns">${tab === "rez" ? `<button class="icon-btn" data-action="search-open" aria-label="Suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sortieren">${icon("sortl")}</button>`
+        : tab === "sam" ? `<button class="icon-btn" data-action="new-set" aria-label="Neue Sammlung">${icon("plus")}</button>` : ""}</span>
+    </header>` : `<div class="topbar"><button class="back" data-action="set-back">${icon("back")}Sammlungen</button><span class="grow"></span>
       <button class="tbtn" data-action="edit-set">Bearbeiten</button></div>
     <h1 class="brand set-title">${esc(set)}</h1>`}
     ${installBanner()}
     <div class="stack" style="padding:0 0 10px;gap:12px">${banner()}</div>
-    <div class="search" id="search-wrap">${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="${set == null ? "Suchen" : "In der Sammlung suchen"}" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
+    ${tab === "pro" ? profileHtml() : `<div class="search" id="search-wrap"${set == null && !(state.searchOpen || state.query) ? " hidden" : ""}>${icon("search")}<input id="q" type="search" enterkeyhint="search" placeholder="${set == null ? "Suchen" : "In der Sammlung suchen"}" value="${esc(state.query)}" autocomplete="off" aria-label="Rezepte durchsuchen"></div>
     <div id="albums"></div>
     <div id="chips" class="chips"></div>
     <div id="grid"></div>
     <button class="fab" id="fab" data-action="open-add">${icon("plus")}<span>Neues Rezept</span></button>
-    <div class="fab-fade" aria-hidden="true"></div>`;
+    <div class="fab-fade" aria-hidden="true"></div>`}
+    ${set == null ? tabbarHtml() : ""}`;
   renderListBody();
   reuseImgs(app, oldImgs);
   if (y) window.scrollTo(0, y);
+}
+/* Leiste unten: drei Hauptseiten. Wechseln legt keinen Schritt im Verlauf an (wie in iOS). */
+const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "gridv"], ["pro", "Profil", "user"]];
+function tabbarHtml() {
+  return `<nav class="tabbar" aria-label="Bereiche">${TABS.map(([k, l, ic]) => `<button data-action="tab" data-t="${k}" class="${state.tab === k ? "on" : ""}"${state.tab === k ? ' aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></button>`).join("")}</nav>`;
+}
+const tabScroll = {};
+function switchTab(t) {
+  if (state.view !== "list" || curSet() != null || !TABS.some(x => x[0] === t)) return;
+  if (t === state.tab) { window.scrollTo({ top: 0, behavior: noMotion() ? "auto" : "smooth" }); return; } // nochmal tippen: nach oben
+  tabScroll[state.tab] = window.scrollY;
+  state.tab = t;
+  if (!state.query) state.searchOpen = false;
+  renderList();
+  window.scrollTo(0, tabScroll[t] || 0);
+}
+function profileHtml() {
+  const mail = authUser ? (authUser.email || authUser.displayName || "") : "";
+  const unv = !!(authUser && authUser.email && !authUser.emailVerified);
+  return `<div class="profile">
+    <div class="group">
+      <div class="cell col"><small>Angemeldet als</small><span class="v">${esc(mail)}</span></div>
+      ${unv ? `<button class="cell" data-action="verify-mail"><span>E-Mail bestätigen</span><span class="v">Link senden ›</span></button>` : ""}
+    </div>
+    ${unv ? `<p class="note">Zum Einlesen von Rezepten muss die E-Mail bestätigt sein. Bei Google-Konten ist sie das schon.</p>` : ""}
+    <div class="group"><button class="cell danger" data-action="logout">Abmelden</button></div>
+    <p class="rc-note ver-box" style="margin:0">Version ${APP_VERSION}</p>
+  </div>`;
 }
 const SORTS = [["added", "Zuletzt hinzugefügt"], ["viewed", "Zuletzt angesehen"], ["az", "Name A–Z"], ["rating", "Beste Bewertung"]];
 function sorted(list) {
@@ -2331,7 +2378,8 @@ function tile(r) {
 }
 function renderListBody() {
   const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab"), albums = $("#albums");
-  if (!grid) return;
+  if (!grid) return; // Profil: nichts zu füllen
+  const sam = curSet() == null && state.tab === "sam";
   const noAlbums = () => { if (albums) albums.innerHTML = ""; };
   lastListSig = listSig();
   const rs = state.recipes;
@@ -2348,7 +2396,11 @@ function renderListBody() {
   }
   if (!rs.length && !state.jobs.length) {
     chips.innerHTML = ""; sw.hidden = true; fab.hidden = true; noAlbums();
-    grid.innerHTML = `<section class="empty">
+    grid.innerHTML = sam ? `<section class="empty">
+      <div class="empty-ic">${icon("folder")}</div>
+      <h2>Noch keine Sammlungen</h2>
+      <p>Sammlungen ordnen deine Rezepte, z. B. „Von Oma“ oder „Schnell“. Leg zuerst unter „Rezepte“ ein Rezept an.</p>
+    </section>` : `<section class="empty">
       <div class="empty-ic">${icon("pot")}</div>
       <h2>Noch keine Rezepte</h2>
       <p>Fotografier ein Rezept aus dem Kochbuch oder einen Zettel, nimm einen Screenshot oder füg einen Link ein.</p>
@@ -2356,7 +2408,7 @@ function renderListBody() {
     </section>`;
     return;
   }
-  sw.hidden = !rs.length; fab.hidden = false;
+  sw.hidden = curSet() == null ? !(state.searchOpen || state.query) || sam : !rs.length; fab.hidden = false;
   const cats = CATEGORIES.filter(c => rs.some(r => r.category === c));
   const favN = rs.filter(r => r.favorite).length;
   const sets = allSets(), set = curSet();
@@ -2364,14 +2416,14 @@ function renderListBody() {
     (set != null && !sets.some(([s]) => s === set))) state.filter = "all";
   if ((app.dataset.set || "") !== (curSet() == null ? "" : "set:" + curSet())) { renderList(); return; } // Sammlung geöffnet oder verlassen: neuer Kopf
   const q = !!state.query.trim();
-  // Sammlungen: eine eigene Reihe mit Bild, Name und Anzahl (wie Alben). Die Chips darunter filtern nur noch.
-  // „Neue Sammlung“ steht immer am Ende der Reihe, auch wenn es noch keine gibt.
-  if (albums && set == null && !q && rs.length) {
-    const row = albums.querySelector(".albums"), keepA = row ? row.scrollLeft : 0;
-    setHTMLKeepImgs(albums, `<div class="sub-h">Sammlungen</div><div class="albums">${sets.map(([s, n]) => albumCard(s, n)).join("")}
+  // Sammlungen haben ihre eigene Seite (Leiste unten): große Karten mit Bild, Name und Anzahl, am Ende „Neue Sammlung“.
+  if (sam) {
+    chips.innerHTML = ""; grid.innerHTML = "";
+    setHTMLKeepImgs(albums, `<div class="albums big">${sets.map(([s, n]) => albumCard(s, n)).join("")}
       <button class="album add" data-action="new-set"><span class="album-c">${icon("plus")}</span><span class="album-b"><span class="album-t">Neue</span><span class="album-n">Sammlung</span></span></button></div>`);
-    albums.querySelector(".albums").scrollLeft = keepA;
-  } else noAlbums();
+    return;
+  }
+  noAlbums();
   const keepX = chips.scrollLeft;
   chips.innerHTML = rs.length < 2 || set != null ? "" : [chip("all", "Alle"), favN ? chip("fav", "Favoriten") : "",
     ...cats.map(c => chip("cat:" + c, c))].join("");
@@ -2379,10 +2431,10 @@ function renderListBody() {
   const list = filtered();
   const jobsHtml = state.jobs.map(jobCard).join("");
   const n = list.length, sortName = (SORTS.find(([k]) => k === state.sort) || SORTS[0])[1];
-  const tiles = state.layout === "grid";
-  const head = n ? `<div class="list-head"><span>${q ? (n === 1 ? "1 Treffer" : n + " Treffer") : (n === 1 ? "1 Rezept" : n + " Rezepte")}</span>
-    <span class="lh-r"><button class="sortbtn" data-action="sort"><span class="sl">${esc(sortName)}</span>${icon("more")}</button>
-    <span class="lseg" role="group" aria-label="Ansicht"><button class="${tiles ? "on" : ""}" data-action="layout" data-l="grid" aria-label="Kacheln" aria-pressed="${tiles}">${icon("gridv")}</button><button class="${tiles ? "" : "on"}" data-action="layout" data-l="list" aria-label="Liste" aria-pressed="${!tiles}">${icon("listv")}</button></span></span></div>` : "";
+  const tiles = HOME_TILES && set == null; // Rezepte als Kacheln; in einer Sammlung die Liste: meist kurz, und man sieht den ganzen Namen
+  // Rezepte-Seite: Suchen, Sortieren und Ansicht stecken oben in den Symbolen. In einer Sammlung bleibt die Zeile mit Anzahl und Sortierung.
+  const head = set != null && n ? `<div class="list-head"><span>${q ? (n === 1 ? "1 Treffer" : n + " Treffer") : (n === 1 ? "1 Rezept" : n + " Rezepte")}</span>
+    <span class="lh-r"><button class="sortbtn" data-action="sort"><span class="sl">${esc(sortName)}</span>${icon("more")}</button></span></div>` : "";
   // Nach Namen sortiert: Buchstaben als Zwischenüberschrift, damit man in langen Listen schnell hinfindet
   let last = null;
   const rows = list.map(r => {
@@ -3588,6 +3640,7 @@ function removeJob(job) {
 function newJob(src, status) {
   const job = { id: "j" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), src, status: status || "busy", title: "", error: [], t0: Date.now(), ctl: null, uid, conv: null };
   state.jobs.unshift(job);
+  state.tab = "rez"; // der Auftrag steht bei den Rezepten: beim Zurückkommen dort landen
   return job;
 }
 function startJob(src, job) {
@@ -3849,7 +3902,14 @@ const actions = {
     renderLogin();
     const f = $("#lg-mail"); if (f && !L.email) f.focus();
   },
-  account: () => openAccount(),
+  account: () => switchTab("pro"),
+  tab: el => switchTab(el.dataset.t),
+  "search-open": () => { // Lupe: Suchfeld auf- und (leer) wieder zuklappen
+    const sw = $("#search-wrap"), q = $("#q");
+    if (!sw || !q) return;
+    if (!sw.hidden && !state.query) { state.searchOpen = false; sw.hidden = true; q.blur(); return; }
+    state.searchOpen = true; sw.hidden = false; q.focus();
+  },
   "verify-mail": async () => {
     if (!fb || !authUser) return;
     try { await fb.U.sendEmailVerification(authUser); closeLayer(); toast("Link ist unterwegs. Schau auch im Spam-Ordner nach."); }
@@ -3969,13 +4029,6 @@ const actions = {
     else startImport(mode);
   },
   filter: el => { state.filter = el.dataset.f; renderListBody(); },
-  layout: el => {
-    const l = el.dataset.l || (state.layout === "grid" ? "list" : "grid");
-    if (l === state.layout) return;
-    state.layout = l;
-    try { localStorage.setItem("rezepte-layout", state.layout); } catch (e) { /* egal */ }
-    renderListBody();
-  },
   "open-set": el => openSet(el.dataset.s),
   "set-back": () => { if (history.state && history.state.set && histBack()) return; leaveSet(); },
   "open-recipe": el => openDetail(el.dataset.id),
@@ -4091,8 +4144,8 @@ function tick() {
 }
 const TICK = new Set(["fav", "rate", "toggle-ing", "toggle-step", "serv", "factor", "cook-next", "cook-prev"]);
 // Nur Ansehen und Blättern: geht schon im Schnellstart. Alles andere (speichern, einlesen, abmelden …) wartet, bis Firebase bereit ist.
-const VIEW_ONLY = new Set(["open-recipe", "back", "filter", "sort", "set-sort", "open-set", "set-back", "layout", "toggle-ing", "toggle-step", "serv", "factor",
-  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear"]);
+const VIEW_ONLY = new Set(["open-recipe", "back", "filter", "sort", "set-sort", "open-set", "set-back", "toggle-ing", "toggle-step", "serv", "factor",
+  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear", "tab", "search-open"]);
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-action]");
   if (!el) return;
