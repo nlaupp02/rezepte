@@ -611,21 +611,32 @@ body.kb .toast.show { transform: none; }
 .sortbtn .ic { width: 16px; height: 16px; stroke-width: 2.4; }
 .list > li.letter { content-visibility: visible; contain-intrinsic-size: none; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: var(--muted); }
 .list > li.letter + li > .row::before { display: none; }
-.lh-r { display: inline-flex; align-items: center; gap: 4px; }
-.layoutbtn { width: 36px; height: 36px; margin: -8px 0; border: 0; background: none; display: grid; place-items: center; color: var(--accent); }
-.layoutbtn .ic { width: 20px; height: 20px; }
+.lh-r { display: inline-flex; align-items: center; min-width: 0; }
+.list-head > span:first-child { white-space: nowrap; flex-shrink: 0; }
+.sortbtn { min-width: 0; }
+.sortbtn .ic { flex-shrink: 0; }
+.sortbtn .sl { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* sehr schmale Handys: Sortierung kürzen statt umbrechen */
+/* Ansicht: kleiner Schalter am rechten Rand, beide Ansichten sichtbar, die aktive hell (grau = Felder/Filter) */
+.lseg { display: inline-flex; flex-shrink: 0; gap: 2px; margin: -6px 0 -6px 8px; padding: 2px; border-radius: 9px; background: var(--fill); }
+.lseg button { position: relative; width: 34px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: none; display: grid; place-items: center; color: var(--muted); transition: background .2s, color .2s, box-shadow .2s; }
+.lseg button::after { content: ""; position: absolute; inset: -9px 0; } /* Tippfläche höher als der sichtbare Knopf */
+.lseg button.on { background: var(--bg); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
+.lseg .ic { width: 17px; height: 17px; }
 /* Kacheln: zwei Rezepte nebeneinander mit großem Bild */
-.tiles { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; }
+.tiles { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; }
 .tiles > li { content-visibility: auto; contain-intrinsic-size: auto 250px; min-width: 0; }
 .tiles > li.letter { grid-column: 1 / -1; content-visibility: visible; contain-intrinsic-size: none; padding: 4px 0 0; margin-bottom: -10px; font-size: 15px; font-weight: 700; color: var(--muted); }
 .tile { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: inherit; font: inherit; }
 .tile-img { position: relative; display: block; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: var(--ph); }
 .tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tile-img .ph .ic { width: 44px; height: 44px; stroke-width: 1.4; }
+.tile-img:has(img)::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.08); pointer-events: none; } /* feine Kante, damit helle Fotos nicht im Weiß verschwimmen */
 .tile.pressed .tile-img { transform: scale(.96); filter: brightness(.9); }
-.tile .row-m { margin-top: 3px; font-size: 14px; }
+.tile .row-m { margin-top: 4px; font-size: 13px; }
+.row-m .tm { display: inline-flex; align-items: center; gap: 4px; }
+.row-m .tm .ic { color: inherit; width: 14px; height: 14px; stroke-width: 2; }
 /* Langer Name: Hauptname bis 2 Zeilen, Zusatz („mit Feta und Tomaten“) grau in 1 Zeile. Jede Kachel gleich hoch, damit die Reihen gleichmäßig sind. */
-.tile-t { display: block; height: calc(2.5em + 19.2px); margin-top: 8px; font-size: 16px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; }
+.tile-t { display: block; margin-top: 8px; font-size: 16px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; }
 .t-main { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .t-more { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; font-size: 14px; font-weight: 400; line-height: 1.3; color: var(--muted); }
 .set-title { margin: 6px 0 14px; overflow-wrap: anywhere; }
@@ -808,7 +819,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "69";
+const APP_VERSION = "70";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2284,12 +2295,12 @@ function splitTitle(t) {
   return rest.length < 4 ? [t, ""] : [t.slice(0, i), rest];
 }
 function tile(r) {
-  const meta = totalTime(r) || r.category || ""; // in der schmalen Kachel nur die Zeit (Kategorie, wenn keine Zeit da ist)
+  const time = totalTime(r); // in der schmalen Kachel nur die Zeit, die Art sieht man am Bild und an den Filtern
   const [main, more] = splitTitle(r.title || "Ohne Titel");
   return `<li><button class="tile" data-action="open-recipe" data-id="${esc(r.id)}">
     <span class="tile-img">${coverHtml(r)}</span>
     <span class="tile-t"><span class="t-main">${esc(main)}</span>${more ? `<span class="t-more">${esc(more)}</span>` : ""}</span>
-    <span class="row-m">${cleanUnsure(r.unsure).length ? `<span class="chk">Prüfen</span>` : ""}${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}<span>${esc(meta || " ")}</span></span>
+    ${(() => { const m = `${cleanUnsure(r.unsure).length ? `<span class="chk">Prüfen</span>` : ""}${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}${time ? `<span class="tm">${icon("clock")}${esc(time)}</span>` : ""}`; return m ? `<span class="row-m">${m}</span>` : ""; })()}
   </button></li>`;
 }
 function renderListBody() {
@@ -2344,8 +2355,8 @@ function renderListBody() {
   const n = list.length, sortName = (SORTS.find(([k]) => k === state.sort) || SORTS[0])[1];
   const tiles = state.layout === "grid";
   const head = n ? `<div class="list-head"><span>${q ? (n === 1 ? "1 Treffer" : n + " Treffer") : (n === 1 ? "1 Rezept" : n + " Rezepte")}</span>
-    <span class="lh-r"><button class="layoutbtn" data-action="layout" aria-label="${tiles ? "Als Liste zeigen" : "Als Kacheln zeigen"}">${icon(tiles ? "listv" : "gridv")}</button>
-    <button class="sortbtn" data-action="sort">${esc(sortName)}${icon("more")}</button></span></div>` : "";
+    <span class="lh-r"><button class="sortbtn" data-action="sort"><span class="sl">${esc(sortName)}</span>${icon("more")}</button>
+    <span class="lseg" role="group" aria-label="Ansicht"><button class="${tiles ? "on" : ""}" data-action="layout" data-l="grid" aria-label="Kacheln" aria-pressed="${tiles}">${icon("gridv")}</button><button class="${tiles ? "" : "on"}" data-action="layout" data-l="list" aria-label="Liste" aria-pressed="${!tiles}">${icon("listv")}</button></span></span></div>` : "";
   // Nach Namen sortiert: Buchstaben als Zwischenüberschrift, damit man in langen Listen schnell hinfindet
   let last = null;
   const rows = list.map(r => {
@@ -3882,8 +3893,10 @@ const actions = {
     else startImport(mode);
   },
   filter: el => { state.filter = el.dataset.f; renderListBody(); },
-  layout: () => {
-    state.layout = state.layout === "grid" ? "list" : "grid";
+  layout: el => {
+    const l = el.dataset.l || (state.layout === "grid" ? "list" : "grid");
+    if (l === state.layout) return;
+    state.layout = l;
     try { localStorage.setItem("rezepte-layout", state.layout); } catch (e) { /* egal */ }
     renderListBody();
   },
