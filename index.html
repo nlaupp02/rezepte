@@ -232,6 +232,25 @@ body:has(.app.tabs) .toast { bottom: calc(128px + env(safe-area-inset-bottom)); 
   background: var(--fill); font-size: 15px; font-weight: 500; color: var(--ink);
 }
 .chip.on { background: var(--ink); color: #fff; }
+/* V81: Würfel – ein zufälliges Rezept, wenn man nicht weiß, was man kochen soll */
+.sheet.dice { gap: 14px; }
+.dz-chips { padding-top: 0; }
+.dz-card { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+.dz-img { position: relative; display: block; aspect-ratio: 16 / 10; border-radius: 16px; overflow: hidden; background: var(--ph); }
+.dz-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dz-img .ph .ic { width: 52px; height: 52px; stroke-width: 1.3; }
+.dz-img:has(img)::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.08); pointer-events: none; }
+.dz-t { display: block; margin-top: 12px; font-family: var(--serif); font-size: 25px; font-weight: 700; line-height: 1.18; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dz-card .row-m { margin-top: 6px; gap: 14px; }
+.dz-card .row-m > span { display: inline-flex; align-items: center; gap: 5px; }
+#dz-body { display: grid; gap: 18px; }
+.dz-none { padding: 34px 8px; text-align: center; color: var(--muted); }
+.dz-btns { display: grid; grid-template-columns: 1fr 1.35fr; gap: 10px; }
+.dz-btns .btn .ic { width: 20px; height: 20px; }
+.dz-card.spin .dz-img img { filter: saturate(.85); }
+.dz-card.land { animation: dz-land .34s cubic-bezier(.3, 1.45, .55, 1); }
+@keyframes dz-land { from { transform: scale(.95); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dz-card.land { animation: none; } }
 
 /* Recipe list */
 .list { list-style: none; margin: 8px 0 0; padding: 0; }
@@ -964,6 +983,7 @@ const ICONS = {
   more: '<path d="M6 9.5l6 6 6-6"/>',
   home: '<path d="M4.5 10.6 12 4.3l7.5 6.3V19a1.4 1.4 0 0 1-1.4 1.4h-3.5v-5.6H9.4v5.6H5.9A1.4 1.4 0 0 1 4.5 19z"/>',
   sortl: '<path d="M4 7h16M7 12h10M10 17h4"/>',
+  dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01" stroke-width="3"/>',
   gridv: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
   folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
   salad: '<path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" />',
@@ -1022,7 +1042,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "80";
+const APP_VERSION = "81";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2708,6 +2728,86 @@ function navAnim(kind, draw) {
   setTimeout(end, D + 400); // falls eine Animation hängen bleibt
 }
 
+/* ---------- V81: Würfel ----------
+   Ein zufälliges Rezept aus allen, aus der gewählten Art (z. B. „Dessert“) oder aus einer Sammlung.
+   Die letzten Vorschläge kommen nicht gleich wieder; länger nicht angesehene Rezepte kommen etwas öfter dran. */
+let dice = null; // { p: Auswahl, id: aktuelles Rezept, recent: [...], busy }
+function dicePool(p) {
+  const rs = state.recipes;
+  if (p === "fav") return rs.filter(r => r.favorite);
+  if (p.startsWith("cat:")) return rs.filter(r => r.category === p.slice(4));
+  if (p.startsWith("set:")) return rs.filter(r => setsOf(r).includes(p.slice(4)));
+  return rs.slice();
+}
+function dicePick() {
+  const pool = dicePool(dice.p);
+  if (!pool.length) return null;
+  if (pool.length === 1) return pool[0];
+  const keep = Math.min(5, pool.length - 1), recent = new Set(dice.recent.slice(-keep));
+  let cand = pool.filter(r => !recent.has(r.id) && r.id !== dice.id);
+  if (!cand.length) cand = pool.filter(r => r.id !== dice.id);
+  const now = Date.now(), w = cand.map(r => 1 + Math.min(60, Math.max(0, now - (Number(r.viewedAt) || Number(r.createdAt) || 0)) / 864e5) / 20);
+  let x = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < cand.length; i++) { x -= w[i]; if (x <= 0) return cand[i]; }
+  return cand[cand.length - 1];
+}
+const diceCard = r => {
+  const time = totalTime(r);
+  const m = `${r.favorite ? icon("heart", "filled") : ""}${r.rating ? `<span class="rt">${icon("star", "filled")}${Number(r.rating)}</span>` : ""}${time ? `<span class="tm">${icon("clock")}${esc(time)}</span>` : ""}${r.category ? `<span class="tm">${icon(catIcon(r.category))}${esc(r.category)}</span>` : ""}`;
+  return `<span class="dz-img">${coverHtml(r)}</span><span class="dz-t">${esc(r.title || "Ohne Titel")}</span>${m ? `<span class="row-m">${m}</span>` : ""}`;
+};
+function diceChips() {
+  const ctx = state.filter === "fav" ? ["fav", "Favoriten"] : state.filter.startsWith("cat:") ? [state.filter, state.filter.slice(4)] : null;
+  const list = [...(ctx ? [ctx] : []), ["all", "Alle Rezepte"], ...allSets().filter(([, n]) => n > 0).map(([n]) => ["set:" + n, n])];
+  return list.map(([k, l]) => `<button class="chip ${dice.p === k ? "on" : ""}" data-action="dice-pool" data-p="${esc(k)}" aria-pressed="${dice.p === k}">${k.startsWith("set:") ? icon("folder") : ""}${esc(l)}</button>`).join("");
+}
+function openDice() {
+  const set = curSet();
+  dice = { p: set != null ? "set:" + set : state.filter === "fav" || state.filter.startsWith("cat:") ? state.filter : "all", id: null, recent: dice ? dice.recent : [], busy: false };
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
+    <div class="sheet dice" role="dialog" aria-modal="true" aria-labelledby="dz-h">
+      <div class="grip"></div>
+      <div class="sheet-head"><h2 id="dz-h">Was koche ich heute?</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
+      <div class="chips dz-chips" id="dz-chips">${diceChips()}</div>
+      <div id="dz-body"></div>
+    </div>`;
+  layer.classList.add("open");
+  const on = layer.querySelector("#dz-chips .chip.on"); if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
+  diceShow(dicePick(), false);
+}
+function diceShow(r, anim) {
+  const body = layer.querySelector("#dz-body"); if (!body || !dice) return;
+  const n = dicePool(dice.p).length;
+  if (!r) {
+    dice.id = null;
+    body.innerHTML = `<p class="dz-none">${dice.p.startsWith("set:") ? `In „${esc(dice.p.slice(4))}“ sind noch keine Rezepte.` : "Hier sind noch keine Rezepte."}</p>`;
+    return;
+  }
+  dice.id = r.id; dice.recent.push(r.id); if (dice.recent.length > 20) dice.recent.shift();
+  body.innerHTML = `<button class="dz-card${anim ? " land" : ""}" id="dz-card" data-action="dice-open" data-id="${esc(r.id)}">${diceCard(r)}</button>
+    <div class="dz-btns"><button class="btn" data-action="dice-again"${n < 2 ? " disabled" : ""}>${icon("dice")}${n < 2 ? "Nur 1 Rezept" : "Nochmal"}</button>
+      <button class="btn primary" data-action="dice-open" data-id="${esc(r.id)}">Das koch ich</button></div>`;
+}
+// Nochmal: kurz ein paar andere Rezepte durchblättern (wie ein rollender Würfel), dann landen
+function diceRoll() {
+  if (!dice || dice.busy) return;
+  const pool = dicePool(dice.p);
+  const r = dicePick(); if (!r) { diceShow(null); return; }
+  const card = layer.querySelector("#dz-card");
+  if (!card || noMotion() || pool.length < 3) { diceShow(r, !noMotion()); tick(); return; }
+  dice.busy = true;
+  const others = pool.filter(x => x.id !== r.id && x.id !== dice.id).sort(() => Math.random() - .5).slice(0, 4);
+  const steps = [55, 70, 90, 120].slice(0, others.length);
+  card.classList.add("spin");
+  let i = 0;
+  const next = () => {
+    if (!dice || !layer.querySelector("#dz-card")) return;
+    if (i < steps.length) { card.innerHTML = diceCard(others[i]); setTimeout(next, steps[i++]); return; }
+    dice.busy = false; diceShow(r, true); tick();
+  };
+  next();
+}
+
 /* Sammlung öffnen und wieder verlassen (wie eine eigene Seite) */
 function openSet(name, nohist) {
   if (state.view !== "list") return;
@@ -2810,11 +2910,12 @@ function renderList() {
   app.innerHTML = `
     ${set == null ? `<header class="home-head${searching ? " searching" : ""}">
       <h1 class="brand">${tab === "sam" ? "Sammlungen" : tab === "pro" ? "Profil" : tab === "ein" ? "Einkaufsliste" : "Rezepte"}</h1>
-      <span class="head-btns">${tab === "rez" ? `<button class="icon-btn" data-action="search-open" aria-label="Suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sortieren">${icon("sortl")}</button>`
+      <span class="head-btns">${tab === "rez" ? `<button class="icon-btn" data-action="dice" aria-label="Zufälliges Rezept">${icon("dice")}</button><button class="icon-btn" data-action="search-open" aria-label="Suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sortieren">${icon("sortl")}</button>`
         : tab === "sam" ? `<button class="icon-btn" data-action="search-open" aria-label="Sammlung suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sammlungen sortieren">${icon("sortl")}</button><button class="icon-btn" data-action="new-set" aria-label="Neue Sammlung">${icon("plus")}</button>`
         : tab === "ein" ? `<button class="icon-btn" data-action="shop-clear" aria-label="Liste aufräumen"${shopItems().length ? "" : " hidden"}>${icon("trash")}</button>` : ""}</span>
       ${tab === "pro" || tab === "ein" ? "" : `<span class="head-search"><button class="icon-btn" data-action="search-close" aria-label="Suche schließen">${icon("back")}</button>${field}</span>`}
     </header>` : `<div class="topbar"><button class="back" data-action="set-back">${icon("back")}Sammlungen</button><span class="grow"></span>
+      <button class="icon-btn" data-action="dice" aria-label="Zufälliges Rezept aus der Sammlung">${icon("dice")}</button>
       <button class="icon-btn" data-action="set-menu" aria-label="Optionen der Sammlung">${icon("dots")}</button></div>
     <h1 class="brand set-title">${esc(set)}</h1>`}
     ${installBanner()}
@@ -4959,6 +5060,10 @@ const actions = {
     setEditHead();
   },
   "set-menu": () => openSetMenu(),
+  dice: () => openDice(),
+  "dice-again": () => diceRoll(),
+  "dice-pool": el => { if (!dice || dice.busy || el.dataset.p === dice.p) return; dice.p = el.dataset.p; dice.id = null; layer.querySelectorAll("#dz-chips .chip").forEach(c => { const on = c.dataset.p === dice.p; c.classList.toggle("on", on); c.setAttribute("aria-pressed", on); }); diceShow(dicePick(), !noMotion()); },
+  "dice-open": el => { const id = el.dataset.id; if (!id || (dice && dice.busy)) return; closeLayer(); openDetail(id); },
   "set-rename": () => { const set = curSet(); if (set == null) return; closeLayer(); renameSet(set); },
   "set-save": () => saveSetEdit(),
   "set-delete": () => { const set = curSet(); if (set == null || !col) return; closeLayer(); deleteSet(set); },
@@ -5131,7 +5236,7 @@ function tick() {
 }
 const TICK = new Set(["fav", "rate", "toggle-ing", "toggle-step", "serv", "factor", "cook-next", "cook-prev"]);
 // Nur Ansehen und Blättern: geht schon im Schnellstart. Alles andere (speichern, einlesen, abmelden …) wartet, bis Firebase bereit ist.
-const VIEW_ONLY = new Set(["open-recipe", "back", "filter", "sort", "set-sort", "open-set", "set-back", "toggle-ing", "toggle-step", "serv", "factor",
+const VIEW_ONLY = new Set(["dice", "dice-again", "dice-pool", "dice-open", "open-recipe", "back", "filter", "sort", "set-sort", "open-set", "set-back", "toggle-ing", "toggle-step", "serv", "factor",
   "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear", "tab", "search-open", "search-close", "set-setsort", "set-menu", "row-menu", "row-shop", "row-print", "shop-add", "shop-toggle", "shop-group-del", "toast-undo", "shop-clear", "shop-clear-done"]);
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-action]");
