@@ -50,7 +50,7 @@ if (navigator.standalone === true || (window.matchMedia && matchMedia("(display-
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; background: var(--bg); }
-html.standalone, html.standalone body { overscroll-behavior: none; }
+/* V80: Listen und Rezepte federn oben und unten nach wie in Apple-Apps (war seit V21 aus: Scrollen stoppte hart) */
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 17px/1.45 var(--font); -webkit-font-smoothing: antialiased;
@@ -534,7 +534,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .sheet-ghost { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; pointer-events: none; }
 .sheet-ghost .sheet { max-height: none; }
 .sheet-ghost.full { top: 0; }
-.scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .35); }
+.scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .35); touch-action: none; } /* abgedunkelte Fläche: die Seite dahinter bewegt sich nicht */
 .sheet {
   position: absolute; left: 0; right: 0; bottom: 0; max-width: 680px; margin: 0 auto;
   background: var(--group); border-radius: 14px 14px 0 0; padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
@@ -735,7 +735,7 @@ body.kb .sheet.link .imp-in { max-height: 22vh; }
   font-size: 15px; font-weight: 600; padding: 8px 15px 8px 12px; white-space: nowrap;
 }
 .cookbtn .ic { width: 13px; height: 13px; stroke-width: 2.4; }
-.cook { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; }
+.cook { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; touch-action: none; } /* nur der Text darin scrollt */
 .cook-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 44px; padding: calc(env(safe-area-inset-top) + 4px) 6px 2px 16px; }
 .cook-pos { grid-column: 2; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .cook-bar .tbtn { grid-column: 3; justify-self: end; }
@@ -1022,7 +1022,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "79";
+const APP_VERSION = "80";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
