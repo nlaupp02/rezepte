@@ -803,7 +803,6 @@ body.kb .sheet.link .imp-in { max-height: 22vh; }
 .shop-add button { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--accent); display: grid; place-items: center; }
 .shop-add button .ic { width: 24px; height: 24px; stroke-width: 2.2; }
 #shop-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
-.shop-h { font-size: 15px; font-weight: 600; color: var(--muted); margin: 0 0 6px; padding: 0 2px; overflow-wrap: anywhere; }
 .shop-list { list-style: none; margin: 0; padding: 0; background: var(--group); border-radius: 14px; overflow: hidden; }
 .shop-row { position: relative; z-index: 1; background: var(--group); display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 10px 14px; border: 0; color: var(--ink); text-align: left; font-size: 17px; line-height: 1.3; }
 .shop-list > li { position: relative; display: flex; align-items: center; }
@@ -843,26 +842,31 @@ body:has(.shop-dock) .tabbar { box-shadow: none; }
 body.typing .shop-dock { bottom: 0; }
 .app.tabs:has(.shop-dock) { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 body:has(.shop-dock) .toast { bottom: calc(130px + env(safe-area-inset-bottom)); }
-/* Überschrift je Rezept: Name und für wie viele Personen; antippen öffnet das Rezept */
-.shop-h { display: flex; align-items: center; gap: 4px; width: 100%; border: 0; background: none; text-align: left; }
-.shop-h .hl { flex: 1; min-width: 0; display: grid; gap: 1px; overflow-wrap: anywhere; }
-.shop-h .sv { font-size: 14px; font-weight: 500; color: var(--muted); }
-button.shop-h { color: var(--ink); min-height: 30px; padding: 2px 2px; margin: 0; }
-button.shop-h .sv { color: var(--muted); }
-button.shop-h:active { opacity: .55; }
-/* Wischen nach links löscht */
-/* V76: Überschrift mit × rechts (alles von diesem Rezept entfernen), in einer Flucht mit den × der Artikel */
-.shop-hd { display: flex; align-items: center; gap: 2px; margin: 0 0 4px; }
-.shop-hd .shop-h { flex: 1; min-width: 0; margin: 0; }
-.shop-gx { flex: none; width: 46px; height: 40px; margin: -4px 0; border: 0; background: none; color: #AEAEB2; display: grid; place-items: center; }
-.shop-gx .ic { width: 18px; height: 18px; stroke-width: 2.2; }
-.shop-gx:active { opacity: .5; }
-/* Rechts in jeder Zeile ein dezentes × zum Entfernen (mit „Rückgängig“) */
-.shop-row { flex: 1; min-width: 0; width: auto; }
-.shop-x { display: grid; flex: none; align-self: stretch; width: 46px; margin-left: -8px; border: 0; background: var(--group); color: #AEAEB2; place-items: center; position: relative; z-index: 1; }
-.shop-x .ic { width: 18px; height: 18px; stroke-width: 2.2; }
-.shop-x:active { opacity: .5; }
-.shop-done { display: block; width: 100%; min-height: 46px; margin-top: -6px; border: 0; background: none; color: var(--accent); font-size: 16px; font-weight: 600; }
+/* V77: Einkaufsliste nach Bereichen im Laden – weiß und ruhig, Menge rechts, Abgehaktes unten unter „Erledigt“ */
+.shop { gap: 24px; }
+#shop-body { gap: 24px; }
+.shop-cat { font-size: 15px; font-weight: 600; color: var(--muted); margin: 0 0 2px; padding: 0 2px; }
+.shop-list { background: none; border-radius: 0; overflow: visible; }
+.shop-list > li + li::before { left: 38px; z-index: 0; }
+.shop-row { flex: 1; min-width: 0; width: auto; z-index: auto; background: none; padding: 11px 0; gap: 14px; min-height: 48px; }
+.shop-row .t { font-size: 17px; }
+.shop-row .q { flex: none; max-width: 46%; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-row.pressed { background: none; }
+.shop-row.pressed .t, .shop-row.pressed .box { opacity: .55; }
+.shop-row[aria-pressed="true"] .q { background: none; color: var(--muted); padding: 0; }
+.shop-erl .shop-row .t, .shop-erl .shop-row .q { color: var(--muted); }
+/* Rezepte auf der Liste: kleine Zeilen oben; Name öffnet das Rezept, × nimmt es von der Liste */
+.shop-for ul { list-style: none; margin: 0; padding: 0; }
+.shop-for li { display: flex; align-items: center; min-height: 44px; }
+.shop-for li + li { border-top: 1px solid var(--line); }
+.sf-n { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; padding: 9px 2px; border: 0; background: none; color: var(--ink); text-align: left; font-size: 16px; }
+.sf-n .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sf-n .sv { flex: none; color: var(--muted); font-size: 15px; }
+button.sf-n:active { opacity: .55; }
+.sf-x { flex: none; width: 44px; height: 44px; margin-right: -12px; border: 0; background: none; color: #AEAEB2; display: grid; place-items: center; }
+.sf-x .ic { width: 17px; height: 17px; stroke-width: 2.2; }
+.sf-x:active { opacity: .5; }
+.shop-done { display: block; width: 100%; min-height: 46px; margin-top: 2px; border: 0; background: none; color: var(--accent); font-size: 16px; font-weight: 600; }
 .shop-done:active { opacity: .55; }
 
 /* V74: Drucken – nur die vorbereiteten Seiten, sonst nichts */
@@ -1011,7 +1015,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "76";
+const APP_VERSION = "77";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2696,7 +2700,7 @@ function renderList() {
 /* Leiste unten: vier Hauptseiten. Wechseln legt keinen Schritt im Verlauf an (wie in iOS). */
 // Einkaufsliste an/aus. Aus: kein Reiter, kein Knopf im Rezept, kein Eintrag im Zeilen-Menü, keine Verbindung zur Liste
 // im Konto (was dort gespeichert ist, bleibt unangetastet).
-const SHOP_ON = true;
+const SHOP_ON = false;
 const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "gridv"], ...(SHOP_ON ? [["ein", "Einkaufsliste", "cart"]] : []), ["pro", "Profil", "user"]];
 function tabbarHtml() {
   return `<nav class="tabbar" aria-label="Bereiche">${TABS.map(([k, l, ic]) => `<button data-action="tab" data-t="${k}" class="${state.tab === k ? "on" : ""}"${state.tab === k ? ' aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></button>`).join("")}</nav>`;
@@ -2786,36 +2790,105 @@ function shopSubscribe() { // Liste aus dem Konto holen und Änderungen von eine
     }, err => { console.warn("Einkaufsliste laden", err); });
   } catch (e) { console.warn("Einkaufsliste", e); }
 }
+/* Bereiche im Supermarkt. Zuordnung über eine feste Wortliste: kostet nichts und geht auch ohne Netz.
+   Reihenfolge der Regeln zählt (Genaueres zuerst: „Paprikapulver“ vor „Paprika“, „Kokosmilch“ vor „Milch“). */
+const SHOP_CATS = [["obst", "Obst & Gemüse"], ["kuehl", "Milch, Käse & Eier"], ["fleisch", "Fleisch & Fisch"], ["brot", "Brot & Backwaren"],
+  ["vorrat", "Nudeln, Reis & Vorrat"], ["backen", "Backen & Süßes"], ["gewuerz", "Gewürze & Öl"], ["tk", "Tiefkühl"], ["getraenke", "Getränke"], ["sonst", "Sonstiges"]];
+const SHOP_RULES = [
+  ["tk", /\btk\b|tiefkühl|tiefgekühlt|gefroren/],
+  ["gewuerz", /paprikapulver|chiliflocken|chilipulver|knoblauchpulver|zwiebelpulver|getrocknet|italienische kräuter|kräuter der provence|currypulver|gewürz|fischsauce|austernsauce/],
+  ["vorrat", /dose|passiert|gehackte tomaten|stückige tomaten|tomatenmark|kokosmilch|erdnussbutter|brühe|\bfond\b|röstzwiebel|zitronensaft|kichererbsen|linsen|kidneybohnen|weiße bohnen|\bmais\b/],
+  ["backen", /mehl|zucker|backpulver|natron|hefe|vanill|kakao|schokolade|kuvertüre|stärke|süßungsmittel|xylit|erythrit|streusel|gelatine/],
+  ["fleisch", /hähnchen|hühn|\bhuhn|pute|hack|rind|schwein|kalb|lamm|speck|schinken|salami|wurst|würstchen|bacon|chorizo|lachs|thunfisch|garnele|shrimp|fisch|steak|schnitzel|gyros|filet|frikadelle|leberkäse/],
+  ["kuehl", /milch|sahne|butter|joghurt|jogurt|quark|skyr|schmand|crème|creme|käse|mozzarella|parmesan|feta|gouda|emmentaler|cheddar|ricotta|mascarpone|burrata|halloumi|\b(ei|eier)\b|tofu|margarine/],
+  ["getraenke", /saft\b|schorle/],
+  ["brot", /brot|brötchen|toast|baguette|wrap|tortilla|pita|ciabatta|croissant|blätterteig|pizzateig|semmel/],
+  ["obst", /brokkoli|tomate|zwiebel|knoblauch|paprika|zucchini|karotte|möhre|kartoffel|spinat|salat|gurke|aubergine|pilz|champignon|lauch|porree|sellerie|kürbis|erbse|bohne|avocado|zitrone|limette|apfel|äpfel|banane|beere|orange|mango|ingwer|chili|petersilie|basilikum|schnittlauch|koriander|minze|\bdill|rucola|kohl|schalotte|radieschen|rote bete|birne|traube|kiwi|ananas|melone|pfirsich|spargel|fenchel|mangold|thymian|rosmarin|salbei|obst|gemüse/],
+  ["gewuerz", /salz|pfeffer|oregano|zimt|curry|kümmel|kurkuma|muskat|majoran|lorbeer|nelke|kardamom|öl\b|essig|balsamico|senf|sojasauce|sojasoße|sauce|soße|ketchup|mayo|honig|sirup/],
+  ["getraenke", /wasser|saft|wein|bier|cola|limo|kaffee|\btee\b|sekt|prosecco/],
+  ["vorrat", /nudel|pasta|spaghetti|rigatoni|penne|tagliatelle|fusilli|farfalle|lasagne|gnocchi|reis|couscous|bulgur|quinoa|haferflocken|müsli|nuss|nüsse|mandel|cashew|semmelbrösel|paniermehl|chips|cracker|oliven|kapern|pesto/]
+];
+const shopCat = name => { const n = String(name).toLowerCase(); const r = SHOP_RULES.find(([, re]) => re.test(n)); return r ? r[0] : "sonst"; };
+// Auf dem Einkaufszettel zählt, was man kauft: Zubereitung („halbiert“, „in Ringen“) und Klammern fallen weg
+const SHOP_PREP = /,\s*(?:fein|grob|in\s|halbiert|geviertelt|gewürfelt|gehackt|geschnitten|gerieben|gepresst|zerdrückt|geschält|entsteint|abgetropft|zimmerwarm|weich|kalt|warm|gekocht|klein|optional|nach\s|zum\s|zur\s|für\s|gemahlen|frisch\s)/i;
+function shopName(t) {
+  let n = String(t || "").replace(/\s*\([^)]*\)/g, "");
+  const m = n.match(SHOP_PREP); if (m) n = n.slice(0, m.index);
+  n = n.replace(/\s+(nach geschmack|zum abschmecken|zum bestreuen|optional)$/i, "");
+  return n.replace(/\s+/g, " ").trim() || String(t || "").trim();
+}
+const shopKey = t => shopName(t).split(",")[0].trim().toLowerCase();
+const SHOP_UNITS = { g: ["g", 1], kg: ["g", 1000], mg: ["g", .001], ml: ["ml", 1], l: ["ml", 1000], cl: ["ml", 10], dl: ["ml", 100] };
+// Mengen zusammenrechnen: je Einheit addieren („3“ + „2“ → „5“, „200 g“ + „100 g“ → „300 g“), sonst nebeneinander
+function shopQty(qs) {
+  const per = new Map(), raw = [];
+  qs.forEach(q => {
+    q = String(q || "").replace(/^ca\.\s*/i, "").trim(); if (!q) return;
+    const m = q.match(QTY_RE);
+    if (!m) { raw.push(q); return; }
+    let lo = toNum(m[1]), hi = m[3] ? toNum(m[3]) : lo, unit = q.slice(m[0].length).trim();
+    if (!isFinite(lo) || !isFinite(hi)) { raw.push(q); return; }
+    const conv = SHOP_UNITS[unit.toLowerCase()]; // kg und g, l und ml zusammen rechnen
+    if (conv) { unit = conv[0]; lo *= conv[1]; hi *= conv[1]; }
+    const e = per.get(unit) || { lo: 0, hi: 0 }; e.lo += lo; e.hi += hi; per.set(unit, e);
+  });
+  const out = [...per].map(([u, e]) => {
+    let f = 1;
+    if ((u === "g" || u === "ml") && e.lo >= 1000) { f = 1000; u = u === "g" ? "kg" : "l"; }
+    return (e.lo === e.hi ? fmtNum(e.lo / f) : fmtNum(e.lo / f) + "–" + fmtNum(e.hi / f)) + (u ? " " + u : "");
+  });
+  return out.concat(raw).join(" + ");
+}
+// Mengenwörter wie „Päckchen“, „Dose“, „Bund“ gehören auf dem Zettel zur Menge: „Backpulver · 1 Päckchen“.
+// Eine Prise oder Messerspitze kauft man nicht: dann nur der Name („Salz“).
+const SHOP_CNT = /^(päckchen|pck\.?|packung(?:en)?|pkg\.?|prisen?|dosen?|zehen?|bund|scheiben?|stücke?|becher|gläser|glas|tüten?|flaschen?|msp\.?|messerspitzen?|handvoll|tassen?|scoops?|würfel|stangen?|köpfe|kopf|knollen?|zweige?|blätter|blatt|tafeln?|riegel|beutel|kugeln?)\s+(.+)$/i;
+function shopSplit(x) {
+  let name = String(x.t || ""), q = String(x.q || "");
+  const m = name.match(SHOP_CNT);
+  if (m) { name = m[2]; q = /^(prisen?|msp\.?|messerspitzen?)$/i.test(m[1]) ? "" : (q ? q + " " : "") + m[1]; }
+  return { name: shopName(name), q };
+}
+// Zeilen bilden: Gleiches zusammenfassen (getrennt nach offen/erledigt), dann nach Bereich ordnen
+function shopRows() {
+  const rows = [], by = new Map();
+  shopItems().forEach(x => {
+    const sp = shopSplit(x), k = (x.done ? "1" : "0") + "|" + shopKey(sp.name);
+    let r = by.get(k);
+    if (!r) { r = { k, name: sp.name, cat: shopCat(sp.name), done: !!x.done, ids: [], qs: [] }; by.set(k, r); rows.push(r); }
+    r.ids.push(x.id); r.qs.push(sp.q);
+  });
+  rows.forEach(r => { r.q = shopQty(r.qs); });
+  return rows;
+}
+const shopRowHtml = r => `<li><button class="shop-row" data-action="shop-toggle" data-ids="${esc(r.ids.join(","))}" aria-pressed="${r.done}"><span class="box">${icon("check")}</span><span class="t">${esc(r.name)}</span>${r.q ? `<span class="q">${esc(r.q)}</span>` : ""}</button></li>`;
 function shopBodyHtml() {
   const items = shopItems();
   if (!items.length) return `<section class="empty"><div class="empty-ic">${icon("cart")}</div><h2>Noch nichts auf der Liste</h2>
     <p>Tipp im Rezept unter den Zutaten auf „Auf die Einkaufsliste“ oder schreib unten einen Artikel hinein.</p></section>`;
-  const groups = []; // eigene Artikel zuerst, dann je Rezept in der Reihenfolge, in der sie dazukamen
-  items.forEach(x => { const k = x.rid || ""; let g = groups.find(y => y.k === k); if (!g) { g = { k, name: k ? (x.rt || "Rezept") : "Eigene Artikel", rs: x.rs || "", list: [] }; groups.push(g); } g.list.push(x); });
-  groups.sort((a, b) => (a.k ? 1 : 0) - (b.k ? 1 : 0));
-  const head = g => {
-    const inner = `<span class="hl"><span class="n">${esc(g.name)}</span>${g.rs ? `<span class="sv">${esc(g.rs)}</span>` : ""}</span>`;
-    const h = g.k && state.recipes.some(r => r.id === g.k)
-      ? `<button class="shop-h" data-action="open-recipe" data-id="${esc(g.k)}" aria-label="${esc(g.name)}${g.rs ? ", " + esc(g.rs) : ""} – Rezept öffnen">${inner}</button>`
-      : `<div class="shop-h">${inner}</div>`;
-    return `<div class="shop-hd">${h}<button class="shop-gx" data-action="shop-group-del" data-k="${esc(g.k)}" aria-label="${g.k ? esc(g.name) + " von der Liste nehmen" : "Alle eigenen Artikel entfernen"}">${icon("x")}</button></div>`;
-  };
-  return groups.map(g => `<section class="shop-g">${head(g)}
-    <ul class="shop-list">${g.list.map(x => `<li><button class="shop-row" data-action="shop-toggle" data-id="${esc(x.id)}" aria-pressed="${!!x.done}"><span class="box">${icon("check")}</span><span class="t">${x.q ? `<b>${esc(x.q)}</b> ` : ""}${esc(x.t)}</span></button><button class="shop-x" data-action="shop-del" data-id="${esc(x.id)}" aria-label="${esc(x.t)} entfernen">${icon("x")}</button></li>`).join("")}</ul></section>`).join("")
-    + shopDoneHtml();
+  // Rezepte auf der Liste
+  const recs = [];
+  items.forEach(x => { if (x.rid && !recs.some(g => g.k === x.rid)) recs.push({ k: x.rid, name: x.rt || "Rezept", rs: x.rs || "" }); });
+  const recHtml = recs.length ? `<section class="shop-for"><div class="shop-cat">Rezepte</div><ul>${recs.map(g => {
+    const inner = `<span class="n">${esc(g.name)}</span>${g.rs ? `<span class="sv">· ${esc(g.rs)}</span>` : ""}`;
+    const n = state.recipes.some(r => r.id === g.k) ? `<button class="sf-n" data-action="open-recipe" data-id="${esc(g.k)}" aria-label="${esc(g.name)}${g.rs ? ", " + esc(g.rs) : ""} – Rezept öffnen">${inner}</button>` : `<div class="sf-n">${inner}</div>`;
+    return `<li>${n}<button class="sf-x" data-action="shop-group-del" data-k="${esc(g.k)}" aria-label="${esc(g.name)} von der Liste nehmen">${icon("x")}</button></li>`;
+  }).join("")}</ul></section>` : "";
+  const rows = shopRows(), open = rows.filter(r => !r.done), done = rows.filter(r => r.done);
+  const cats = SHOP_CATS.map(([k, label]) => { const list = open.filter(r => r.cat === k); return list.length ? `<section class="shop-g"><div class="shop-cat">${esc(label)}</div><ul class="shop-list">${list.map(shopRowHtml).join("")}</ul></section>` : ""; }).join("");
+  const erl = done.length ? `<section class="shop-g shop-erl"><div class="shop-cat">Erledigt</div><ul class="shop-list">${done.map(shopRowHtml).join("")}</ul>
+    <button class="shop-done" id="shop-done" data-action="shop-clear-done">Erledigte löschen</button></section>` : "";
+  return recHtml + cats + erl;
 }
-const shopDoneHtml = () => { const n = shopItems().filter(x => x.done).length; return n ? `<button class="shop-done" id="shop-done" data-action="shop-clear-done">Erledigte löschen (${n})</button>` : ""; };
-function shopDoneUpdate() { // nach dem Abhaken: nur den Knopf „Erledigte löschen“ anpassen, die Liste bleibt stehen
-  const b = document.getElementById("shop-body"); if (!b) return;
-  const old = document.getElementById("shop-done"), html = shopDoneHtml();
-  if (old) old.remove();
-  if (html) b.insertAdjacentHTML("beforeend", html);
-}
+// Nach dem Abhaken kurz stehen lassen (man sieht den Haken), dann rutscht die Zeile nach unten bzw. wieder hoch.
+// Wer schnell mehrere hintereinander abhakt, dem springt nichts unter dem Finger weg: erst nach der letzten Berührung.
+let shopMoveT = 0;
+function shopMoveLater() { clearTimeout(shopMoveT); shopMoveT = setTimeout(() => { shopMoveT = 0; shopRefresh(); }, 700); }
 function shopHtml() {
   return `<div class="shop"><div id="shop-body">${shopBodyHtml()}</div></div>
     <div class="shop-dock"><form class="shop-add" id="shop-form"><input id="shop-in" type="text" enterkeyhint="done" autocomplete="off" maxlength="120" placeholder="Artikel hinzufügen …" aria-label="Artikel hinzufügen"><button type="submit" aria-label="Hinzufügen">${icon("plus")}</button></form></div>`;
 }
 function shopRefresh() { // nur die Liste neu zeichnen: das Eingabefeld (und die Tastatur) bleibt stehen
+  clearTimeout(shopMoveT); shopMoveT = 0;
   const b = document.getElementById("shop-body");
   if (b) b.innerHTML = shopBodyHtml();
   const c = app.querySelector("[data-action=shop-clear]"); if (c) c.hidden = !shopItems().length;
@@ -2847,6 +2920,13 @@ function shopAddRecipe(r, factor) {
     if (it.spices) it.spices.forEach(sp => lines.push({ q: "", t: spiceName(sp) }));
     else lines.push(it.qty ? { q: it.qty, t: it.name } : { q: "", t: it.full });
   });
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const l = lines[i];
+    if (/^((warmes|kaltes|heißes|lauwarmes|kochendes)\s+)?wasser$/i.test(shopName(l.t))) { lines.splice(i, 1); continue; } // Wasser kauft man nicht
+    // „Gewürze: Salz, Pfeffer, Oregano“ oder „Salz und Pfeffer“: auf dem Zettel einzeln
+    const rest = l.t.replace(/^(gewürze?|zum würzen|außerdem)\s*:\s*/i, ""), parts = rest.split(/\s*(?:,|\bund\b|&)\s*/).map(x => x.trim()).filter(Boolean);
+    if (!l.q && parts.length > 1 && (rest !== l.t || parts.every(p => p.split(/\s+/).length <= 3 && shopCat(p) === "gewuerz"))) lines.splice(i, 1, ...parts.map(t => ({ q: "", t })));
+  }
   if (!lines.length) { toast("Bei diesem Rezept stehen keine Zutaten."); return; }
   const had = shopItems().some(x => x.rid === r.id);
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
@@ -4811,21 +4891,17 @@ const actions = {
   "row-delete": () => { const r = rowRecipe(); closeLayer(); removeRecipe(r, false); },
   "shop-add": () => { const r = current(); if (r) shopAddRecipe(r, factorOf(r)); },
   "shop-toggle": el => {
-    const x = shopItems().find(i => i.id === el.dataset.id); if (!x) return;
-    x.done = !x.done; shopSave();
-    el.setAttribute("aria-pressed", x.done); // Haken und Durchstreichen folgen per CSS, die Zeile bleibt an ihrem Platz
-    shopDoneUpdate();
+    const ids = (el.dataset.ids || "").split(",").filter(Boolean), list = shopItems().filter(i => ids.includes(i.id)); if (!list.length) return;
+    const on = el.getAttribute("aria-pressed") !== "true";
+    list.forEach(x => { x.done = on; }); shopSave();
+    el.setAttribute("aria-pressed", on); // Haken sofort, Platzwechsel kurz danach
+    shopMoveLater();
   },
   "shop-clear": async () => { // Mülleimer oben: direkt nachfragen, kein Zwischenmenü
     if (!shopItems().length) return;
     const ok = await confirmDialog({ title: "Ganze Liste leeren?", text: "Alle Artikel werden von der Einkaufsliste entfernt.", yes: "Leeren", danger: true });
     if (!ok) return;
     shopItems(); shopCache = []; shopSave(); shopRefresh();
-  },
-  "shop-del": el => {
-    shopItems(); const i = shopCache.findIndex(x => x.id === el.dataset.id); if (i < 0) return;
-    const x = shopCache[i]; shopCache.splice(i, 1); shopSave(); shopRefresh();
-    toastUndo("entfernt", () => shopRestore([[i, x]]), (x.q ? x.q + " " : "") + x.t);
   },
   "toast-undo": () => { const fn = toastUndoFn; toastUndoFn = null; clearTimeout(toastT); $("#toast").classList.remove("show", "act"); if (fn) fn(); },
   "shop-group-del": el => { // × an der Überschrift: alles von diesem Rezept (bzw. alle eigenen Artikel) entfernen
@@ -4912,7 +4988,7 @@ function tick() {
 const TICK = new Set(["fav", "rate", "toggle-ing", "toggle-step", "serv", "factor", "cook-next", "cook-prev"]);
 // Nur Ansehen und Blättern: geht schon im Schnellstart. Alles andere (speichern, einlesen, abmelden …) wartet, bis Firebase bereit ist.
 const VIEW_ONLY = new Set(["open-recipe", "back", "filter", "sort", "set-sort", "open-set", "set-back", "toggle-ing", "toggle-step", "serv", "factor",
-  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear", "tab", "search-open", "search-close", "set-setsort", "set-menu", "row-menu", "row-shop", "row-print", "shop-add", "shop-toggle", "shop-del", "shop-group-del", "toast-undo", "shop-clear", "shop-clear-done"]);
+  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear", "tab", "search-open", "search-close", "set-setsort", "set-menu", "row-menu", "row-shop", "row-print", "shop-add", "shop-toggle", "shop-group-del", "toast-undo", "shop-clear", "shop-clear-done"]);
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-action]");
   if (!el) return;
