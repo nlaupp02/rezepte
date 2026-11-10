@@ -1042,7 +1042,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "81";
+const APP_VERSION = "82";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2784,7 +2784,8 @@ function diceShow(r, anim) {
     return;
   }
   dice.id = r.id; dice.recent.push(r.id); if (dice.recent.length > 20) dice.recent.shift();
-  body.innerHTML = `<button class="dz-card${anim ? " land" : ""}" id="dz-card" data-action="dice-open" data-id="${esc(r.id)}">${diceCard(r)}</button>
+  // Das Bild ist nur zum Anschauen: geöffnet wird mit „Das koch ich“ (V82), sonst geht es beim Wegwischen leicht aus Versehen auf
+  body.innerHTML = `<div class="dz-card${anim ? " land" : ""}" id="dz-card">${diceCard(r)}</div>
     <div class="dz-btns"><button class="btn" data-action="dice-again"${n < 2 ? " disabled" : ""}>${icon("dice")}${n < 2 ? "Nur 1 Rezept" : "Nochmal"}</button>
       <button class="btn primary" data-action="dice-open" data-id="${esc(r.id)}">Das koch ich</button></div>`;
 }
