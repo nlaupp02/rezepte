@@ -132,6 +132,11 @@ body.nav-push #app { box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
 body.nav-pop .nav-ghost { z-index: 3; box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
 body.nav-pop #app { z-index: 1; }
 body.nav-anim #app .fab, body.nav-anim #app .fab-fade, body.nav-anim #app .tabbar, body.nav-anim #app .shop-dock { visibility: hidden; }
+/* V78: Rezeptname klein in der Kopfleiste, sobald der große Titel weggescrollt ist (wie in Apple-Apps). Das Wort „Rezepte“ am Pfeil macht Platz. */
+.topbar .bar-t { flex: 1; min-width: 0; padding: 0 4px; text-align: center; font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity .2s; }
+.topbar.named .bar-t { opacity: 1; }
+.back .bl { display: inline-block; max-width: 7.5em; overflow: hidden; vertical-align: top; transition: max-width .25s ease, opacity .2s; }
+.topbar.named .back .bl { max-width: 0; opacity: 0; }
 
 /* Buttons */
 .btn {
@@ -1015,7 +1020,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "77";
+const APP_VERSION = "78";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1069,18 +1074,72 @@ function qsOpen() {
   });
 }
 async function qsGet() {
-  try { const db = await qsOpen(); return await new Promise(res => { const t = db.transaction("c").objectStore("c").get("last"); t.onsuccess = () => res(t.result || null); t.onerror = () => res(null); }); }
+  try {
+    const db = await qsOpen();
+    return await new Promise(res => {
+      const st = db.transaction("c").objectStore("c"), t = st.get("last");
+      t.onsuccess = () => {
+        const c = t.result || null;
+        if (!c || c.v !== 2 || !Array.isArray(c.recipes)) { res(c); return; }
+        // Fotos wieder einsetzen (liegen einzeln im Speicher)
+        const kq = st.getAllKeys(QS_CV()), vq = st.getAll(QS_CV());
+        vq.onsuccess = () => {
+          const ks = kq.result || [], vs = vq.result || [], m = new Map(ks.map((k, i) => [k, vs[i]]));
+          qsHave = new Set(ks);
+          c.recipes = c.recipes.map(r => {
+            if (!r.cover || !r.cover.qs) return r;
+            const { qs, ...rest } = r.cover, d = m.get(qs);
+            return Object.assign({}, r, { cover: d ? Object.assign(rest, { dataUrl: d }) : null });
+          });
+          res(c);
+        };
+        vq.onerror = () => res(null);
+      };
+      t.onerror = () => res(null);
+    });
+  }
   catch (e) { return null; }
 }
-let qsTimer = 0;
+// Ruhige Momente: kein Finger auf dem Display, nichts rollt, kein Seitenwechsel. Dann erst Arbeit im Hintergrund,
+// damit nichts beim Scrollen oder Wischen hakt.
+let lastTouchT = 0;
+["touchstart", "touchmove", "scroll", "wheel", "keydown", "pointerdown"].forEach(t => window.addEventListener(t, () => { lastTouchT = performance.now(); }, { passive: true, capture: true }));
+function whenCalm(fn, quiet) {
+  const q = quiet || 900;
+  const check = () => {
+    if (performance.now() - lastTouchT < q || navStop || edgeSw) { setTimeout(check, 350); return; }
+    if (window.requestIdleCallback) requestIdleCallback(() => fn(), { timeout: 800 }); else fn();
+  };
+  check();
+}
+// Schnellstart-Speicher: Fotos liegen einzeln darin („cv:…“) und werden nur geschrieben, wenn sie neu sind.
+// Die Liste selbst ist dann klein: Ein geöffnetes Rezept (zuletzt angesehen) schreibt nicht mehr alle Fotos neu.
+let qsTimer = 0, qsHave = null;
+const qsCoverKey = r => r.cover && typeof r.cover.dataUrl === "string" && r.cover.dataUrl ? "cv:" + r.id + ":" + r.cover.dataUrl.length + ":" + r.cover.dataUrl.slice(-24) : null;
+const QS_CV = () => IDBKeyRange.bound("cv:", "cv:￿");
 function qsSave() { // nach dem Laden und nach Änderungen, gebündelt
   clearTimeout(qsTimer);
-  qsTimer = setTimeout(async () => {
-    if (!uid || !col || !state.loaded || state.storage !== "ok" || state.slow) return;
-    try { const db = await qsOpen(); db.transaction("c", "readwrite").objectStore("c").put({ uid, at: Date.now(), recipes: state.recipes }, "last"); } catch (e) { /* egal */ }
-  }, 1200);
+  qsTimer = setTimeout(() => whenCalm(qsWrite), 1200);
 }
-async function qsClear() { clearTimeout(qsTimer); try { const db = await qsOpen(); db.transaction("c", "readwrite").objectStore("c").delete("last"); } catch (e) { /* egal */ } }
+async function qsWrite() {
+  if (!uid || !col || !state.loaded || state.storage !== "ok" || state.slow) return;
+  try {
+    const db = await qsOpen(), myUid = uid;
+    if (!qsHave) qsHave = new Set(await new Promise(res => { const q = db.transaction("c").objectStore("c").getAllKeys(QS_CV()); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); }));
+    if (uid !== myUid) return;
+    const st = db.transaction("c", "readwrite").objectStore("c"), keep = new Set();
+    const slim = state.recipes.map(r => {
+      const k = qsCoverKey(r); if (!k) return r;
+      keep.add(k);
+      if (!qsHave.has(k)) { st.put(r.cover.dataUrl, k); qsHave.add(k); }
+      const { dataUrl, ...rest } = r.cover;
+      return Object.assign({}, r, { cover: Object.assign(rest, { qs: k }) });
+    });
+    st.put({ uid, at: Date.now(), v: 2, recipes: slim }, "last");
+    [...qsHave].forEach(k => { if (!keep.has(k)) { st.delete(k); qsHave.delete(k); } });
+  } catch (e) { qsHave = null; /* egal */ }
+}
+async function qsClear() { clearTimeout(qsTimer); qsHave = null; try { const db = await qsOpen(); const st = db.transaction("c", "readwrite").objectStore("c"); st.delete("last"); st.delete(QS_CV()); } catch (e) { /* egal */ } }
 let qsPending = true; // noch offen, ob es einen Schnellstart gibt: so lange bleibt das Startbild über allem
 setTimeout(() => { if (qsPending) { qsPending = false; bootDrop(); } }, 1500); // Sicherung, falls der Speicher nicht antwortet
 qsGet().then(c => {
@@ -1089,6 +1148,7 @@ qsGet().then(c => {
   quick = c.uid; uid = c.uid;
   state.recipes = c.recipes; state.loaded = true; state.storage = "ok"; state.slow = false;
   bootFade(); state.view = "list"; render();
+  setTimeout(() => whenCalm(prewarmCovers), 1200);
 });
 
 const initPromise = (async () => {
@@ -1225,13 +1285,17 @@ function subscribe() {
     if (snap.empty && snap.metadata && snap.metadata.fromCache && !snap.metadata.hasPendingWrites && (!state.loaded || state.recipes.length)) return;
     const changes = typeof snap.docChanges === "function" ? snap.docChanges() : null;
     if (state.loaded && !state.slow && state.storage === "ok" && changes && !changes.length) return; // nichts Neues: nicht neu zeichnen
-    state.recipes = snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
+    // Nur geänderte Rezepte neu auspacken (z. B. nach „zuletzt angesehen“ nur das eine), die anderen bleiben, wie sie sind
+    const prev = changes && state.loaded && !quick ? new Map(state.recipes.map(r => [r.id, r])) : null;
+    const fresh = prev ? new Set(changes.filter(c => c.type !== "removed").map(c => c.doc.id)) : null;
+    state.recipes = snap.docs.map(d => prev && !fresh.has(d.id) && prev.has(d.id) ? prev.get(d.id) : Object.assign({ id: d.id }, d.data()))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     state.loaded = true; state.storage = "ok";
     clearTimeout(loadTimer); state.slow = false;
     fixOldNames();
     onDataChanged();
     qsSave();
+    setTimeout(() => whenCalm(prewarmCovers), 500);
     setTimeout(queueTags, 3000);
     setTimeout(queueTimes, 4000);
     setTimeout(queuePlayFix, 2500);
@@ -1511,10 +1575,19 @@ function bootShow() {
 // Schnellstart: Die Liste liegt schon darunter. 0,9 s nach dem Erscheinen sanft ausblenden.
 function bootFade() {
   const d = bootEl; if (!d || bootTimer) return;
-  bootTimer = setTimeout(() => { d.classList.add("off"); setTimeout(() => { d.remove(); if (bootEl === d) bootEl = null; }, 350); }, Math.max(0, 900 - (Date.now() - bootT0)));
+  bootTimer = setTimeout(async () => {
+    await coversReady(600); // erst wenn die Fotos im ersten Bildschirm fertig sind: dann steht alles auf einmal da
+    d.classList.add("off"); setTimeout(() => { d.remove(); if (bootEl === d) bootEl = null; }, 350);
+  }, Math.max(0, 900 - (Date.now() - bootT0)));
 }
 // Kein Schnellstart (abgemeldet oder erster Start): Darunter steht dasselbe Bild in der Seite, also ohne Übergang wegnehmen.
-function bootDrop() { if (bootEl && !bootTimer) { bootEl.remove(); bootEl = null; } }
+// Kommt danach die Liste: noch warten, bis ihre Fotos im ersten Bildschirm fertig sind (höchstens 0,4 s), sonst ploppen sie einzeln auf.
+function bootDrop() {
+  if (!bootEl || bootTimer) return;
+  const d = bootEl; bootEl = null;
+  if (state.view !== "list") { d.remove(); return; }
+  setTimeout(() => coversReady(400).then(() => d.remove()), 0);
+}
 function renderBoot() {
   if (state.fbError && !qsPending) bootDrop();
   app.innerHTML = state.fbError
@@ -1600,13 +1673,18 @@ function coverSrc(cover, key) {
 }
 /* Fotos einmal in eine kurze Blob-Adresse umwandeln: die Liste baut sich dann ohne riesige Texte auf */
 const blobCache = new Map();
+const B64_FAST = typeof Uint8Array.fromBase64 === "function";
+const blobKey = (d, key) => (key || "") + ":" + d.length + ":" + d.slice(-40);
+const blobHas = (d, key) => blobCache.has(blobKey(d, key));
 function blobUrl(d, key) {
-  const k = (key || "") + ":" + d.length + ":" + d.slice(-40);
+  const k = blobKey(d, key);
   let u = blobCache.get(k);
   if (u) return u;
   try {
-    const i = d.indexOf(","), bin = atob(d.slice(i + 1)), a = new Uint8Array(bin.length);
-    for (let j = 0; j < bin.length; j++) a[j] = bin.charCodeAt(j);
+    const i = d.indexOf(",");
+    let a = null;
+    if (B64_FAST) try { a = Uint8Array.fromBase64(d.slice(i + 1)); } catch (e) { a = null; } // eingebaut im iPhone (ab iOS 18.2): viel schneller
+    if (!a) { const bin = atob(d.slice(i + 1)); a = new Uint8Array(bin.length); for (let j = 0; j < bin.length; j++) a[j] = bin.charCodeAt(j); }
     u = URL.createObjectURL(new Blob([a], { type: d.slice(5, d.indexOf(";")) || "image/jpeg" }));
   } catch (e) { u = d; }
   if (blobCache.size > 1500) { const [k0, u0] = blobCache.entries().next().value; blobCache.delete(k0); if (u0.startsWith("blob:")) URL.revokeObjectURL(u0); }
@@ -1638,12 +1716,49 @@ function reuseImgs(el, pool) {
     o.className = n.className; n.replaceWith(o);
   });
 }
-function setHTMLKeepImgs(el, html) { const old = keepImgs(el); el.innerHTML = html; reuseImgs(el, old); }
-// Fotos blenden beim ersten Laden weich ein. Schon einmal geladene (zurück aus dem Rezept, neu gezeichnete Liste) stehen sofort da.
+function setHTMLKeepImgs(el, html) { const old = keepImgs(el); el.innerHTML = html; reuseImgs(el, old); warmImgs(el); }
+// Fotos vom Gerät (fast alle) stehen sofort da: kein Einblenden, kein spätes Laden beim Scrollen.
+// Kurz bevor eine Kachel ins Bild rollt, ist ihr Foto schon fertig gemacht (gut anderthalb Bildschirme voraus).
+// Nur Fotos aus dem Internet blenden beim ersten Laden weich ein.
 const seenImg = new Set();
+const localSrc = s => /^(blob|data):/.test(s || "");
+// Beim Zeichnen einer langen Liste werden nur die ersten Fotos gleich umgewandelt; die weiter unten erst, wenn sie
+// in die Nähe kommen (und sonst in ruhigen Momenten). So steht die Liste beim Start schneller da.
+let cvBudget = Infinity;
+const coverKey = r => r.id + ":" + (r.updatedAt || 0);
+const localCover = c => !!(c && !(typeof c.url === "string" && /^https:\/\//.test(c.url)) && typeof c.dataUrl === "string" && c.dataUrl.startsWith("data:image/"));
 function coverHtml(r) {
-  const src = coverSrc(r.cover, r.id + ":" + (r.updatedAt || 0)), ic = catIcon(r.category);
-  return src ? `<img src="${esc(src)}" alt="" loading="lazy" data-ph="${ic}"${seenImg.has(src) ? ' class="in"' : ""}>` : placeholder(ic);
+  const ic = catIcon(r.category);
+  if (localCover(r.cover) && !blobHas(r.cover.dataUrl, coverKey(r))) {
+    if (cvBudget <= 0) return `<img alt="" data-ph="${ic}" data-cv="${esc(r.id)}" class="in">`;
+    cvBudget--;
+  }
+  const src = coverSrc(r.cover, coverKey(r));
+  if (!src) return placeholder(ic);
+  if (localSrc(src)) return `<img src="${esc(src)}" alt="" data-ph="${ic}" class="in">`;
+  return `<img src="${esc(src)}" alt="" loading="lazy" data-ph="${ic}"${seenImg.has(src) ? ' class="in"' : ""}>`;
+}
+const warmIO = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  const i = e.target; warmIO.unobserve(i);
+  if (i.dataset.cv && !i.getAttribute("src")) { const r = state.recipes.find(x => x.id === i.dataset.cv), src = r && coverSrc(r.cover, coverKey(r)); if (src) i.src = src; }
+  if (i.decode && i.getAttribute("src")) i.decode().catch(() => { /* egal */ });
+}), { rootMargin: "1400px 0px" }) : null;
+function warmImgs(root) {
+  if (!warmIO || !root) return;
+  root.querySelectorAll("img[data-ph]").forEach(i => { if (!i.dataset.w && (i.dataset.cv || localSrc(i.getAttribute("src")))) { i.dataset.w = "1"; warmIO.observe(i); } });
+}
+// In ruhigen Momenten die übrigen Fotos vorbereiten (je ein paar): danach stehen sie bei Suche und Filter sofort da
+function prewarmCovers() {
+  const todo = state.recipes.filter(r => localCover(r.cover) && !blobHas(r.cover.dataUrl, coverKey(r)));
+  todo.slice(0, 6).forEach(r => coverSrc(r.cover, coverKey(r)));
+  if (todo.length > 6) setTimeout(() => whenCalm(prewarmCovers, 300), 40);
+}
+// Fotos im sichtbaren Teil fertig? (höchstens max ms warten)
+function coversReady(max) {
+  const imgs = [...app.querySelectorAll("img[data-ph]")].filter(i => { const b = i.getBoundingClientRect(); return b.width > 0 && b.bottom > 0 && b.top < innerHeight; });
+  if (!imgs.length) return Promise.resolve();
+  return Promise.race([Promise.all(imgs.map(i => i.decode ? i.decode().catch(() => {}) : null)), new Promise(r => setTimeout(r, max))]);
 }
 document.addEventListener("load", e => {
   const t = e.target;
@@ -2110,7 +2225,7 @@ function queuePlayFix() {
       }
       playMark(sig);
     } catch (e) { console.warn("Play-Knopf", e); next = 8000; }
-    finally { playBusy = false; if (uid === myUid) setTimeout(queuePlayFix, next); }
+    finally { playBusy = false; if (uid === myUid) setTimeout(() => whenCalm(queuePlayFix), next); }
   })();
 }
 
@@ -2327,7 +2442,12 @@ document.addEventListener("pointerup", () => {
 }, { passive: true });
 window.addEventListener("scroll", clearPress, { passive: true });
 // feine Linie unter der Kopfzeile, sobald Inhalt darunter durchläuft
-function headLine() { const t = app.querySelector(".topbar, .home-head"); if (t) t.classList.toggle("lined", window.scrollY > 2); }
+function headLine() {
+  const t = app.querySelector(".topbar, .home-head"); if (!t) return;
+  t.classList.toggle("lined", window.scrollY > 2);
+  // Im Rezept: ist der große Titel unter der Leiste verschwunden, steht der Name klein in der Mitte
+  if (state.view === "detail") { const h = app.querySelector(".d-title"); t.classList.toggle("named", !!h && h.getBoundingClientRect().bottom < t.getBoundingClientRect().bottom + 2); }
+}
 window.addEventListener("scroll", headLine, { passive: true });
 
 let sheetDrag = null, suppressClick = false, shotsFor = null;
@@ -2547,9 +2667,8 @@ function pageCopy() {
     ghostCss.replaceSync([...document.querySelectorAll("style")].map(st => st.sheet ? [...st.sheet.cssRules].map(r => r.cssText).join("\n") : "").join("\n"));
   }
   root.adoptedStyleSheets = [ghostCss];
-  const c = document.createElement("div");
-  c.className = app.className; c.innerHTML = app.innerHTML;
-  c.querySelectorAll("[id]").forEach(e => e.removeAttribute("id"));
+  const c = app.cloneNode(true); // schneller als über innerHTML (kein Text dazwischen)
+  c.removeAttribute("id"); c.querySelectorAll("[id]").forEach(e => e.removeAttribute("id"));
   c.style.cssText = `margin-top:${-window.scrollY}px;min-height:100lvh`;
   root.appendChild(c);
   return g;
@@ -2558,8 +2677,10 @@ function navAnim(kind, draw) {
   if (navStop) navStop();
   if (!kind || noMotion() || !app.firstElementChild || !canCopy()) { draw(); return; }
   let ghost;
+  const sig = pageSig();
   try { ghost = pageCopy(); } catch (e) { draw(); return; }
   draw();
+  const depth = histDepth();
   const shade = document.createElement("div"); shade.className = "nav-shade";
   document.body.append(ghost, shade);
   document.body.classList.add("nav-anim", "nav-" + kind);
@@ -2567,26 +2688,131 @@ function navAnim(kind, draw) {
   if (kind === "push") an.push(app.animate([T("translateX(100%)"), T("none")], o), ghost.animate([T("none"), T("translateX(-28%)")], o), shade.animate([{ opacity: 0 }, { opacity: .1 }], o));
   else an.push(ghost.animate([T("none"), T("translateX(100%)")], o), app.animate([T("translateX(-28%)"), T("none")], o), shade.animate([{ opacity: .1 }, { opacity: 0 }], o));
   let over = false;
-  const end = () => { if (over) return; over = true; navStop = null; ghost.remove(); shade.remove(); document.body.classList.remove("nav-anim", "nav-" + kind); };
+  const end = () => {
+    if (over) return; over = true; navStop = null; ghost.remove(); shade.remove(); document.body.classList.remove("nav-anim", "nav-" + kind);
+    if (kind === "push" && depth > 0) keepShot(depth, ghost, sig); // liegt beim Zurückwischen unter der Seite
+  };
   navStop = () => { an.forEach(a => { try { a.finish(); } catch (e) { /* egal */ } }); end(); };
   Promise.all(an.map(a => a.finished)).then(end, end);
   setTimeout(end, D + 400); // falls eine Animation hängen bleibt
+}
+
+/* ---------- V78: Vom linken Rand wischen = zurück (wie in Apple-Apps) ----------
+   In der App vom Home-Bildschirm bietet iOS die Geste nicht an (in Safari macht es der Browser selbst, dort bleibt alles, wie es ist).
+   Die Seite folgt dem Finger, darunter liegt die vorige Seite: das Abbild vom Hineinschieben. Loslassen nach gut einem Drittel
+   oder mit Schwung: zurück. Sonst rutscht die Seite wieder an ihren Platz, und es ist nichts passiert. */
+const backShots = new Map(); // Verlaufstiefe → Abbild der Seite darunter
+function pageSig() { return state.view + "|" + (app.dataset.set || "") + "|" + state.sort + "|" + [...app.querySelectorAll("[data-id]")].slice(0, 60).map(e => e.dataset.id).join(","); }
+function keepShot(d, g, sig) { g.dataset.sig = sig; backShots.set(d, g); [...backShots.keys()].forEach(k => { if (k > d || k < d - 4) backShots.delete(k); }); }
+function trimShots() { const d = histDepth(); [...backShots.keys()].forEach(k => { if (k > d) backShots.delete(k); }); }
+let edgeSw = null;
+const edgeOk = () => isStandalone() && !layer.classList.contains("open") && !layer2.classList.contains("open") && !viewer && !cook
+  && !document.body.classList.contains("kb") && (state.view === "detail" || (state.view === "list" && curSet() != null));
+document.addEventListener("touchstart", e => {
+  edgeSw = null;
+  if (e.touches.length !== 1) return;
+  const t = e.touches[0];
+  if (t.clientX > 22 || !edgeOk()) return;
+  edgeSw = { x0: t.clientX, y0: t.clientY, lx: t.clientX, lt: e.timeStamp, v: 0, x: 0, on: false, claim: null };
+}, { passive: true, capture: true });
+document.addEventListener("touchmove", e => {
+  const s = edgeSw;
+  if (!s || s.done) return;
+  if (e.touches.length !== 1) { if (s.on) edgeFinish(false); else edgeSw = null; return; }
+  const t = e.touches[0], dx = t.clientX - s.x0, dy = t.clientY - s.y0;
+  if (!s.on) {
+    if (s.claim === null) { // die erste Bewegung entscheidet: nach rechts → Geste, sonst ganz normal scrollen
+      if (Math.abs(dx) + Math.abs(dy) < 1) return;
+      s.claim = dx > 0 && dx >= Math.abs(dy) * .8;
+      if (!s.claim) { edgeSw = null; return; }
+    }
+    if (e.cancelable) e.preventDefault();
+    if (dx > 6 && dx > Math.abs(dy)) { s.off = dx; edgeStart(); }
+    else if (Math.abs(dy) > 14) edgeSw = null; // doch nach oben/unten: loslassen
+    return;
+  }
+  if (e.cancelable) e.preventDefault();
+  const dt = e.timeStamp - s.lt;
+  if (dt > 0) s.v = .6 * ((t.clientX - s.lx) / dt) + .4 * s.v;
+  s.lx = t.clientX; s.lt = e.timeStamp;
+  edgeMove(Math.max(0, t.clientX - s.x0));
+}, { passive: false });
+document.addEventListener("touchend", () => { const s = edgeSw; if (!s || s.done) return; if (!s.on) { edgeSw = null; return; } edgeFinish(s.x > s.w * .35 || (s.v > .3 && s.x > 24)); }, { passive: true });
+document.addEventListener("touchcancel", () => { const s = edgeSw; if (!s || s.done) return; if (s.on) edgeFinish(false); else edgeSw = null; }, { passive: true });
+function edgeStart() {
+  const s = edgeSw;
+  if (navStop) navStop();
+  s.on = true; s.w = innerWidth;
+  clearPress(); document.querySelectorAll(".pressed").forEach(x => x.classList.remove("pressed"));
+  let g = backShots.get(histDepth());
+  if (!g) { g = document.createElement("div"); g.className = "nav-ghost"; g.setAttribute("aria-hidden", "true"); g.dataset.sig = ""; }
+  const shade = document.createElement("div"); shade.className = "nav-shade";
+  s.g = g; s.shade = shade;
+  document.body.append(g, shade);
+  document.body.classList.add("nav-anim", "nav-push", "nav-live");
+  edgeMove(0);
+}
+function edgeMove(x) {
+  const s = edgeSw, p = Math.min(1, x / s.w); s.x = x;
+  app.style.transform = `translate3d(${x.toFixed(1)}px,0,0)`;
+  s.g.style.transform = `translate3d(${(-28 * (1 - p)).toFixed(2)}%,0,0)`;
+  s.shade.style.opacity = (.1 * (1 - p)).toFixed(3);
+}
+function edgeFinish(back) {
+  const s = edgeSw; s.done = true;
+  const w = s.w, x = s.x, rest = back ? w - x : x;
+  const D = Math.round(Math.max(170, Math.min(360, rest / w * 420))), o = { duration: D, easing: "cubic-bezier(.25, .8, .3, 1)", fill: "forwards" };
+  const an = [
+    app.animate([{ transform: app.style.transform }, { transform: back ? `translate3d(${w}px,0,0)` : "translate3d(0,0,0)" }], o),
+    s.g.animate([{ transform: s.g.style.transform }, { transform: back ? "translate3d(0,0,0)" : "translate3d(-28%,0,0)" }], o),
+    s.shade.animate([{ opacity: s.shade.style.opacity }, { opacity: back ? 0 : .1 }], o)];
+  let over = false;
+  const clean = () => {
+    an.forEach(a => { try { a.cancel(); } catch (e) { /* egal */ } });
+    app.style.transform = ""; s.g.style.transform = ""; s.shade.remove();
+    document.body.classList.remove("nav-anim", "nav-push", "nav-live");
+    if (edgeSw === s) edgeSw = null;
+  };
+  const after = () => {
+    if (over) return; over = true;
+    if (!back) { clean(); s.g.remove(); return; }
+    // Jetzt wirklich zurück. Das Abbild deckt, bis die echte Seite darunter steht (im selben Schritt weg: kein Flackern).
+    const stale = s.g.dataset.sig !== "" && s.g.dataset.sig;
+    let fin = false;
+    const done = () => {
+      if (fin) return; fin = true; window.removeEventListener("popstate", onPop);
+      const g = s.g; clean();
+      if (stale && stale !== pageSig() && g.animate) { // inzwischen anders sortiert o. Ä.: weich überblenden statt springen
+        g.style.zIndex = "4"; const a = g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "ease-out" });
+        const rm = () => g.remove(); a.finished.then(rm, rm);
+      } else g.remove();
+    };
+    const onPop = () => done(); // läuft nach dem eigentlichen Zurück (das schon gezeichnet hat)
+    window.addEventListener("popstate", onPop);
+    navOwn = 0;
+    if (!histBack()) {
+      if (state.view === "detail") go("list", { nohist: true }); else if (curSet() != null) leaveSet(false);
+      done();
+    } else setTimeout(() => { if (!fin) { if (state.view === "detail") go("list", { nohist: true }); done(); } }, 700); // falls der Verlauf nicht antwortet
+  };
+  Promise.all(an.map(a => a.finished)).then(after, after);
+  setTimeout(after, D + 300);
 }
 
 /* Sammlung öffnen und wieder verlassen (wie eine eigene Seite) */
 function openSet(name, nohist) {
   if (state.view !== "list") return;
   state.homeScroll = window.scrollY;
-  state.query = ""; state.filter = "set:" + name;
   // Eigener Schritt im Verlauf: Zurückwischen (und „‹ Rezepte“) führt zurück zu allen Rezepten, wie beim Rezept
   if (!nohist) try { history.pushState({ v: "list", set: name, d: histDepth() + 1 }, ""); } catch (e) { /* egal */ }
-  renderList(); window.scrollTo(0, 0);
+  // V78: gleitet von rechts herein wie ein Rezept
+  navAnim(nohist ? null : "push", () => { state.query = ""; state.filter = "set:" + name; renderList(); window.scrollTo(0, 0); });
 }
-function leaveSet() {
-  state.filter = "all"; state.query = "";
-  renderList(); window.scrollTo(0, state.homeScroll || 0);
+function leaveSet(anim) {
+  navAnim(anim ? "pop" : null, () => { state.filter = "all"; state.query = ""; renderList(); window.scrollTo(0, state.homeScroll || 0); });
 }
 window.addEventListener("popstate", e => {
+  trimShots();
   clearPress(); document.querySelectorAll(".pressed").forEach(x => x.classList.remove("pressed")); // nach dem Zurückwischen bleibt sonst eine Kachel „gedrückt“ stehen
   if (!authKnown || state.view === "login" || state.view === "boot") return;
   const st = e.state && typeof e.state === "object" ? e.state : { v: "list", d: 0 };
@@ -2614,7 +2840,7 @@ window.addEventListener("popstate", e => {
     const set = st.set && allSets().some(([n]) => n === st.set) ? st.set : null;
     if (state.view === "list") { // in der Liste: Sammlung verlassen (Zurückwischen) oder wieder betreten (Vorwärts)
       if (set != null && curSet() !== set) openSet(set, true);
-      else if (set == null && curSet() != null) leaveSet();
+      else if (set == null && curSet() != null) { const own = Date.now() - navOwn < 1500; navOwn = 0; leaveSet(own); }
     } else {
       if (set != null) state.filter = "set:" + set;
       go("list", { nohist: true });
@@ -2693,7 +2919,7 @@ function renderList() {
     <div class="fab-fade" aria-hidden="true"></div>`}
     ${set == null ? tabbarHtml() : ""}`;
   renderListBody();
-  reuseImgs(app, oldImgs);
+  reuseImgs(app, oldImgs); warmImgs(app);
   if (y) window.scrollTo(0, y);
   headLine();
 }
@@ -3190,6 +3416,7 @@ function renderListBody() {
     <span class="lh-r"><button class="sortbtn" data-action="sort"><span class="sl">${esc(sortName)}</span>${icon("more")}</button></span></div>` : "";
   // Nach Namen sortiert: Buchstaben als Zwischenüberschrift, damit man in langen Listen schnell hinfindet
   let last = null;
+  cvBudget = 24;
   const rows = list.map(r => {
     const c = tiles ? tile(r) : card(r, set != null);
     if (state.sort !== "az") return c;
@@ -3197,6 +3424,7 @@ function renderListBody() {
     const h = L !== last ? `<li class="letter">${L}</li>` : "";
     last = L; return h + c;
   }).join("");
+  cvBudget = Infinity;
   // Leere Sammlung: sagen, was fehlt, und gleich zum Hinzufügen
   if (set != null && !inSet) {
     setHTMLKeepImgs(grid, (jobsHtml ? `<ul class="list">${jobsHtml}</ul>` : "") + `<section class="empty set-empty">
@@ -3453,8 +3681,8 @@ function renderDetail() {
   const hasCover = !!(r.cover && (r.cover.url || r.cover.dataUrl));
   const html = `
     <div class="topbar">
-      <button class="back" data-action="back">${icon("back")}Rezepte</button>
-      <span class="grow"></span>
+      <button class="back" data-action="back">${icon("back")}<span class="bl">Rezepte</span></button>
+      <span class="bar-t" aria-hidden="true">${esc(r.title || "Ohne Titel")}</span>
       <button class="icon-btn" data-action="share" aria-label="Teilen">${icon("share")}</button>
       <button class="icon-btn ${r.favorite ? "on" : ""}" data-action="fav" aria-pressed="${!!r.favorite}" aria-label="${r.favorite ? "Aus Favoriten entfernen" : "Zu Favoriten"}">${icon("heart", r.favorite ? "filled" : "")}</button>
       <button class="tbtn" data-action="edit">Bearbeiten</button>
@@ -3485,14 +3713,22 @@ function renderDetail() {
   fitQtyCol();
 }
 // Mengenspalte so breit wie die breiteste Menge (gemessen statt geschätzt, z. B. „400–500 g“), höchstens gut ein Drittel der Zeile
+// Gemessen wird mit der Schrift der Spalte auf einer Zeichenfläche: Die Seite muss dafür nicht vorab ausgelegt werden,
+// das Rezept gleitet also ohne Wartezeit herein. Ziffern sind gleich breit (wie „0“).
+let qtyCtx = null;
 function fitQtyCol() {
   const ul = app.querySelector(".ings"), qs = ul ? ul.querySelectorAll(".ing-q") : [];
   if (!qs.length) return;
-  const guess = ul.style.getPropertyValue("--qw");
-  ul.style.setProperty("--qw", "0px");
-  let w = 0; qs.forEach(e => { w = Math.max(w, e.offsetWidth); });
-  const max = ul.clientWidth * 0.36;
-  ul.style.setProperty("--qw", w && max ? Math.ceil(Math.min(w + 1, max)) + "px" : guess); // nicht sichtbar: bei der Schätzung bleiben
+  try {
+    if (!qtyCtx) { // einmal: Schrift der Spalte abfragen (danach muss die Seite dafür nicht mehr vorab berechnet werden)
+      qtyCtx = document.createElement("canvas").getContext("2d");
+      const cs = getComputedStyle(qs[0]);
+      qtyCtx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    }
+    let w = 0; qs.forEach(e => { w = Math.max(w, qtyCtx.measureText(e.textContent.replace(/\d/g, "0")).width); });
+    const max = (Math.min(innerWidth, 680) - 32) * 0.36;
+    if (w > 0) ul.style.setProperty("--qw", Math.ceil(Math.min(w + 2, max)) + "px");
+  } catch (e) { /* bei der Schätzung bleiben */ }
 }
 
 function checkHtml(uns, r) {
@@ -4850,7 +5086,7 @@ const actions = {
   },
   filter: el => { state.filter = el.dataset.f; renderListBody(); },
   "open-set": el => openSet(el.dataset.s),
-  "set-back": () => { if (history.state && history.state.set && histBack()) return; leaveSet(); },
+  "set-back": () => { navOwn = Date.now(); if (history.state && history.state.set && histBack()) return; navOwn = 0; leaveSet(true); },
   "open-recipe": el => openDetail(el.dataset.id),
   back: async () => {
     if (state.view === "detail") { navOwn = Date.now(); if (!histBack()) go("list", { nohist: true }); return; }
