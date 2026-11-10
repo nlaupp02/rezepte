@@ -182,7 +182,7 @@ body.typing .fab { display: none; }
 .fab[hidden] ~ .fab-fade, body.typing .fab-fade { display: none; }
 /* Leiste unten (Rezepte, Sammlungen, Profil): nur auf den drei Hauptseiten, nicht im Rezept und nicht in einer Sammlung */
 .tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
   padding: 6px 4px max(6px, calc(2px + env(safe-area-inset-bottom)));
   background: rgba(255, 255, 255, .94); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 -.5px 0 rgba(0, 0, 0, .14);
 }
@@ -583,6 +583,12 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
 }
 .toast.show { opacity: 1; transform: none; }
+.toast.act { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 16px; text-align: left; }
+.toast.act .tm { min-width: 0; display: flex; overflow: hidden; white-space: nowrap; }
+.toast.act .tn { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.toast.act .ts { flex: none; white-space: pre; }
+.toast-undo { flex: none; min-height: 40px; padding: 0 12px; border: 0; border-radius: 9px; background: none; color: #F2C46D; font-size: 15px; font-weight: 600; }
+.toast-undo:active { background: rgba(255, 255, 255, .12); }
 /* Tastatur offen: unten wäre die Meldung hinter der Tastatur, darum oben unter der Kopfleiste */
 body.kb .toast { bottom: auto; top: calc(var(--vvo, 0px) + env(safe-area-inset-top) + 58px); transform: translateY(-12px); }
 body.kb .toast.show { transform: none; }
@@ -705,6 +711,16 @@ body.kb .toast.show { transform: none; }
 .imp-btns .ic { width: 20px; height: 20px; }
 .imp-help { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; font-size: 15px; line-height: 1.4; color: var(--muted); }
 .imp-help b { color: var(--ink); font-weight: 600; }
+/* V76: „Link oder Text“ als Fenster unten; beim Tippen rutscht es über die Tastatur */
+.sheet.link { gap: 12px; transform: translateY(calc(-1 * var(--kbb, 0px))); }
+.sheet.link .imp-in { background: var(--bg); min-height: 92px; max-height: 30vh; overflow-y: auto; touch-action: pan-y; }
+.sheet.link #imp-status:empty { display: none; }
+.imp-note { margin: 0; padding: 0 2px; font-size: 14px; line-height: 1.4; color: var(--muted); }
+/* Tastatur offen (kleine iPhones): Hinweis weg, Feld kleiner; passt es trotzdem nicht, lässt sich das Fenster scrollen */
+body.kb .sheet.link { max-height: calc(100% - var(--kbb, 0px) - env(safe-area-inset-top) - 8px); touch-action: pan-y; }
+body.kb .sheet.link .grip, body.kb .sheet.link .sheet-head { touch-action: none; }
+body.kb .sheet.link .imp-note { display: none; }
+body.kb .sheet.link .imp-in { max-height: 22vh; }
 /* Kochmodus */
 .sec-head .cookbtn { margin: -4px 0; }
 .cookbtn {
@@ -790,7 +806,8 @@ body.kb .toast.show { transform: none; }
 .shop-h { font-size: 15px; font-weight: 600; color: var(--muted); margin: 0 0 6px; padding: 0 2px; overflow-wrap: anywhere; }
 .shop-list { list-style: none; margin: 0; padding: 0; background: var(--group); border-radius: 14px; overflow: hidden; }
 .shop-row { position: relative; z-index: 1; background: var(--group); display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 10px 14px; border: 0; color: var(--ink); text-align: left; font-size: 17px; line-height: 1.3; }
-.shop-list li + li .shop-row::before { content: ""; position: absolute; top: 0; left: 50px; right: 0; border-top: 1px solid var(--line); }
+.shop-list > li { position: relative; display: flex; align-items: center; }
+.shop-list > li + li::before { content: ""; position: absolute; z-index: 2; top: 0; left: 50px; right: 0; border-top: 1px solid var(--line); }
 .shop-row .box { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 1.6px solid #C7C7CC; display: grid; place-items: center; color: transparent; background: var(--bg); transition: background .15s, border-color .15s; }
 .shop-row .box .ic { width: 15px; height: 15px; stroke-width: 3; }
 .shop-row .t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -830,16 +847,21 @@ body:has(.shop-dock) .toast { bottom: calc(130px + env(safe-area-inset-bottom));
 .shop-h { display: flex; align-items: center; gap: 4px; width: 100%; border: 0; background: none; text-align: left; }
 .shop-h .hl { flex: 1; min-width: 0; display: grid; gap: 1px; overflow-wrap: anywhere; }
 .shop-h .sv { font-size: 14px; font-weight: 500; color: var(--muted); }
-button.shop-h { color: var(--ink); min-height: 30px; padding: 2px 2px; margin: -2px 0 4px; }
+button.shop-h { color: var(--ink); min-height: 30px; padding: 2px 2px; margin: 0; }
 button.shop-h .sv { color: var(--muted); }
-button.shop-h .ic { flex: none; width: 15px; height: 15px; stroke-width: 2.2; color: var(--muted); }
 button.shop-h:active { opacity: .55; }
 /* Wischen nach links löscht */
-.shop-list > li { position: relative; overflow: hidden; }
-.shop-del { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 20px; background: var(--danger); color: #fff; font-size: 16px; font-weight: 600; }
-.shop-row.drag { transition: none; }
-.shop-row.snap { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
-.shop-list > li.gone { transition: height .2s ease, opacity .2s ease; overflow: hidden; }
+/* V76: Überschrift mit × rechts (alles von diesem Rezept entfernen), in einer Flucht mit den × der Artikel */
+.shop-hd { display: flex; align-items: center; gap: 2px; margin: 0 0 4px; }
+.shop-hd .shop-h { flex: 1; min-width: 0; margin: 0; }
+.shop-gx { flex: none; width: 46px; height: 40px; margin: -4px 0; border: 0; background: none; color: #AEAEB2; display: grid; place-items: center; }
+.shop-gx .ic { width: 18px; height: 18px; stroke-width: 2.2; }
+.shop-gx:active { opacity: .5; }
+/* Rechts in jeder Zeile ein dezentes × zum Entfernen (mit „Rückgängig“) */
+.shop-row { flex: 1; min-width: 0; width: auto; }
+.shop-x { display: grid; flex: none; align-self: stretch; width: 46px; margin-left: -8px; border: 0; background: var(--group); color: #AEAEB2; place-items: center; position: relative; z-index: 1; }
+.shop-x .ic { width: 18px; height: 18px; stroke-width: 2.2; }
+.shop-x:active { opacity: .5; }
 .shop-done { display: block; width: 100%; min-height: 46px; margin-top: -6px; border: 0; background: none; color: var(--accent); font-size: 16px; font-weight: 600; }
 .shop-done:active { opacity: .55; }
 
@@ -989,7 +1011,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "75";
+const APP_VERSION = "76";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2160,8 +2182,19 @@ function photoCheckImg(img) {
 
 /* ---------- UI helpers ---------- */
 let toastT;
+// Meldung mit „Rückgängig“ (z. B. nach dem Entfernen von der Einkaufsliste); bleibt etwas länger stehen
+function toastUndo(msg, fn, name) { // name: wird bei Platzmangel gekürzt, der Rest der Meldung bleibt ganz lesbar
+  const t = $("#toast");
+  toastUndoFn = fn;
+  const m = name ? `<span class="tn">„${esc(name)}</span><span class="ts">“ ${esc(msg)}</span>` : esc(msg);
+  t.innerHTML = `<span class="tm">${m}</span><button class="toast-undo" data-action="toast-undo">Rückgängig</button>`;
+  t.classList.add("show", "act");
+  clearTimeout(toastT); toastT = setTimeout(() => { t.classList.remove("show", "act"); toastUndoFn = null; }, 4500);
+}
+let toastUndoFn = null;
 function toast(msg) {
   const t = $("#toast");
+  toastUndoFn = null; t.classList.remove("act");
   t.textContent = msg; t.classList.add("show");
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2800);
 }
@@ -2299,6 +2332,7 @@ layer.addEventListener("pointerdown", e => {
   const sh = e.target.closest(".sheet");
   if (!sh || (e.pointerType === "mouse" && e.button !== 0)) return;
   if (sh.classList.contains("full")) return; // ganze Seite (Rezepte auswählen): die Liste scrollt, geschlossen wird über das Kreuz
+  if (e.target.closest("textarea, input")) return; // Textfeld: tippen, markieren und darin scrollen
   if (sh.classList.contains("scrolls") && !e.target.closest(".grip, .sheet-head")) return;
   sheetDrag = { sh, id: e.pointerId, y0: e.clientY, t0: performance.now(), dy: 0, moved: false };
 });
@@ -2660,7 +2694,10 @@ function renderList() {
   headLine();
 }
 /* Leiste unten: vier Hauptseiten. Wechseln legt keinen Schritt im Verlauf an (wie in iOS). */
-const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "gridv"], ["ein", "Einkaufsliste", "cart"], ["pro", "Profil", "user"]];
+// Einkaufsliste an/aus. Aus: kein Reiter, kein Knopf im Rezept, kein Eintrag im Zeilen-Menü, keine Verbindung zur Liste
+// im Konto (was dort gespeichert ist, bleibt unangetastet).
+const SHOP_ON = true;
+const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "gridv"], ...(SHOP_ON ? [["ein", "Einkaufsliste", "cart"]] : []), ["pro", "Profil", "user"]];
 function tabbarHtml() {
   return `<nav class="tabbar" aria-label="Bereiche">${TABS.map(([k, l, ic]) => `<button data-action="tab" data-t="${k}" class="${state.tab === k ? "on" : ""}"${state.tab === k ? ' aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></button>`).join("")}</nav>`;
 }
@@ -2733,7 +2770,7 @@ function shopPush(ms) { // kurz sammeln (mehrere Haken hintereinander), dann ein
 }
 function shopSubscribe() { // Liste aus dem Konto holen und Änderungen von einem anderen Gerät mitziehen
   if (shopUnsub) { shopUnsub(); shopUnsub = null; }
-  if (!fb || !uid) return;
+  if (!SHOP_ON || !fb || !uid) return;
   const myUid = uid, { F } = fb;
   shopCache = null; shopItems();
   if (shopOpen()) shopPush(0); // hier wurde geändert, bevor die Verbindung stand: dieser Stand gilt
@@ -2758,12 +2795,13 @@ function shopBodyHtml() {
   groups.sort((a, b) => (a.k ? 1 : 0) - (b.k ? 1 : 0));
   const head = g => {
     const inner = `<span class="hl"><span class="n">${esc(g.name)}</span>${g.rs ? `<span class="sv">${esc(g.rs)}</span>` : ""}</span>`;
-    return g.k && state.recipes.some(r => r.id === g.k)
-      ? `<button class="shop-h" data-action="open-recipe" data-id="${esc(g.k)}" aria-label="${esc(g.name)}${g.rs ? ", " + esc(g.rs) : ""} – Rezept öffnen">${inner}${icon("chev")}</button>`
+    const h = g.k && state.recipes.some(r => r.id === g.k)
+      ? `<button class="shop-h" data-action="open-recipe" data-id="${esc(g.k)}" aria-label="${esc(g.name)}${g.rs ? ", " + esc(g.rs) : ""} – Rezept öffnen">${inner}</button>`
       : `<div class="shop-h">${inner}</div>`;
+    return `<div class="shop-hd">${h}<button class="shop-gx" data-action="shop-group-del" data-k="${esc(g.k)}" aria-label="${g.k ? esc(g.name) + " von der Liste nehmen" : "Alle eigenen Artikel entfernen"}">${icon("x")}</button></div>`;
   };
   return groups.map(g => `<section class="shop-g">${head(g)}
-    <ul class="shop-list">${g.list.map(x => `<li><button class="shop-row" data-action="shop-toggle" data-id="${esc(x.id)}" aria-pressed="${!!x.done}"><span class="box">${icon("check")}</span><span class="t">${x.q ? `<b>${esc(x.q)}</b> ` : ""}${esc(x.t)}</span></button></li>`).join("")}</ul></section>`).join("")
+    <ul class="shop-list">${g.list.map(x => `<li><button class="shop-row" data-action="shop-toggle" data-id="${esc(x.id)}" aria-pressed="${!!x.done}"><span class="box">${icon("check")}</span><span class="t">${x.q ? `<b>${esc(x.q)}</b> ` : ""}${esc(x.t)}</span></button><button class="shop-x" data-action="shop-del" data-id="${esc(x.id)}" aria-label="${esc(x.t)} entfernen">${icon("x")}</button></li>`).join("")}</ul></section>`).join("")
     + shopDoneHtml();
 }
 const shopDoneHtml = () => { const n = shopItems().filter(x => x.done).length; return n ? `<button class="shop-done" id="shop-done" data-action="shop-clear-done">Erledigte löschen (${n})</button>` : ""; };
@@ -2784,47 +2822,12 @@ function shopRefresh() { // nur die Liste neu zeichnen: das Eingabefeld (und die
 }
 // Plus neben dem Feld: Tastatur bleibt offen (Fokus bleibt im Feld), dann gleich den nächsten Artikel tippen
 document.addEventListener("mousedown", e => { if (e.target && e.target.closest && e.target.closest("#shop-form button")) e.preventDefault(); });
-// Wischen nach links löscht einen Artikel (wie in den iPhone-Erinnerungen). Senkrecht wischen scrollt wie immer.
-let shopSwipe = null, shopSwipeUntil = 0;
-document.addEventListener("touchstart", e => {
-  const row = e.target && e.target.closest && e.target.closest(".shop-row");
-  shopSwipe = row && e.touches.length === 1 ? { row, x0: e.touches[0].clientX, y0: e.touches[0].clientY, dx: 0, on: false, dead: false } : null;
-}, { passive: true });
-document.addEventListener("touchmove", e => {
-  const sw = shopSwipe; if (!sw || sw.dead || e.touches.length !== 1) return;
-  const dx = e.touches[0].clientX - sw.x0, dy = e.touches[0].clientY - sw.y0;
-  if (!sw.on) {
-    if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)) { sw.dead = true; return; } // senkrecht: scrollen
-    if (!(dx < -10 && -dx > Math.abs(dy) * 1.3)) return;
-    sw.on = true; clearPress();
-    const li = sw.row.parentElement;
-    if (li && !li.querySelector(".shop-del")) li.insertAdjacentHTML("afterbegin", `<span class="shop-del" aria-hidden="true">Löschen</span>`);
-    sw.row.classList.remove("snap"); sw.row.classList.add("drag");
-  }
-  if (e.cancelable) e.preventDefault();
-  sw.dx = Math.min(0, dx);
-  sw.row.style.transform = `translateX(${sw.dx}px)`;
-}, { passive: false });
-function shopSwipeEnd() {
-  const sw = shopSwipe; shopSwipe = null;
-  if (!sw || !sw.on) return;
-  shopSwipeUntil = Date.now() + 450; // das Antippen nach dem Wischen nicht als Abhaken zählen
-  const row = sw.row, li = row.parentElement, w = row.offsetWidth || 300;
-  row.classList.remove("drag"); row.classList.add("snap");
-  if (sw.dx < -Math.min(110, w * .33)) {
-    row.style.transform = `translateX(${-w}px)`;
-    const id = row.dataset.id;
-    setTimeout(() => {
-      if (li) { li.style.height = li.offsetHeight + "px"; li.classList.add("gone"); void li.offsetHeight; li.style.height = "0px"; li.style.opacity = "0"; }
-      setTimeout(() => { shopItems(); shopCache = shopCache.filter(x => x.id !== id); shopSave(); shopRefresh(); }, 210);
-    }, 160);
-  } else {
-    row.style.transform = "";
-    setTimeout(() => { if (!row.style.transform && li) { const d = li.querySelector(".shop-del"); if (d) d.remove(); } }, 240);
-  }
+// „Rückgängig“: entfernte Artikel wieder an ihren alten Platz
+function shopRestore(gone) {
+  shopItems();
+  gone.forEach(([i, x]) => { if (!shopCache.some(y => y.id === x.id)) shopCache.splice(Math.min(i, shopCache.length), 0, x); });
+  shopSave(); shopRefresh();
 }
-document.addEventListener("touchend", shopSwipeEnd, { passive: true });
-document.addEventListener("touchcancel", shopSwipeEnd, { passive: true });
 function shopAddText() {
   const inp = document.getElementById("shop-in"); if (!inp) return;
   const v = inp.value.replace(/\s+/g, " ").trim().slice(0, 120);
@@ -2854,20 +2857,6 @@ function shopAddRecipe(r, factor) {
   shopSave(); shopRefresh();
   toast((had ? "Einkaufsliste aktualisiert" : (lines.length === 1 ? "1 Zutat" : lines.length + " Zutaten") + " auf der Einkaufsliste") + (rs ? " · " + rs : ""));
 }
-function openShopClear() {
-  const items = shopItems(), done = items.filter(x => x.done).length;
-  if (!items.length) return;
-  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sc-t">
-      <div class="grip"></div>
-      <div class="sheet-head"><h2 id="sc-t">Einkaufsliste</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
-      <div class="options">
-        ${done ? `<button class="opt" data-action="shop-clear-done">${icon("check")}<span>Abgehakte entfernen (${done})</span></button>` : ""}
-        <button class="opt danger" data-action="shop-clear-all">${icon("trash")}<span>Ganze Liste leeren</span></button>
-      </div>
-    </div>`;
-  layer.classList.add("open");
-}
 
 /* ---------- Drei Punkte an einem Rezept in der Sammlung ---------- */
 let rowMenuId = null;
@@ -2880,7 +2869,7 @@ function openRowMenu(id) {
       <div class="grip"></div>
       <div class="sheet-head"><h2 id="rm-t" class="clip">${esc(r.title || "Rezept")}</h2><button class="tbtn bold" data-action="close-layer">Fertig</button></div>
       <div class="options">
-        <button class="opt" data-action="row-shop">${icon("cart")}<span>Zur Einkaufsliste hinzufügen</span></button>
+        ${SHOP_ON ? `<button class="opt" data-action="row-shop">${icon("cart")}<span>Zur Einkaufsliste hinzufügen</span></button>` : ""}
         <button class="opt" data-action="row-sets">${icon("folder")}<span>Zur Sammlung hinzufügen</span></button>
         <button class="opt" data-action="row-print">${icon("print")}<span>Rezept drucken</span></button>
         <button class="opt danger" data-action="row-delete">${icon("trash")}<span>Rezept löschen</span></button>
@@ -3401,7 +3390,7 @@ function renderDetail() {
       <section class="sec">
         <div class="sec-head"><h2>Zutaten</h2>${ings.length ? scaler : ""}</div>
         ${ings.length ? `<ul class="ings" style="--qw:${qw.toFixed(1)}ch">${ingHtml}</ul>
-        <button class="shop-btn" data-action="shop-add">${icon("cart")}<span>Auf die Einkaufsliste</span></button>`
+        ${SHOP_ON ? `<button class="shop-btn" data-action="shop-add">${icon("cart")}<span>Auf die Einkaufsliste</span></button>` : ""}`
           : `<p class="muted">Noch keine Zutaten eingetragen.</p>`}
       </section>
       <section class="sec">
@@ -4036,8 +4025,24 @@ async function saveRecipe() {
 /* ---------- Import ---------- */
 const maxImages = () => 6;
 function startImport(mode) {
-  state.imp = { mode, link: "" };
-  go("import");
+  if (mode !== "link") { state.imp = { mode, link: "" }; go("import"); return; } // eigene Seite nur noch als Rückfall (Instagram-Seite)
+  // „Link oder Text“: Fenster unten wie bei den Fotos. Kommt man aus „Neues Rezept“, wechselt nur der Inhalt im selben Fenster.
+  state.imp = { mode: "link", link: "", sheet: true };
+  const inner = `<div class="grip"></div>
+      <div class="sheet-head"><h2 id="lk-t">Link oder Text</h2><button class="tbtn" data-action="close-layer">Abbrechen</button></div>
+      <textarea id="imp-link" class="imp-in" rows="3" autocomplete="off" autocapitalize="off" aria-label="Link oder Rezepttext" placeholder="Link oder Rezepttext hier einfügen"></textarea>
+      <div id="imp-status" aria-live="polite"></div>
+      <div class="imp-btns"><button class="btn" data-action="paste-link">${icon("paste")}Einfügen</button><button class="btn primary" id="recognize" data-action="recognize">Rezept holen</button></div>
+      <p class="imp-note">Link von Instagram oder einer Website, oder Text aus WhatsApp, E-Mail oder Notizen. Steht das Rezept nur im Video, nimm lieber Screenshots.</p>`;
+  const sh = layer.classList.contains("open") && layer.querySelector(".scrim") && layer.querySelector(".sheet:not(.full)");
+  if (sh) { sh.className = "sheet link"; sh.style.transform = ""; sh.setAttribute("aria-labelledby", "lk-t"); sh.innerHTML = inner; return; }
+  layer.innerHTML = `<div class="scrim" data-action="close-layer"></div><div class="sheet link" role="dialog" aria-modal="true" aria-labelledby="lk-t">${inner}</div>`;
+  layer.classList.add("open");
+}
+// Ein neuer Auftrag steht oben bei den Rezepten: dorthin, damit man ihn sieht
+function showJobs() {
+  if (state.view !== "list") { if (!histToList()) go("list", { nohist: true }); return; }
+  renderList(); window.scrollTo(0, 0);
 }
 function renderImport() {
   const imp = state.imp;
@@ -4596,7 +4601,8 @@ async function recognize() {
   else if (raw.length < 40) { showError("Das ist zu wenig für ein Rezept.", "Füg den ganzen Rezepttext oder einen Link ein."); return; }
   else startJob({ mode: "text", text: raw.slice(0, 20000), link: m ? m[0] : "", images: [] });
   state.imp = null;
-  if (!histBack()) go("list", { nohist: true });
+  if (imp.sheet) { closeLayer(); showJobs(); }
+  else if (!histBack()) go("list", { nohist: true });
 }
 
 /* ---------- Actions ---------- */
@@ -4756,8 +4762,9 @@ const actions = {
   "modal-yes": () => { closeDialog(); if (modalResolve) { modalResolve(true); modalResolve = null; } },
   "modal-no": () => { closeDialog(); if (modalResolve) { modalResolve(false); modalResolve = null; } },
   start: el => {
-    closeLayer();
     const mode = el.dataset.mode;
+    if (mode === "link") { startImport(mode); return; } // im selben Fenster weiter
+    closeLayer();
     if (mode === "manual") openEditor({ isNew: true });
     else startImport(mode);
   },
@@ -4804,20 +4811,37 @@ const actions = {
   "row-delete": () => { const r = rowRecipe(); closeLayer(); removeRecipe(r, false); },
   "shop-add": () => { const r = current(); if (r) shopAddRecipe(r, factorOf(r)); },
   "shop-toggle": el => {
-    if (Date.now() < shopSwipeUntil) return; // war ein Wischen, kein Antippen
     const x = shopItems().find(i => i.id === el.dataset.id); if (!x) return;
     x.done = !x.done; shopSave();
     el.setAttribute("aria-pressed", x.done); // Haken und Durchstreichen folgen per CSS, die Zeile bleibt an ihrem Platz
     shopDoneUpdate();
   },
-  "shop-clear": () => openShopClear(),
-  "shop-clear-done": () => { closeLayer(); shopCache = shopItems().filter(x => !x.done); shopSave(); shopRefresh(); toast("Abgehakte entfernt"); },
-  "shop-clear-all": async () => {
-    closeLayer();
+  "shop-clear": async () => { // Mülleimer oben: direkt nachfragen, kein Zwischenmenü
+    if (!shopItems().length) return;
     const ok = await confirmDialog({ title: "Ganze Liste leeren?", text: "Alle Artikel werden von der Einkaufsliste entfernt.", yes: "Leeren", danger: true });
     if (!ok) return;
     shopItems(); shopCache = []; shopSave(); shopRefresh();
   },
+  "shop-del": el => {
+    shopItems(); const i = shopCache.findIndex(x => x.id === el.dataset.id); if (i < 0) return;
+    const x = shopCache[i]; shopCache.splice(i, 1); shopSave(); shopRefresh();
+    toastUndo("entfernt", () => shopRestore([[i, x]]), (x.q ? x.q + " " : "") + x.t);
+  },
+  "toast-undo": () => { const fn = toastUndoFn; toastUndoFn = null; clearTimeout(toastT); $("#toast").classList.remove("show", "act"); if (fn) fn(); },
+  "shop-group-del": el => { // × an der Überschrift: alles von diesem Rezept (bzw. alle eigenen Artikel) entfernen
+    const k = el.dataset.k || "";
+    const gone = []; shopItems().forEach((x, i) => { if ((x.rid || "") === k) gone.push([i, x]); }); if (!gone.length) return;
+    shopCache = shopCache.filter(x => (x.rid || "") !== k); shopSave(); shopRefresh();
+    if (k) toastUndo("entfernt", () => shopRestore(gone), gone[0][1].rt || "Rezept");
+    else toastUndo("Eigene Artikel entfernt", () => shopRestore(gone));
+  },
+  "shop-clear-done": () => {
+    closeLayer();
+    const gone = []; shopItems().forEach((x, i) => { if (x.done) gone.push([i, x]); }); if (!gone.length) return;
+    shopCache = shopCache.filter(x => !x.done); shopSave(); shopRefresh();
+    toastUndo("Abgehakte entfernt", () => shopRestore(gone));
+  },
+
   serv: el => {
     const d = Number(el.dataset.d), r = current(), base = r && Number(r.servings) > 0 ? Number(r.servings) : 1;
     const cur = state.servings || 1, next = d > 0 ? Math.floor(cur) + 1 : Math.ceil(cur) - 1; // 1,5 → 2 bzw. 1
@@ -4888,7 +4912,7 @@ function tick() {
 const TICK = new Set(["fav", "rate", "toggle-ing", "toggle-step", "serv", "factor", "cook-next", "cook-prev"]);
 // Nur Ansehen und Blättern: geht schon im Schnellstart. Alles andere (speichern, einlesen, abmelden …) wartet, bis Firebase bereit ist.
 const VIEW_ONLY = new Set(["open-recipe", "back", "filter", "sort", "set-sort", "open-set", "set-back", "toggle-ing", "toggle-step", "serv", "factor",
-  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear", "tab", "search-open", "search-close", "set-setsort", "set-menu", "row-menu", "row-shop", "row-print", "shop-add", "shop-toggle", "shop-clear", "shop-clear-done", "shop-clear-all"]);
+  "cook", "cook-next", "cook-prev", "cook-close", "close-layer", "open-add", "start", "search-clear", "tab", "search-open", "search-close", "set-setsort", "set-menu", "row-menu", "row-shop", "row-print", "shop-add", "shop-toggle", "shop-del", "shop-group-del", "toast-undo", "shop-clear", "shop-clear-done"]);
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-action]");
   if (!el) return;
@@ -4948,7 +4972,7 @@ document.addEventListener("change", async e => {
     // Direkt im Hintergrund lesen: man bleibt in der Liste und kann weitermachen
     const job = newJob({ mode: "photo", text: "", link: sf ? sf.link : "", images: [] }, "prep");
     if (sf) { const old = state.jobs.find(x => x.id === sf.jobId); if (old) { old.dead = true; if (old.ctl) old.ctl.abort(); removeJob(old); } }
-    if (state.view !== "list") { if (!histToList()) go("list", { nohist: true }); } else renderListBody();
+    showJobs();
     const images = [], weak = []; let bad = 0;
     for (const f of list) {
       try {
