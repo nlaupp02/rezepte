@@ -132,6 +132,8 @@ body.nav-push #app { box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
 body.nav-pop .nav-ghost { z-index: 3; box-shadow: -10px 0 30px rgba(0, 0, 0, .1); }
 body.nav-pop #app { z-index: 1; }
 body.nav-anim #app .fab, body.nav-anim #app .fab-fade, body.nav-anim #app .tabbar, body.nav-anim #app .shop-dock { visibility: hidden; }
+.nav-fix { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+.nav-fix-pop { z-index: 1; }
 /* V78: Rezeptname klein in der Kopfleiste, sobald der große Titel weggescrollt ist (wie in Apple-Apps). Das Wort „Rezepte“ am Pfeil macht Platz. */
 .topbar .bar-t { flex: 1; min-width: 0; padding: 0 4px; text-align: center; font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity .2s; }
 .topbar.named .bar-t { opacity: 1; }
@@ -1020,7 +1022,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "78";
+const APP_VERSION = "79";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1107,7 +1109,7 @@ let lastTouchT = 0;
 function whenCalm(fn, quiet) {
   const q = quiet || 900;
   const check = () => {
-    if (performance.now() - lastTouchT < q || navStop || edgeSw) { setTimeout(check, 350); return; }
+    if (performance.now() - lastTouchT < q || navStop) { setTimeout(check, 350); return; }
     if (window.requestIdleCallback) requestIdleCallback(() => fn(), { timeout: 800 }); else fn();
   };
   check();
@@ -2677,126 +2679,33 @@ function navAnim(kind, draw) {
   if (navStop) navStop();
   if (!kind || noMotion() || !app.firstElementChild || !canCopy()) { draw(); return; }
   let ghost;
-  const sig = pageSig();
   try { ghost = pageCopy(); } catch (e) { draw(); return; }
   draw();
-  const depth = histDepth();
   const shade = document.createElement("div"); shade.className = "nav-shade";
-  document.body.append(ghost, shade);
+  // V79: Leiste unten und „Neues Rezept“ der neuen Seite gleiten mit (statt erst am Ende aufzutauchen).
+  // In der gleitenden Seite selbst ginge das nicht: Feste Teile hingen dort am Seitenende statt unten am Bildschirm.
+  let fix = null;
+  try {
+    const fx = [...app.querySelectorAll(".tabbar, .fab, .fab-fade, .shop-dock")].filter(e => !e.hidden && getComputedStyle(e).display !== "none");
+    if (fx.length) {
+      fix = document.createElement("div"); fix.className = "nav-fix nav-fix-" + kind; fix.setAttribute("aria-hidden", "true"); fix.inert = true;
+      const inner = document.createElement("div"); inner.className = app.className; inner.style.display = "contents"; // gleiche Regeln wie in der Seite (z. B. Knopf über der Leiste)
+      fx.forEach(e => inner.appendChild(e.cloneNode(true))); inner.querySelectorAll("[id]").forEach(e => e.removeAttribute("id"));
+      fix.appendChild(inner);
+    }
+  } catch (e) { fix = null; }
+  document.body.append(ghost, shade); if (fix) document.body.append(fix);
   document.body.classList.add("nav-anim", "nav-" + kind);
   const D = 380, o = { duration: D, easing: "cubic-bezier(.32, .72, 0, 1)" }, T = v => ({ transform: v }), an = [];
-  if (kind === "push") an.push(app.animate([T("translateX(100%)"), T("none")], o), ghost.animate([T("none"), T("translateX(-28%)")], o), shade.animate([{ opacity: 0 }, { opacity: .1 }], o));
-  else an.push(ghost.animate([T("none"), T("translateX(100%)")], o), app.animate([T("translateX(-28%)"), T("none")], o), shade.animate([{ opacity: .1 }, { opacity: 0 }], o));
+  const inK = kind === "push" ? [T("translateX(100%)"), T("none")] : [T("translateX(-28%)"), T("none")];
+  if (kind === "push") an.push(app.animate(inK, o), ghost.animate([T("none"), T("translateX(-28%)")], o), shade.animate([{ opacity: 0 }, { opacity: .1 }], o));
+  else an.push(ghost.animate([T("none"), T("translateX(100%)")], o), app.animate(inK, o), shade.animate([{ opacity: .1 }, { opacity: 0 }], o));
+  if (fix) an.push(fix.animate(inK, o));
   let over = false;
-  const end = () => {
-    if (over) return; over = true; navStop = null; ghost.remove(); shade.remove(); document.body.classList.remove("nav-anim", "nav-" + kind);
-    if (kind === "push" && depth > 0) keepShot(depth, ghost, sig); // liegt beim Zurückwischen unter der Seite
-  };
+  const end = () => { if (over) return; over = true; navStop = null; ghost.remove(); shade.remove(); if (fix) fix.remove(); document.body.classList.remove("nav-anim", "nav-" + kind); };
   navStop = () => { an.forEach(a => { try { a.finish(); } catch (e) { /* egal */ } }); end(); };
   Promise.all(an.map(a => a.finished)).then(end, end);
   setTimeout(end, D + 400); // falls eine Animation hängen bleibt
-}
-
-/* ---------- V78: Vom linken Rand wischen = zurück (wie in Apple-Apps) ----------
-   In der App vom Home-Bildschirm bietet iOS die Geste nicht an (in Safari macht es der Browser selbst, dort bleibt alles, wie es ist).
-   Die Seite folgt dem Finger, darunter liegt die vorige Seite: das Abbild vom Hineinschieben. Loslassen nach gut einem Drittel
-   oder mit Schwung: zurück. Sonst rutscht die Seite wieder an ihren Platz, und es ist nichts passiert. */
-const backShots = new Map(); // Verlaufstiefe → Abbild der Seite darunter
-function pageSig() { return state.view + "|" + (app.dataset.set || "") + "|" + state.sort + "|" + [...app.querySelectorAll("[data-id]")].slice(0, 60).map(e => e.dataset.id).join(","); }
-function keepShot(d, g, sig) { g.dataset.sig = sig; backShots.set(d, g); [...backShots.keys()].forEach(k => { if (k > d || k < d - 4) backShots.delete(k); }); }
-function trimShots() { const d = histDepth(); [...backShots.keys()].forEach(k => { if (k > d) backShots.delete(k); }); }
-let edgeSw = null;
-const edgeOk = () => isStandalone() && !layer.classList.contains("open") && !layer2.classList.contains("open") && !viewer && !cook
-  && !document.body.classList.contains("kb") && (state.view === "detail" || (state.view === "list" && curSet() != null));
-document.addEventListener("touchstart", e => {
-  edgeSw = null;
-  if (e.touches.length !== 1) return;
-  const t = e.touches[0];
-  if (t.clientX > 22 || !edgeOk()) return;
-  edgeSw = { x0: t.clientX, y0: t.clientY, lx: t.clientX, lt: e.timeStamp, v: 0, x: 0, on: false, claim: null };
-}, { passive: true, capture: true });
-document.addEventListener("touchmove", e => {
-  const s = edgeSw;
-  if (!s || s.done) return;
-  if (e.touches.length !== 1) { if (s.on) edgeFinish(false); else edgeSw = null; return; }
-  const t = e.touches[0], dx = t.clientX - s.x0, dy = t.clientY - s.y0;
-  if (!s.on) {
-    if (s.claim === null) { // die erste Bewegung entscheidet: nach rechts → Geste, sonst ganz normal scrollen
-      if (Math.abs(dx) + Math.abs(dy) < 1) return;
-      s.claim = dx > 0 && dx >= Math.abs(dy) * .8;
-      if (!s.claim) { edgeSw = null; return; }
-    }
-    if (e.cancelable) e.preventDefault();
-    if (dx > 6 && dx > Math.abs(dy)) { s.off = dx; edgeStart(); }
-    else if (Math.abs(dy) > 14) edgeSw = null; // doch nach oben/unten: loslassen
-    return;
-  }
-  if (e.cancelable) e.preventDefault();
-  const dt = e.timeStamp - s.lt;
-  if (dt > 0) s.v = .6 * ((t.clientX - s.lx) / dt) + .4 * s.v;
-  s.lx = t.clientX; s.lt = e.timeStamp;
-  edgeMove(Math.max(0, t.clientX - s.x0));
-}, { passive: false });
-document.addEventListener("touchend", () => { const s = edgeSw; if (!s || s.done) return; if (!s.on) { edgeSw = null; return; } edgeFinish(s.x > s.w * .35 || (s.v > .3 && s.x > 24)); }, { passive: true });
-document.addEventListener("touchcancel", () => { const s = edgeSw; if (!s || s.done) return; if (s.on) edgeFinish(false); else edgeSw = null; }, { passive: true });
-function edgeStart() {
-  const s = edgeSw;
-  if (navStop) navStop();
-  s.on = true; s.w = innerWidth;
-  clearPress(); document.querySelectorAll(".pressed").forEach(x => x.classList.remove("pressed"));
-  let g = backShots.get(histDepth());
-  if (!g) { g = document.createElement("div"); g.className = "nav-ghost"; g.setAttribute("aria-hidden", "true"); g.dataset.sig = ""; }
-  const shade = document.createElement("div"); shade.className = "nav-shade";
-  s.g = g; s.shade = shade;
-  document.body.append(g, shade);
-  document.body.classList.add("nav-anim", "nav-push", "nav-live");
-  edgeMove(0);
-}
-function edgeMove(x) {
-  const s = edgeSw, p = Math.min(1, x / s.w); s.x = x;
-  app.style.transform = `translate3d(${x.toFixed(1)}px,0,0)`;
-  s.g.style.transform = `translate3d(${(-28 * (1 - p)).toFixed(2)}%,0,0)`;
-  s.shade.style.opacity = (.1 * (1 - p)).toFixed(3);
-}
-function edgeFinish(back) {
-  const s = edgeSw; s.done = true;
-  const w = s.w, x = s.x, rest = back ? w - x : x;
-  const D = Math.round(Math.max(170, Math.min(360, rest / w * 420))), o = { duration: D, easing: "cubic-bezier(.25, .8, .3, 1)", fill: "forwards" };
-  const an = [
-    app.animate([{ transform: app.style.transform }, { transform: back ? `translate3d(${w}px,0,0)` : "translate3d(0,0,0)" }], o),
-    s.g.animate([{ transform: s.g.style.transform }, { transform: back ? "translate3d(0,0,0)" : "translate3d(-28%,0,0)" }], o),
-    s.shade.animate([{ opacity: s.shade.style.opacity }, { opacity: back ? 0 : .1 }], o)];
-  let over = false;
-  const clean = () => {
-    an.forEach(a => { try { a.cancel(); } catch (e) { /* egal */ } });
-    app.style.transform = ""; s.g.style.transform = ""; s.shade.remove();
-    document.body.classList.remove("nav-anim", "nav-push", "nav-live");
-    if (edgeSw === s) edgeSw = null;
-  };
-  const after = () => {
-    if (over) return; over = true;
-    if (!back) { clean(); s.g.remove(); return; }
-    // Jetzt wirklich zurück. Das Abbild deckt, bis die echte Seite darunter steht (im selben Schritt weg: kein Flackern).
-    const stale = s.g.dataset.sig !== "" && s.g.dataset.sig;
-    let fin = false;
-    const done = () => {
-      if (fin) return; fin = true; window.removeEventListener("popstate", onPop);
-      const g = s.g; clean();
-      if (stale && stale !== pageSig() && g.animate) { // inzwischen anders sortiert o. Ä.: weich überblenden statt springen
-        g.style.zIndex = "4"; const a = g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "ease-out" });
-        const rm = () => g.remove(); a.finished.then(rm, rm);
-      } else g.remove();
-    };
-    const onPop = () => done(); // läuft nach dem eigentlichen Zurück (das schon gezeichnet hat)
-    window.addEventListener("popstate", onPop);
-    navOwn = 0;
-    if (!histBack()) {
-      if (state.view === "detail") go("list", { nohist: true }); else if (curSet() != null) leaveSet(false);
-      done();
-    } else setTimeout(() => { if (!fin) { if (state.view === "detail") go("list", { nohist: true }); done(); } }, 700); // falls der Verlauf nicht antwortet
-  };
-  Promise.all(an.map(a => a.finished)).then(after, after);
-  setTimeout(after, D + 300);
 }
 
 /* Sammlung öffnen und wieder verlassen (wie eine eigene Seite) */
@@ -2812,7 +2721,6 @@ function leaveSet(anim) {
   navAnim(anim ? "pop" : null, () => { state.filter = "all"; state.query = ""; renderList(); window.scrollTo(0, state.homeScroll || 0); });
 }
 window.addEventListener("popstate", e => {
-  trimShots();
   clearPress(); document.querySelectorAll(".pressed").forEach(x => x.classList.remove("pressed")); // nach dem Zurückwischen bleibt sonst eine Kachel „gedrückt“ stehen
   if (!authKnown || state.view === "login" || state.view === "boot") return;
   const st = e.state && typeof e.state === "object" ? e.state : { v: "list", d: 0 };
