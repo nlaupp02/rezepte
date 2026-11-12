@@ -791,6 +791,14 @@ body.kb .sheet.link .imp-in { max-height: 22vh; }
 
 /* V74: Kopfzeile der Hauptseiten bleibt beim Scrollen oben stehen (wie die Leiste im Rezept) */
 .home-head { position: sticky; top: 0; z-index: 5; background: var(--bg); margin: 0 -16px 8px; padding: calc(14px + env(safe-area-inset-top)) 6px 8px 16px; }
+/* V84: Die Leiste oben bleibt stehen, wenn die Seite oben nachfedert (fest angeheftet wie die Leiste unten).
+   Der Inhalt hält oben genau ihren Platz frei; beim Bearbeiten (Tastatur) bleibt sie, wie sie war. */
+.app.pin-h > .home-head, .app.pin-t > .topbar { position: fixed; top: 0; left: calc(50% - min(50%, 340px)); right: calc(50% - min(50%, 340px)); margin: 0; }
+.app.pin-h > .home-head { height: calc(66px + env(safe-area-inset-top)); }
+.app.pin-t > .topbar { height: calc(54px + env(safe-area-inset-top)); }
+.app.pin-h { padding-top: calc(74px + env(safe-area-inset-top)); }
+.app.pin-t { padding-top: calc(54px + env(safe-area-inset-top)); }
+body.nav-anim #app.pin-h > .home-head, body.nav-anim #app.pin-t > .topbar { visibility: hidden; }
 .home-head.lined { box-shadow: 0 .5px 0 var(--line); }
 
 /* V74: Liste in der Sammlung mit größerem Bild und drei Punkten je Zeile */
@@ -1042,7 +1050,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "83";
+const APP_VERSION = "84";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2680,6 +2688,12 @@ function go(view, opts) {
 // Die alte Seite ist ein Abbild in einem abgeschlossenen Schatten-Baum (nicht antippbar, für querySelector unsichtbar).
 let navOwn = 0, navStop = null, ghostCss = null;
 const canCopy = () => !!(Element.prototype.attachShadow && "adoptedStyleSheets" in Document.prototype && window.CSSStyleSheet && app.animate);
+// Leiste oben fest anheften (Rezepte, Sammlungen, Profil, in einer Sammlung, im Rezept)
+function pinHead() {
+  const h = app.firstElementChild, ok = state.view === "list" || state.view === "detail";
+  app.classList.toggle("pin-h", ok && !!h && h.matches(".home-head"));
+  app.classList.toggle("pin-t", ok && !!h && h.matches(".topbar"));
+}
 function pageCopy() {
   const g = document.createElement("div");
   g.className = "nav-ghost"; g.setAttribute("aria-hidden", "true"); g.inert = true;
@@ -2701,12 +2715,13 @@ function navAnim(kind, draw) {
   let ghost;
   try { ghost = pageCopy(); } catch (e) { draw(); return; }
   draw();
+  if (state.view === "list" || state.view === "detail") pinHead();
   const shade = document.createElement("div"); shade.className = "nav-shade";
   // V79: Leiste unten und „Neues Rezept“ der neuen Seite gleiten mit (statt erst am Ende aufzutauchen).
   // In der gleitenden Seite selbst ginge das nicht: Feste Teile hingen dort am Seitenende statt unten am Bildschirm.
   let fix = null;
   try {
-    const fx = [...app.querySelectorAll(".tabbar, .fab, .fab-fade, .shop-dock")].filter(e => !e.hidden && getComputedStyle(e).display !== "none");
+    const fx = [...app.querySelectorAll(":scope.pin-h > .home-head, :scope.pin-t > .topbar, .tabbar, .fab, .fab-fade, .shop-dock")].filter(e => !e.hidden && getComputedStyle(e).display !== "none");
     if (fx.length) {
       fix = document.createElement("div"); fix.className = "nav-fix nav-fix-" + kind; fix.setAttribute("aria-hidden", "true"); fix.inert = true;
       const inner = document.createElement("div"); inner.className = app.className; inner.style.display = "contents"; // gleiche Regeln wie in der Seite (z. B. Knopf über der Leiste)
@@ -2878,6 +2893,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 function render() {
   app.classList.toggle("home", state.view === "list");
   if (state.view !== "list") app.classList.remove("tabs");
+  if (state.view !== "list" && state.view !== "detail") app.classList.remove("pin-h", "pin-t"); // Bearbeiten, Import, Anmelden: Leiste wie bisher
   if (state.view === "login") { bootDrop(); renderLogin(); return; }
   if (state.view === "boot" || (!authKnown && !quick)) { renderBoot(); return; }
   bootDrop(); // Sicherung: Ab hier steht eine echte Ansicht da. Ein Startbild ohne Ausblend-Uhr würde sie sonst verdecken.
@@ -2928,6 +2944,7 @@ function renderList() {
     <button class="fab" id="fab" data-action="open-add">${icon("plus")}<span>Neues Rezept</span></button>
     <div class="fab-fade" aria-hidden="true"></div>`}
     ${set == null ? tabbarHtml() : ""}`;
+  pinHead();
   renderListBody();
   reuseImgs(app, oldImgs); warmImgs(app);
   if (y) window.scrollTo(0, y);
@@ -3618,7 +3635,7 @@ function ingNameHtml(n) {
 }
 function renderDetail() {
   const r = current();
-  if (!r) { app.innerHTML = ""; return; }
+  if (!r) { app.innerHTML = ""; pinHead(); return; }
   autoNutrition(r);
   lastDetailSig = detailSig(r);
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
@@ -3720,6 +3737,7 @@ function renderDetail() {
       <button class="btn danger quiet block" data-action="delete">Rezept löschen</button>
     </article>`;
   setHTMLKeepImgs(app, html); // auch beim Öffnen aus der Liste: das Bild ist schon geladen
+  pinHead();
   fitQtyCol();
 }
 // Mengenspalte so breit wie die breiteste Menge (gemessen statt geschätzt, z. B. „400–500 g“), höchstens gut ein Drittel der Zeile
