@@ -1042,7 +1042,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "82";
+const APP_VERSION = "83";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2757,13 +2757,13 @@ const diceCard = r => {
   return `<span class="dz-img">${coverHtml(r)}</span><span class="dz-t">${esc(r.title || "Ohne Titel")}</span>${m ? `<span class="row-m">${m}</span>` : ""}`;
 };
 function diceChips() {
-  const ctx = state.filter === "fav" ? ["fav", "Favoriten"] : state.filter.startsWith("cat:") ? [state.filter, state.filter.slice(4)] : null;
+  const ctx = state.tab !== "rez" || curSet() != null ? null : state.filter === "fav" ? ["fav", "Favoriten"] : state.filter.startsWith("cat:") ? [state.filter, state.filter.slice(4)] : null;
   const list = [...(ctx ? [ctx] : []), ["all", "Alle Rezepte"], ...allSets().filter(([, n]) => n > 0).map(([n]) => ["set:" + n, n])];
   return list.map(([k, l]) => `<button class="chip ${dice.p === k ? "on" : ""}" data-action="dice-pool" data-p="${esc(k)}" aria-pressed="${dice.p === k}">${k.startsWith("set:") ? icon("folder") : ""}${esc(l)}</button>`).join("");
 }
 function openDice() {
   const set = curSet();
-  dice = { p: set != null ? "set:" + set : state.filter === "fav" || state.filter.startsWith("cat:") ? state.filter : "all", id: null, recent: dice ? dice.recent : [], busy: false };
+  dice = { p: set != null ? "set:" + set : state.tab === "rez" && (state.filter === "fav" || state.filter.startsWith("cat:")) ? state.filter : "all", id: null, recent: dice ? dice.recent : [], busy: false };
   layer.innerHTML = `<div class="scrim" data-action="close-layer"></div>
     <div class="sheet dice" role="dialog" aria-modal="true" aria-labelledby="dz-h">
       <div class="grip"></div>
@@ -2912,7 +2912,7 @@ function renderList() {
     ${set == null ? `<header class="home-head${searching ? " searching" : ""}">
       <h1 class="brand">${tab === "sam" ? "Sammlungen" : tab === "pro" ? "Profil" : tab === "ein" ? "Einkaufsliste" : "Rezepte"}</h1>
       <span class="head-btns">${tab === "rez" ? `<button class="icon-btn" data-action="dice" aria-label="Zufälliges Rezept">${icon("dice")}</button><button class="icon-btn" data-action="search-open" aria-label="Suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sortieren">${icon("sortl")}</button>`
-        : tab === "sam" ? `<button class="icon-btn" data-action="search-open" aria-label="Sammlung suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sammlungen sortieren">${icon("sortl")}</button><button class="icon-btn" data-action="new-set" aria-label="Neue Sammlung">${icon("plus")}</button>`
+        : tab === "sam" ? `<button class="icon-btn" data-action="dice" aria-label="Zufälliges Rezept">${icon("dice")}</button><button class="icon-btn" data-action="search-open" aria-label="Sammlung suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sammlungen sortieren">${icon("sortl")}</button>`
         : tab === "ein" ? `<button class="icon-btn" data-action="shop-clear" aria-label="Liste aufräumen"${shopItems().length ? "" : " hidden"}>${icon("trash")}</button>` : ""}</span>
       ${tab === "pro" || tab === "ein" ? "" : `<span class="head-search"><button class="icon-btn" data-action="search-close" aria-label="Suche schließen">${icon("back")}</button>${field}</span>`}
     </header>` : `<div class="topbar"><button class="back" data-action="set-back">${icon("back")}Sammlungen</button><span class="grow"></span>
