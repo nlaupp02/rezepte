@@ -799,6 +799,14 @@ body.kb .sheet.link .imp-in { max-height: 22vh; }
 .app.pin-h { padding-top: calc(74px + env(safe-area-inset-top)); }
 .app.pin-t { padding-top: calc(54px + env(safe-area-inset-top)); }
 body.nav-anim #app.pin-h > .home-head, body.nav-anim #app.pin-t > .topbar { visibility: hidden; }
+/* V85: Auch die Kategorien (Alle, Favoriten, Hauptgericht …) bleiben stehen, direkt unter der Kopfleiste: Zieht man die Seite
+   oben herunter, federn nur die Rezepte. In Ruhe steht alles genau wie vorher (die Seite hält den Platz der Zeile frei). */
+.app.pin-c > .chips { position: fixed; z-index: 5; top: calc(66px + env(safe-area-inset-top)); left: calc(50% - min(50%, 340px)); right: calc(50% - min(50%, 340px));
+  margin: 0; height: 78px; box-sizing: border-box; padding: 30px 16px 8px; align-items: flex-start; background: var(--bg); }
+.app.pin-h.pin-c { padding-top: calc(128px + env(safe-area-inset-top)); }
+.app.pin-c > .chips.lined { box-shadow: 0 .5px 0 var(--line); }
+.app.pin-c > .home-head.lined { box-shadow: none; }
+body.nav-anim #app.pin-c > .chips { visibility: hidden; }
 .home-head.lined { box-shadow: 0 .5px 0 var(--line); }
 
 /* V74: Liste in der Sammlung mit größerem Bild und drei Punkten je Zeile */
@@ -1050,7 +1058,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "84";
+const APP_VERSION = "85";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2475,6 +2483,8 @@ window.addEventListener("scroll", clearPress, { passive: true });
 function headLine() {
   const t = app.querySelector(".topbar, .home-head"); if (!t) return;
   t.classList.toggle("lined", window.scrollY > 2);
+  const ch = app.classList.contains("pin-c") ? app.querySelector(":scope > .chips") : null;
+  if (ch) ch.classList.toggle("lined", window.scrollY > 2);
   // Im Rezept: ist der große Titel unter der Leiste verschwunden, steht der Name klein in der Mitte
   if (state.view === "detail") { const h = app.querySelector(".d-title"); t.classList.toggle("named", !!h && h.getBoundingClientRect().bottom < t.getBoundingClientRect().bottom + 2); }
 }
@@ -2721,7 +2731,7 @@ function navAnim(kind, draw) {
   // In der gleitenden Seite selbst ginge das nicht: Feste Teile hingen dort am Seitenende statt unten am Bildschirm.
   let fix = null;
   try {
-    const fx = [...app.querySelectorAll(":scope.pin-h > .home-head, :scope.pin-t > .topbar, .tabbar, .fab, .fab-fade, .shop-dock")].filter(e => !e.hidden && getComputedStyle(e).display !== "none");
+    const fx = [...app.querySelectorAll(":scope.pin-h > .home-head, :scope.pin-c > .chips, :scope.pin-t > .topbar, .tabbar, .fab, .fab-fade, .shop-dock")].filter(e => !e.hidden && getComputedStyle(e).display !== "none");
     if (fx.length) {
       fix = document.createElement("div"); fix.className = "nav-fix nav-fix-" + kind; fix.setAttribute("aria-hidden", "true"); fix.inert = true;
       const inner = document.createElement("div"); inner.className = app.className; inner.style.display = "contents"; // gleiche Regeln wie in der Seite (z. B. Knopf über der Leiste)
@@ -2893,7 +2903,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 function render() {
   app.classList.toggle("home", state.view === "list");
   if (state.view !== "list") app.classList.remove("tabs");
-  if (state.view !== "list" && state.view !== "detail") app.classList.remove("pin-h", "pin-t"); // Bearbeiten, Import, Anmelden: Leiste wie bisher
+  if (state.view !== "list" && state.view !== "detail") app.classList.remove("pin-h", "pin-t");
+  if (state.view !== "list") app.classList.remove("pin-c"); // Bearbeiten, Import, Anmelden: Leiste wie bisher
   if (state.view === "login") { bootDrop(); renderLogin(); return; }
   if (state.view === "boot" || (!authKnown && !quick)) { renderBoot(); return; }
   bootDrop(); // Sicherung: Ab hier steht eine echte Ansicht da. Ein Startbild ohne Ausblend-Uhr würde sie sonst verdecken.
@@ -2953,7 +2964,7 @@ function renderList() {
 /* Leiste unten: vier Hauptseiten. Wechseln legt keinen Schritt im Verlauf an (wie in iOS). */
 // Einkaufsliste an/aus. Aus: kein Reiter, kein Knopf im Rezept, kein Eintrag im Zeilen-Menü, keine Verbindung zur Liste
 // im Konto (was dort gespeichert ist, bleibt unangetastet).
-const SHOP_ON = false;
+const SHOP_ON = true;
 const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "gridv"], ...(SHOP_ON ? [["ein", "Einkaufsliste", "cart"]] : []), ["pro", "Profil", "user"]];
 function tabbarHtml() {
   return `<nav class="tabbar" aria-label="Bereiche">${TABS.map(([k, l, ic]) => `<button data-action="tab" data-t="${k}" class="${state.tab === k ? "on" : ""}"${state.tab === k ? ' aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></button>`).join("")}</nav>`;
@@ -3373,6 +3384,12 @@ function tile(r) {
   </button></li>`;
 }
 function renderListBody() {
+  renderListBody0();
+  const ch = $("#chips");
+  app.classList.toggle("pin-c", !!ch && ch.innerHTML !== "" && app.classList.contains("pin-h"));
+  headLine();
+}
+function renderListBody0() {
   const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab"), albums = $("#albums");
   if (!grid) return; // Profil: nichts zu füllen
   const sam = curSet() == null && state.tab === "sam";
