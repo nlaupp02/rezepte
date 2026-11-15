@@ -1083,7 +1083,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "88";
+const APP_VERSION = "89";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2269,10 +2269,13 @@ function playMark(sig) { const s2 = playSeen(); s2.add(sig); try { localStorage.
 function queuePlayFix() {
   if (playBusy || !col || !uid || !state.loaded || document.visibilityState === "hidden") return;
   const seen = playSeen();
-  const r = state.recipes.find(x => x.cover && x.cover.dataUrl && isIgLink(x.link || "") && !seen.has(playSig(x)) && !playDone.has(playSig(x)));
+  // V89: Titelbilder, die Version 87 als „Original ohne Play-Zeichen“ eingetragen hat (cover.c), werden einmal wie alle anderen
+  // geprüft: Ist doch ein Zeichen drin, wird es wie bisher herausgerechnet. Ist keins drin, bleibt das Bild, wie es ist.
+  const sigC = x => playSig(x) + (x.cover && x.cover.c ? ":c" : "");
+  const r = state.recipes.find(x => x.cover && x.cover.dataUrl && isIgLink(x.link || "") && !seen.has(sigC(x)) && !playDone.has(sigC(x)));
   if (!r) return;
   playBusy = true;
-  const sig = playSig(r), myUid = uid, myCol = col;
+  const sig = sigC(r), myUid = uid, myCol = col;
   playDone.add(sig);
   let next = 300;
   (async () => {
@@ -2281,7 +2284,7 @@ function queuePlayFix() {
       if (uid !== myUid || col !== myCol) return;
       if (fixed) {
         const now = state.recipes.find(x => x.id === r.id);
-        if (!now || playSig(now) !== sig) return; // inzwischen ein anderes Titelbild
+        if (!now || sigC(now) !== sig) return; // inzwischen ein anderes Titelbild
         const cover = await storeCover(fixed);
         await withRetry(() => col.doc(r.id).update({ cover }));
         patchLocal(r.id, { cover });

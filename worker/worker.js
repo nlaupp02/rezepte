@@ -7,6 +7,7 @@
 // POST /page  -> lädt eine Rezept-Webseite und gibt den Rezepttext zurück (bei Instagram: Beschreibung + Vorschaubild)
 // POST /img   -> lädt ein Bild (z. B. Vorschaubild), damit die App es dauerhaft speichern kann
 
+const WORKER_V = 2; // 2: Instagram – Originalbild ohne Play-Knopf wird auch in den Seitendaten gesucht (meta.clean)
 const PROJECT_ID = "rezepte-d507e";
 const ALLOWED_ORIGINS = ["https://nlaupp02.github.io"];
 const MODELS = ["claude-sonnet-5-5", "claude-haiku-5-5"]; // Sonnet liest Rezepte, Haiku schätzt Nährwerte und Merkmale
@@ -28,7 +29,7 @@ async function handle(request, env, origin, cors, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/") {
-      return json({ ok: true, name: "rezepte-ki", key: !!env.ANTHROPIC_API_KEY }, 200, cors);
+      return json({ ok: true, name: "rezepte-ki", v: WORKER_V, key: !!env.ANTHROPIC_API_KEY }, 200, cors);
     }
     if (request.method !== "POST") return json({ error: "method" }, 405, cors);
     if (!ALLOWED_ORIGINS.includes(origin)) return json({ error: "origin" }, 403, cors);
@@ -183,7 +184,7 @@ function instagramCode(u) {
 // Einmal gelesene Reels ein paar Tage aufheben (Cache des Rechenzentrums): dasselbe Reel kommt dann sofort, auch wenn
 // Instagram gerade sperrt. Kürzer als eine Woche, weil die Bildlinks von Instagram nach einigen Tagen ablaufen.
 const IG_CACHE_SECONDS = 3 * 24 * 3600;
-const igCacheKey = code => new Request("https://rezepte-ki.cache/ig/" + encodeURIComponent(code));
+const igCacheKey = code => new Request("https://rezepte-ki.cache/ig" + WORKER_V + "/" + encodeURIComponent(code));
 async function instagram(code, original, cors, ctx) {
   let cache = null;
   try { cache = caches.default; } catch (e) { cache = null; }
@@ -208,18 +209,50 @@ async function instagramFetch(code, original) {
   if (!r.ok) { await new Promise(f => setTimeout(f, 2000)); r = await instagramOnce(code, original); }
   return r;
 }
+// ---- Originalbild ohne Play-Knopf ----
+// Das Vorschaubild für Suchmaschinen (og:image) hat bei Videos einen eingebrannten Play-Knopf. Sicher ohne ist nur das
+// Originalbild des Beitrags. Je nach Reel steht es an anderer Stelle der Einbett-Seite: als <img class="EmbeddedMediaImage">,
+// als Standbild (poster) des Videos oder verpackt in den Seitendaten ("display_url" …), dort oft mit maskierten Zeichen
+// (\"display_url\":\"https:\\\/\\\/…\"). Gelesen wird nur, was Instagram in den beiden Seiten ohnehin mitschickt.
+const igCrawler = u => /lookaside\.|\/crawler\/|\/seo\//i.test(u);
+function igUrl(u) { // maskierte Zeichen auflösen (\/ , \u0026 , &amp;); nur eine saubere https-Adresse kommt zurück
+  const s = decodeEntities(String(u || "").replace(/\\+u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\+/g, "")).trim();
+  return /^https:\/\/[^\s"'<>]+$/.test(s) && s.length < 2000 ? s : "";
+}
+function igJsonUrls(html, key, max) { // Adressen hinter einem Schlüssel der Seitendaten, egal wie oft die Anführungszeichen maskiert sind
+  const out = [];
+  for (let i = html.indexOf(key); i !== -1 && out.length < max; i = html.indexOf(key, i + key.length)) {
+    const m = html.slice(i + key.length, i + key.length + 2100).match(/^\\*"\s*:\s*\\*"(https?:[^"\s<>]{8,1990}?)\\*"/);
+    const u = m ? igUrl(m[1]) : "";
+    if (u && !out.includes(u)) out.push(u);
+  }
+  return out;
+}
+function igTagWith(html, cls) { // das ganze Tag, in dem diese Klasse steht
+  const i = html.indexOf(cls);
+  if (i === -1) return "";
+  const a = html.lastIndexOf("<", i), b = html.indexOf(">", i);
+  return a !== -1 && b !== -1 && b - a < 8000 ? html.slice(a, b + 1) : "";
+}
+function igBestSrc(tag) { // größtes Bild aus srcset (bis 1080 breit), sonst src
+  let best = "", bw = 0;
+  for (const part of String(attr(tag, "srcset") || "").split(",")) {
+    const m = part.trim().match(/^(\S+)\s+(\d+)w$/);
+    if (m && Number(m[2]) > bw && Number(m[2]) <= 1080) { best = m[1]; bw = Number(m[2]); }
+  }
+  return best || attr(tag, "src") || "";
+}
+
 async function instagramOnce(code, original) {
   const [emb, pre] = await Promise.allSettled([
     fetchHtml(`https://www.instagram.com/p/${code}/embed/captioned/`, UA_DESKTOP, 9000),
     fetchHtml(`https://www.instagram.com/p/${code}/`, UA_PREVIEW, 9000)
   ]);
   let caption = "", user = "";
-  // Alle Vorschaubilder sammeln, die in den beiden Seiten stehen; die App lässt Claude eins ohne Play-Knopf wählen
-  const imgs = [];
-  const addImg = u => {
-    u = decodeEntities(String(u || "")).replace(/\\u0026/g, "&").replace(/\\\//g, "/").trim();
-    if (/^https:\/\//.test(u) && u.length < 2000 && !imgs.includes(u)) imgs.push(u);
-  };
+  // Alle Vorschaubilder sammeln, die in den beiden Seiten stehen. „clean“: sicher das Originalbild (ohne Play-Knopf)
+  const imgs = [], clean = [];
+  const addImg = u => { u = igUrl(u); if (u && !imgs.includes(u)) imgs.push(u); };
+  const addClean = u => { u = igUrl(u); if (u && !igCrawler(u) && !clean.includes(u)) clean.push(u); };
   if (emb.status === "fulfilled") {
     const h = emb.value;
     const cap = h.match(/<div class="Caption"[^>]*>([\s\S]*?)<div class="CaptionComments"/i) || h.match(/<div class="Caption"[^>]*>([\s\S]*?)<\/div>/i);
@@ -232,12 +265,12 @@ async function instagramOnce(code, original) {
       const j = h.match(/"edge_media_to_caption":\{"edges":\[\{"node":\{"text":"((?:[^"\\]|\\.)*)"/);
       if (j) { try { caption = JSON.parse('"' + j[1] + '"'); } catch (e) { /* egal */ } }
     }
-    const im = h.match(/<img[^>]+class="EmbeddedMediaImage"[^>]*>/i);
-    if (im) addImg(attr(im[0], "src"));
-    for (const k of ["display_url", "thumbnail_src"]) {
-      const j = h.match(new RegExp('"' + k + '":"((?:[^"\\\\]|\\\\.)*)"'));
-      if (j) addImg(j[1]);
-    }
+    const it = igTagWith(h, "EmbeddedMediaImage");
+    if (/^<img\b/i.test(it)) addClean(igBestSrc(it));
+    igJsonUrls(h, "display_url", 1).forEach(addClean);
+    const vt = igTagWith(h, "EmbeddedMediaVideo");
+    if (/^<video\b/i.test(vt)) addClean(attr(vt, "poster"));
+    igJsonUrls(h, "thumbnail_src", 1).forEach(addClean);
     if (!user) { const u2 = h.match(/class="UsernameText"[^>]*>([^<]+)</i); if (u2) user = decodeEntities(u2[1]).trim(); }
   }
   let desc = "", title = "";
@@ -245,6 +278,7 @@ async function instagramOnce(code, original) {
     const meta = readMeta(pre.value);
     desc = meta["og:description"] || meta["description"] || "";
     title = meta["og:title"] || "";
+    for (const k of ["display_url", "thumbnailUrl", "thumbnail_src"]) igJsonUrls(pre.value, k, 1).forEach(addClean);
     addImg(meta["og:image"]); addImg(meta["twitter:image"]);
     if (!user) { const u3 = (title + " \n " + desc).match(/(?:^|- |\n )@?([\w.]{2,30}) (?:on|auf|am|bei) /i); if (u3) user = u3[1]; }
   }
@@ -254,10 +288,10 @@ async function instagramOnce(code, original) {
     const why = [emb, pre].map(r => r.status === "rejected" ? String(r.reason && r.reason.message || r.reason) : "").filter(Boolean).join(" / ");
     return { ok: false, body: { error: "instagram_blocked", message: why || "Keine Beschreibung gefunden." } };
   }
-  // Die Vorschau für Suchmaschinen (lookaside/crawler) zeigt bei Videos oft einen Play-Knopf: nach hinten
-  const crawler = u => /lookaside\.|\/crawler\/|\/seo\//i.test(u) ? 1 : 0;
-  imgs.sort((a, b) => crawler(a) - crawler(b));
-  const meta = { "og:site_name": "Instagram", "og:title": title || "Instagram", "og:image": imgs[0] || "", images: imgs.slice(0, 3) };
+  // Originalbilder zuerst; die Vorschau für Suchmaschinen (lookaside/crawler) zeigt bei Videos oft einen Play-Knopf: nach hinten
+  const all = [...clean, ...imgs.filter(u => !clean.includes(u))];
+  all.sort((a, b) => (igCrawler(a) ? 1 : 0) - (igCrawler(b) ? 1 : 0));
+  const meta = { "og:site_name": "Instagram", "og:title": title || "Instagram", "og:image": all[0] || "", images: all.slice(0, 3), clean: clean.slice(0, 2), igv: WORKER_V };
   if (user) meta.user = "@" + user.replace(/^@/, "");
   return { ok: true, body: { kind: "instagram", url: original, meta, data: text } };
 }
