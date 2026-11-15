@@ -208,6 +208,18 @@ body.typing .tabbar { display: none; }
 /* V91: fünf Reiter – Beschriftung etwas kleiner, damit „Einkaufsliste“ auch auf schmalen iPhones passt */
 .tabbar.five button { font-size: 10px; letter-spacing: -.01em; }
 @media (max-width: 359px) { .tabbar.five { padding-left: 2px; padding-right: 2px; } .tabbar.five button { font-size: 9px; letter-spacing: -.03em; } }
+/* V98: Prospekt-Betrachter eines Markts in einem Fenster der App. Vorerst nur ein versteckter Test (Profil: fünfmal auf die Version tippen). */
+#pv { position: fixed; inset: 0; z-index: 70; background: var(--bg); display: grid; grid-template-rows: auto 1fr; }
+#pv .pv-bar { display: flex; align-items: center; gap: 10px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; box-shadow: 0 .5px 0 rgba(0, 0, 0, .14); }
+#pv .pv-bar .tbtn { flex: none; min-width: 64px; text-align: left; }
+#pv .pv-t { flex: 1; min-width: 0; font-weight: 600; font-size: 16px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pv .pv-sp { flex: none; width: 64px; }
+#pv .pv-body { position: relative; overflow: auto; -webkit-overflow-scrolling: touch; }
+#pv iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+#pv .pv-hint { position: absolute; inset: 0; display: grid; place-content: center; margin: 0; padding: 30px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.45; }
+#pv .pv-list { list-style: none; margin: 0; padding: 14px 16px calc(20px + env(safe-area-inset-bottom)); display: grid; gap: 10px; }
+#pv .pv-list button { display: block; width: 100%; min-height: 52px; padding: 10px 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--ink); font: inherit; font-size: 17px; font-weight: 600; text-align: left; }
+#pv .pv-list small { display: block; margin-top: 2px; font-weight: 400; font-size: 12.5px; color: var(--muted); }
 /* V91: Angebote */
 .ang { padding: 6px 0 0; }
 .ang-lead { margin: 0 0 16px; color: var(--muted); font-size: 16px; line-height: 1.45; }
@@ -1114,7 +1126,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "97";
+const APP_VERSION = "98";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -3115,7 +3127,7 @@ function profileHtml() {
     </div>
     ${unv ? `<p class="note">Zum Einlesen von Rezepten muss die E-Mail bestätigt sein. Bei Google-Konten ist sie das schon.</p>` : ""}
     <div class="group"><button class="cell danger" data-action="logout">Abmelden</button></div>
-    <p class="rc-note ver-box" style="margin:0">Version ${APP_VERSION}</p>
+    <p class="rc-note ver-box" style="margin:0;cursor:pointer" data-action="ver-tap">Version ${APP_VERSION}</p>
     <p class="rc-note" style="margin:6px 0 0;font-size:11px;opacity:.8">Angebote: Prospekte von kaufDA · Ortsdaten © OpenStreetMap-Mitwirkende</p>
   </div>`;
 }
@@ -3370,6 +3382,31 @@ function offersHtml() {
     ${note ? `<p class="ang-note">${note}</p>` : ""}
   </div>`;
 }
+
+/* ---------- V98: Test – Prospekt-Betrachter der Märkte in der App ----------
+   Die Märkte haben eigene Online-Prospekte (scharf, mit Zoom, immer aktuell). Hier wird geprüft, welche davon sich in einem Fenster der
+   App anzeigen lassen. Ob das geht, legt jeder Markt selbst fest; verbietet er es, bleibt das Fenster leer. Es wird nichts kopiert.
+   Versteckt: im Profil fünfmal schnell auf die Version tippen. */
+const PV_TEST = [
+  ["Lidl", "Wochenprospekt (bundesweit)", "https://www.lidl.de/l/prospekte/aktionsprospekt-16-11-2026-21-11-2026-55f92d/ar/0?_ab=1&lf=HHZ"],
+  ["Aldi Süd", "Wochenprospekt (bundesweit)", "https://prospekt.aldi-sued.de/kw47-26-op-mp"],
+  ["Kaufland", "Testfiliale Bühl", "https://leaflets.kaufland.com/de-DE/DE_de_Wrapper2_4700_D47-InterA/ar/4700"],
+  ["Edeka", "Testmarkt Hamburg-Harburg", "https://blaetterkatalog.edeka.de/NORD/Harburg/index.html"],
+  ["Netto", "Filiale Vaihingen-Ensingen", "https://www.netto-online.de/ueber-netto/Online-Prospekte.chtm/5089"],
+  ["Rewe", "Angebote als Prospekt (Markt wählen)", "https://www.rewe.de/angebote?wwident=0&market-flyer=active"],
+  ["Penny", "Angebote als Prospekt (Markt wählen)", "https://www.penny.de/angebote#handout"]
+];
+function pvClose() { const d = document.getElementById("pv"); if (d) d.remove(); }
+function pvOpen(i) { // ohne Nummer: die Liste der Testmärkte; mit Nummer: der Betrachter dieses Markts
+  pvClose();
+  const t = i == null ? null : PV_TEST[i], d = document.createElement("div");
+  d.id = "pv";
+  d.innerHTML = `<div class="pv-bar"><button class="tbtn" data-action="${t ? "pv-list" : "pv-close"}">${t ? "Zurück" : "Fertig"}</button><span class="pv-t">${esc(t ? t[0] : "Prospekt-Test")}</span><span class="pv-sp"></span></div>
+    <div class="pv-body">${t ? `<p class="pv-hint">Bleibt diese Seite leer, erlaubt der Markt die Anzeige in anderen Apps nicht.</p><iframe src="${esc(t[2])}" title="${esc(t[0])}" allow="fullscreen"></iframe>`
+      : `<ul class="pv-list">${PV_TEST.map((x, k) => `<li><button data-action="pv-open" data-i="${k}">${esc(x[0])}<small>${esc(x[1])}</small></button></li>`).join("")}</ul>`}</div>`;
+  document.body.appendChild(d);
+}
+let verTaps = 0, verT = 0;
 
 /* ---------- Einkaufsliste ---------- */
 // Liegt im Konto: ein eigenes Dokument im Rezepte-Ordner – ohne createdAt und mit orig: true, so wie die Originalfotos.
@@ -5442,6 +5479,8 @@ const actions = {
   "install-close": () => { state.installClosed = true; render(); },
   "ang-edit": () => { state.angEdit = true; renderList(); const i = $("#ang-plz"); if (i) { i.focus(); try { i.select(); } catch (e) { /* egal */ } } },
   "ang-cancel": () => { state.angEdit = false; state.angPick = null; renderList(); },
+  "ver-tap": () => { const n = Date.now(); verTaps = n - verT < 1200 ? verTaps + 1 : 1; verT = n; if (verTaps >= 5) { verTaps = 0; pvOpen(); } },
+  "pv-open": el => pvOpen(Number(el.dataset.i)), "pv-list": () => pvOpen(), "pv-close": () => pvClose(),
   "ang-ort": el => { const p = state.angPick, o = p && p.orte[Number(el.dataset.i)]; if (o) angPlace(p.plz, o); },
   "install-never": () => { try { localStorage.setItem("rezepte-install-hidden", "1"); } catch (e) { /* egal */ } closeLayer(); render(); },
   "unsure-ok": async () => {
