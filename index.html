@@ -234,7 +234,6 @@ body.typing .tabbar { display: none; }
 .ang-w { font-size: 13.5px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
 .ang-row > .ic { flex: none; width: 18px; height: 18px; color: var(--muted); opacity: .7; }
 .ang-note { margin: 16px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; text-align: center; }
-.ang-src { margin: 6px 0 0; color: var(--muted); font-size: 11px; text-align: center; opacity: .8; }
 .app.tabs { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .app.tabs .fab { bottom: calc(68px + env(safe-area-inset-bottom)); }
 .app.tabs .fab-fade { display: none; }
@@ -1115,7 +1114,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "93";
+const APP_VERSION = "94";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -3092,6 +3091,7 @@ function profileHtml() {
     ${unv ? `<p class="note">Zum Einlesen von Rezepten muss die E-Mail bestätigt sein. Bei Google-Konten ist sie das schon.</p>` : ""}
     <div class="group"><button class="cell danger" data-action="logout">Abmelden</button></div>
     <p class="rc-note ver-box" style="margin:0">Version ${APP_VERSION}</p>
+    <p class="rc-note" style="margin:6px 0 0;font-size:11px;opacity:.8">Angebote: Prospekte von kaufDA · Ortsdaten © OpenStreetMap-Mitwirkende</p>
   </div>`;
 }
 /* ---------- V91: Angebote ---------- */
@@ -3264,7 +3264,7 @@ async function angLeaf() {
   const a = angGet(), ks = ANG_MARKETS.filter(m => a.links && a.links[m.k]);
   if (angBusy || angLeafBusy || angLeafOff || !authUser || !a.slug || !ks.length) return;
   if (Date.now() - (a.lt || 0) < ANG_LEAF_EVERY || Date.now() - angLeafAt < 6e5) return;
-  angLeafBusy = true; angLeafAt = Date.now();
+  angLeafBusy = true; angLeafAt = Date.now(); angRefresh();
   try {
     const lf = {}; let all = true;
     for (const m of ks) {
@@ -3301,26 +3301,24 @@ function offersHtml() {
       <button class="btn primary" type="submit">Speichern</button></form>
     ${a.plz ? `<button class="tbtn ang-back" data-action="ang-cancel">Abbrechen</button>` : ""}
   </div>`;
-  if (!angBusy && angTried !== a.plz + "|" + a.ort) setTimeout(angCheck, 0); // Reiter geöffnet: Märkte prüfen, falls noch offen oder älter als 30 Tage
-  else if (!angBusy) setTimeout(angLeaf, 0); // sonst nur nachsehen, ob es einen neuen Prospekt gibt
+  // Reiter geöffnet: Märkte prüfen (falls noch offen oder älter als 30 Tage), sonst nur nachsehen, ob es neue Prospekte gibt.
+  // V94: beides immer anstoßen – angCheck setzt angBusy sofort, wenn es wirklich läuft; dann wartet angLeaf.
+  if (!angBusy && !angLeafBusy) setTimeout(() => { angCheck(); angLeaf(); }, 0);
   const known = !!(a.chk && a.slug && Object.keys(a.st || {}).length); // die Umgebung ist bekannt: nur Märkte zeigen, die es dort gibt
   const list = ANG_MARKETS.filter(m => !known || a.st[m.k] || a.links[m.k]);
   // Zeile 1: Straße · Zeile 2: Ort und Entfernung (die Entfernung bleibt beim Umbrechen zusammen)
   const where = m => { const f = a.st && a.st[m.k]; if (!f) return ""; const km = f.km ? "\u00a0· " + f.km.toFixed(1).replace(".", ",") + "\u00a0km" : "";
     return (f.s ? `<span class="ang-w">${esc(f.s)}</span>` : "") + `<span class="ang-w">${esc(f.o + km).replace(/· /, "·\u00a0")}</span>`; };
   const note = angBusy ? "Ich suche gerade die Märkte in deiner Umgebung …"
+    : angLeafBusy ? "Ich hole die aktuellen Prospekte …"
     : a.chk && !a.slug ? "Für deinen Ort habe ich keine eigene Prospektseite gefunden. Es öffnet sich der allgemeine Prospekt – den Ort kannst du dort einstellen."
-    : known ? "Nur Märkte in deiner Umgebung. Ein Tipp öffnet den Prospekt des Markts."
-    : "Ein Tipp öffnet den Prospekt des Markts.";
+    : "";
   return `<div class="ang">
     <div class="ang-loc">${icon("pin")}<span>Prospekte für <b>${esc(a.plz)}${a.ort ? " " + esc(a.ort) : ""}</b></span><button class="tbtn" data-action="ang-edit">Ändern</button></div>
     <ul class="ang-list">${list.map(m => `<li><a class="ang-row" data-k="${m.k}" href="${esc(angLink(m, a))}" target="_blank" rel="noopener">
         <span class="ang-logo" style="background:${m.bg};color:${m.fg}">${icon("price")}<img src="https://www.google.com/s2/favicons?domain=${m.d}&amp;sz=128" alt="" loading="lazy"></span>
-        <span class="ang-b"><span class="ang-n">${esc(m.k === "aldi" && angNord(a) ? "Aldi Nord" : m.n)}</span>${where(m)}</span>${icon("chev")}</a></li>`).join("")}
-      <li><a class="ang-row all" href="${esc(KD + (a.slug || ""))}" target="_blank" rel="noopener"><span class="ang-logo" style="background:#fff;color:var(--accent)">${icon("pin")}</span>
-        <span class="ang-b"><span class="ang-n">${a.slug ? "Alle Prospekte am Ort" : "Alle Prospekte"}</span></span>${icon("chev")}</a></li></ul>
-    <p class="ang-note">${note}</p>
-    <p class="ang-src">Prospekte: kaufDA · Ortsdaten © OpenStreetMap-Mitwirkende</p>
+        <span class="ang-b"><span class="ang-n">${esc(m.k === "aldi" && angNord(a) ? "Aldi Nord" : m.n)}</span>${where(m)}</span>${icon("chev")}</a></li>`).join("")}</ul>
+    ${note ? `<p class="ang-note">${note}</p>` : ""}
   </div>`;
 }
 
