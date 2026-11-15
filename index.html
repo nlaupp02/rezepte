@@ -205,6 +205,31 @@ body.typing .fab { display: none; }
 .tabbar button.on { color: var(--accent); font-weight: 600; }
 .tabbar .ic { width: 26px; height: 26px; stroke-width: 1.8; }
 body.typing .tabbar { display: none; }
+/* V91: fünf Reiter – Beschriftung etwas kleiner, damit „Einkaufsliste“ auch auf schmalen iPhones passt */
+.tabbar.five button { font-size: 10px; letter-spacing: -.01em; }
+@media (max-width: 359px) { .tabbar.five { padding-left: 2px; padding-right: 2px; } .tabbar.five button { font-size: 9px; letter-spacing: -.03em; } }
+/* V91: Angebote */
+.ang { padding: 6px 0 0; }
+.ang-lead { margin: 0 0 16px; color: var(--muted); font-size: 16px; line-height: 1.45; }
+.ang-form { display: flex; gap: 10px; }
+.ang-form input { flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--fill); font: inherit; font-size: 17px; color: var(--ink); }
+.ang-form .btn { min-height: 48px; padding: 0 20px; }
+.ang-back { display: block; margin: 14px auto 0; }
+.ang-pick { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ang-pick button { display: block; width: 100%; min-height: 48px; padding: 8px 14px; border: 0; border-radius: 12px; background: var(--fill); color: var(--ink); font: inherit; font-size: 17px; text-align: left; }
+.ang-pick button:active { filter: brightness(.94); }
+.ang-loc { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; color: var(--muted); font-size: 15px; line-height: 1.3; }
+.ang-loc .ic { width: 18px; height: 18px; flex: none; }
+.ang-loc span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ang-loc b { color: var(--ink); font-weight: 600; }
+.ang-loc .tbtn { flex: none; }
+.ang-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ang-tile { display: grid; place-items: center; aspect-ratio: 3 / 2; border-radius: 16px; padding: 8px; font-weight: 800; font-size: 25px; line-height: 1.05; letter-spacing: -.02em; text-align: center; text-decoration: none; -webkit-tap-highlight-color: transparent; transition: transform .2s ease, filter .2s ease; }
+.ang-tile:active { transform: scale(.97); filter: brightness(.92); transition-duration: .08s; }
+.ang-tile.all { background: var(--fill); color: var(--ink); font-size: 19px; font-weight: 600; letter-spacing: 0; }
+.ang-note { margin: 16px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; text-align: center; }
+.ang-src { margin: 6px 0 0; color: var(--muted); font-size: 11px; text-align: center; opacity: .8; }
+@media (max-width: 359px) { .ang-tile { font-size: 21px; } .ang-tile.all { font-size: 17px; } }
 .app.tabs { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .app.tabs .fab { bottom: calc(68px + env(safe-area-inset-bottom)); }
 .app.tabs .fab-fade { display: none; }
@@ -1025,6 +1050,8 @@ const ICONS = {
   sortl: '<path d="M4 7h16M7 12h10M10 17h4"/>',
   dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01" stroke-width="3"/>',
   stack: '<rect x="4" y="9.5" width="16" height="10.5" rx="2.6"/><path d="M6.6 6.4h10.8M8.8 3.4h6.4"/>', // V86: Sammlungen in der Leiste unten (Stapel)
+  pin: '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>',
+  price: '<path d="M3.6 5.6a2 2 0 0 1 2-2h5.6a2 2 0 0 1 1.4.6l7.4 7.4a2 2 0 0 1 0 2.8l-5.6 5.6a2 2 0 0 1-2.8 0L4.2 12.6a2 2 0 0 1-.6-1.4z"/><circle cx="8.2" cy="8.2" r="1.4"/>', // V91: Angebote (Preisschild)
   gridv: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
   folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
   salad: '<path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" />',
@@ -1083,7 +1110,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "90";
+const APP_VERSION = "91";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1337,6 +1364,7 @@ function subscribe() {
   loadTimer = setTimeout(() => { if (!state.loaded) { state.slow = true; state.loaded = true; state.storage = "ok"; onDataChanged(); } }, 10000);
   const myUid = uid;
   shopSubscribe(); // die Einkaufsliste dieses Kontos
+  angPull(); // Postleitzahl und Ort für die Angebote
   // includeMetadataChanges: Sonst meldet Firestore ein leeres Konto nie als „fertig geladen“ (vom Server bestätigt ändert sich nur das Metadatum),
   // und die App wartet 10 Sekunden auf Rezepte, die es gar nicht gibt.
   // Nur Rezepte (haben immer createdAt). Originalfotos liegen im selben Ordner, aber ohne createdAt: die lädt die Liste nicht mit,
@@ -3003,18 +3031,18 @@ function renderList() {
   if (set != null && hs && hs.v === "list" && hs.set && hs.set !== set) try { history.replaceState(Object.assign({}, hs, { set }), ""); } catch (e) { /* egal */ }
   app.innerHTML = `
     ${set == null ? `<header class="home-head${searching ? " searching" : ""}">
-      <h1 class="brand">${tab === "sam" ? "Sammlungen" : tab === "pro" ? "Profil" : tab === "ein" ? "Einkaufsliste" : "Rezepte"}</h1>
+      <h1 class="brand">${tab === "sam" ? "Sammlungen" : tab === "pro" ? "Profil" : tab === "ein" ? "Einkaufsliste" : tab === "ang" ? "Angebote" : "Rezepte"}</h1>
       <span class="head-btns">${tab === "rez" ? `<button class="icon-btn" data-action="dice" aria-label="Zufälliges Rezept">${icon("dice")}</button><button class="icon-btn" data-action="search-open" aria-label="Suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sortieren">${icon("sortl")}</button>`
         : tab === "sam" ? `<button class="icon-btn" data-action="dice" aria-label="Zufälliges Rezept">${icon("dice")}</button><button class="icon-btn" data-action="search-open" aria-label="Sammlung suchen">${icon("search")}</button><button class="icon-btn" data-action="sort" aria-label="Sammlungen sortieren">${icon("sortl")}</button>`
         : tab === "ein" ? `<button class="icon-btn" data-action="shop-clear" aria-label="Liste aufräumen"${shopItems().length ? "" : " hidden"}>${icon("trash")}</button>` : ""}</span>
-      ${tab === "pro" || tab === "ein" ? "" : `<span class="head-search"><button class="icon-btn" data-action="search-close" aria-label="Suche schließen">${icon("back")}</button>${field}</span>`}
+      ${tab === "pro" || tab === "ein" || tab === "ang" ? "" : `<span class="head-search"><button class="icon-btn" data-action="search-close" aria-label="Suche schließen">${icon("back")}</button>${field}</span>`}
     </header>` : `<div class="topbar"><button class="back" data-action="set-back">${icon("back")}Sammlungen</button><span class="grow"></span>
       <button class="icon-btn" data-action="dice" aria-label="Zufälliges Rezept aus der Sammlung">${icon("dice")}</button>
       <button class="icon-btn" data-action="set-menu" aria-label="Optionen der Sammlung">${icon("dots")}</button></div>
     <h1 class="brand set-title">${esc(set)}</h1>`}
     ${installBanner()}
     <div class="stack" style="padding:0 0 10px;gap:12px">${banner()}</div>
-    ${tab === "pro" ? profileHtml() : tab === "ein" ? shopHtml() : `${set != null ? field : ""}
+    ${tab === "pro" ? profileHtml() : tab === "ein" ? shopHtml() : tab === "ang" ? offersHtml() : `${set != null ? field : ""}
     <div id="albums"></div>
     <div id="chips" class="chips"></div>
     <div id="grid"></div>
@@ -3031,9 +3059,9 @@ function renderList() {
 // Einkaufsliste an/aus. Aus: kein Reiter, kein Knopf im Rezept, kein Eintrag im Zeilen-Menü, keine Verbindung zur Liste
 // im Konto (was dort gespeichert ist, bleibt unangetastet).
 const SHOP_ON = true;
-const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "stack"], ...(SHOP_ON ? [["ein", "Einkaufsliste", "cart"]] : []), ["pro", "Profil", "user"]];
+const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "stack"], ...(SHOP_ON ? [["ein", "Einkaufsliste", "cart"]] : []), ["ang", "Angebote", "price"], ["pro", "Profil", "user"]];
 function tabbarHtml() {
-  return `<nav class="tabbar" aria-label="Bereiche">${TABS.map(([k, l, ic]) => `<button data-action="tab" data-t="${k}" class="${state.tab === k ? "on" : ""}"${state.tab === k ? ' aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></button>`).join("")}</nav>`;
+  return `<nav class="tabbar${TABS.length >= 5 ? " five" : ""}" aria-label="Bereiche">${TABS.map(([k, l, ic]) => `<button data-action="tab" data-t="${k}" class="${state.tab === k ? "on" : ""}"${state.tab === k ? ' aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></button>`).join("")}</nav>`;
 }
 const tabScroll = {};
 function switchTab(t) {
@@ -3041,6 +3069,7 @@ function switchTab(t) {
   if (t === state.tab) { setY(0, !noMotion()); return; } // nochmal tippen: nach oben
   tabScroll[state.tab] = getY();
   state.tab = t;
+  state.angEdit = false; state.angPick = null; // Angebote: eine angefangene Eingabe nicht stehen lassen
   if (!state.query) state.searchOpen = false;
   if (!state.samQuery) state.samSearchOpen = false;
   renderList();
@@ -3060,6 +3089,164 @@ function profileHtml() {
     <p class="rc-note ver-box" style="margin:0">Version ${APP_VERSION}</p>
   </div>`;
 }
+/* ---------- V91: Angebote ---------- */
+// Prospekte der Supermärkte für den eigenen Ort. Die App speichert nur Postleitzahl und Ort (auf dem Gerät und im Konto);
+// ein Tipp auf einen Markt öffnet dessen aktuellen Prospekt bei kaufDA zum Blättern (immer der Stand von heute, nichts wird kopiert).
+// Der Ort zur Postleitzahl kommt aus plz.json (Daten von OpenStreetMap), die Datei wird erst beim Speichern geladen.
+// kaufDA schreibt Orte auf eigene Art („Vaihingen“ für Vaihingen an der Enz, „Stockstadt-a-Main“): Die App probiert die naheliegenden
+// Schreibweisen einmal über den eigenen Server durch (rund zehn Seitenaufrufe, danach 30 Tage Ruhe) und merkt sich nur Adressen,
+// die wirklich aufgehen. Alles, was sich nicht bestätigen lässt, führt zum allgemeinen Prospekt des Markts – der geht immer auf.
+const ANG_DOC = "_angebote", KD = "https://www.kaufda.de/", ANG_AGE = 30 * 864e5;
+const ANG_MARKETS = [
+  { k: "netto", n: "Netto", c: "d", kd: "Netto-Marken-Discount/p-r9", gs: "Netto-Marken-Discount", bg: "#FFE500", fg: "#D2001E" },
+  { k: "lidl", n: "Lidl", c: "d", kd: "Lidl/p-r74", gs: "Lidl", bg: "#0050AA", fg: "#FFF000" },
+  { k: "aldi", n: "Aldi Süd", c: "d", kd: "", gs: "Aldi-Sued", bg: "#1D2B69", fg: "#FFFFFF" },
+  { k: "rewe", n: "Rewe", c: "s", kd: "REWE/p-r101", gs: "REWE", bg: "#CC071E", fg: "#FFFFFF" },
+  { k: "edeka", n: "Edeka", c: "s", kd: "EDEKA/p-r107", gs: "Edeka", bg: "#FFDD00", fg: "#1B5FAA" },
+  { k: "kaufland", n: "Kaufland", c: "s", kd: "Kaufland/p-r2801", gs: "Kaufland", bg: "#E10915", fg: "#FFFFFF" },
+  { k: "penny", n: "Penny", c: "d", kd: "Penny-Markt/p-r75", gs: "Penny-Markt", bg: "#CD1414", fg: "#FFFFFF" }
+];
+// Hat ein Markt am Ort keine eigene Seite (die nächste Filiale liegt im Nachbarort), führt die Kachel zur Übersicht „Discounter“ bzw.
+// „Supermärkte“ für den Ort – dort steht sein Prospekt für die Umgebung. k ist auch das Suchwort („aldi“ passt auf Aldi Süd und Aldi Nord).
+const ANG_CAT = { d: "Discounter/p-c5", s: "Supermarkt/p-c11" };
+const angKey = () => "rezepte-angebote:" + (uid || "");
+function angClean(o) { // nur das übernehmen, was die App selbst so schreiben würde (auch für den Stand aus dem Konto)
+  if (!o || typeof o !== "object" || !/^\d{5}$/.test(String(o.plz || ""))) return {};
+  const links = {};
+  ANG_MARKETS.forEach(m => { const l = o.links && o.links[m.k]; if (typeof l === "string" && l.startsWith(KD) && l.length < 200) links[m.k] = l; });
+  return { plz: String(o.plz), ort: String(o.ort || "").slice(0, 80), slug: /^[A-Za-z0-9-]{1,80}$/.test(String(o.slug || "")) ? String(o.slug) : "", links, chk: Number(o.chk) || 0, t: Number(o.t) || 0 };
+}
+function angGet() { try { return angClean(JSON.parse(localStorage.getItem(angKey()) || "{}")); } catch (e) { return {}; } }
+function angSet(o) { try { localStorage.setItem(angKey(), JSON.stringify(angClean(o))); } catch (e) { /* egal */ } }
+// Im Konto: ein eigenes Dokument wie die Einkaufsliste (ohne createdAt, mit orig: true – die Rezeptliste lädt es nicht mit)
+function angPush() {
+  const a = angGet();
+  if (!col || !uid || !a.plz) return;
+  try { Promise.resolve(col.doc(ANG_DOC).set(Object.assign({ orig: true, ang: true }, a))).catch(e => console.warn("Angebote speichern", e)); } catch (e) { console.warn("Angebote speichern", e); }
+}
+async function angPull() { // beim Verbinden: Es gilt der jüngere Stand (Gerät oder Konto)
+  if (!col || !uid) return;
+  const myUid = uid;
+  try {
+    const snap = await col.doc(ANG_DOC).get();
+    if (uid !== myUid) return;
+    const local = angGet(), remote = snap && snap.exists() ? angClean(snap.data()) : {};
+    if (remote.plz && (remote.t || 0) > (local.t || 0)) { angSet(remote); angRefresh(); }
+    else if (local.plz && (local.t || 0) > (remote.t || 0)) angPush();
+  } catch (e) { console.warn("Angebote laden", e); }
+}
+const angOn = () => state.view === "list" && state.tab === "ang";
+function angRefresh() { if (angOn() && !state.angEdit && !state.angPick) renderList(); }
+let plzP = null;
+const plzLoad = () => plzP || (plzP = fetch("plz.json").then(r => { if (!r.ok) throw new Error("plz " + r.status); return r.json(); }).catch(e => { plzP = null; throw e; }));
+async function angSave() {
+  const i = $("#ang-plz"), plz = i ? i.value.trim() : "", btn = $("#ang-form button");
+  if (!/^\d{5}$/.test(plz)) { toast("Bitte fünf Ziffern eingeben"); return; }
+  if (btn && btn.disabled) return;
+  if (btn) btn.disabled = true;
+  let orte;
+  try { orte = (await plzLoad())[plz]; }
+  catch (e) { if (btn) btn.disabled = false; toast("Der Ort ließ sich gerade nicht nachschlagen. Bitte gleich noch einmal versuchen."); return; }
+  if (btn) btn.disabled = false;
+  if (!orte) { toast("Diese Postleitzahl kenne ich nicht"); return; }
+  orte = (Array.isArray(orte) ? orte : [orte]).map(String);
+  if (!angOn()) return;
+  if (orte.length > 1) { state.angPick = { plz, orte }; renderList(); return; } // mehrere Orte teilen sich die Postleitzahl
+  angPlace(plz, orte[0]);
+}
+function angPlace(plz, ort) {
+  const a = angGet(), same = a.plz === plz && a.ort === ort;
+  if (!same) { angSet({ plz, ort, slug: "", links: {}, chk: 0, t: Date.now() }); angTried = ""; angPush(); }
+  state.angEdit = false; state.angPick = null;
+  if (angOn()) renderList();
+  angCheck();
+}
+/* Schreibweisen bei kaufDA */
+const angAscii = s => String(s || "").replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/Ä/g, "Ae").replace(/Ö/g, "Oe").replace(/Ü/g, "Ue").replace(/ß/g, "ss");
+const angHyph = s => angAscii(s).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+const angBase = ort => String(ort || "").split(/\s+(?:an|am|im|in|ob|bei|vor|auf|unter)\s|\s*[(,\/]/)[0].trim() || String(ort || "").trim();
+function angSlugs(ort) { // volle Schreibweise, abgekürzt („a-Main“, „a-d-Enz“), nur der Hauptname
+  const abbr = String(ort || "").replace(/\s+an der\s+/i, " a d ").replace(/\s+in der\s+/i, " i d ").replace(/\s+ob der\s+/i, " o d ").replace(/\s+vor der\s+/i, " v d ")
+    .replace(/\s+(?:am|an)\s+/i, " a ").replace(/\s+(?:im|in)\s+/i, " i ").replace(/\s+bei\s+/i, " b ");
+  return [angHyph(ort), angHyph(abbr), angHyph(angBase(ort))].filter((x, i, l) => x && l.indexOf(x) === i);
+}
+const angFold = s => angAscii(s).toLowerCase();
+const angText = res => angFold(((res && res.meta && res.meta["og:title"]) || "") + " " + ((res && res.data) || ""));
+function angPlaceOk(res, a, slug) { // ist das wirklich die Seite dieses Orts? Name muss vorkommen, Postleitzahlen auf der Seite müssen zur Gegend passen
+  if (!angText(res).includes(angFold(angBase(a.ort)))) return false;
+  const five = String((res && res.data) || "").match(/\b\d{5}\b/g) || [];
+  if (five.length) return five.some(x => x.slice(0, 2) === a.plz.slice(0, 2));
+  return slug === angHyph(a.ort); // keine Adressen im Text: nur die volle Schreibweise gilt
+}
+async function angFetch(url) { // gone: Die Seite gibt es sicher nicht. Sonst (kein Netz, Server sperrt) bleibt es offen und wird später noch einmal versucht.
+  try { return { ok: true, res: await workerPost("/page", JSON.stringify({ url }), null, 15000) }; }
+  catch (e) { return { ok: false, gone: !!(e && e.code === "upstream_error" && /antwortet mit 4(04|10)/.test(String(e.message || ""))) }; }
+}
+let angBusy = false, angTried = "";
+async function angCheck() {
+  const a = angGet();
+  if (!a.plz || !a.ort || angBusy || !authUser) return;
+  const key = a.plz + "|" + a.ort;
+  if (angTried === key || (a.chk && Date.now() - a.chk < ANG_AGE)) return; // in dieser Sitzung schon versucht bzw. geprüft und noch frisch
+  angTried = key; angBusy = true; angRefresh();
+  try {
+    let slug = "", sure = true; const links = {};
+    for (const c of angSlugs(a.ort)) {
+      const r = await angFetch(KD + c);
+      if (!r.ok && !r.gone) { sure = false; break; }
+      if (r.ok && angPlaceOk(r.res, a, c)) { slug = c; break; }
+    }
+    if (slug && sure) {
+      const here = angFold(angBase(a.ort));
+      for (const m of ANG_MARKETS) { // 1. die eigene Seite des Markts für den Ort
+        if (!m.kd || !sure) continue;
+        const u = KD + slug + "/" + m.kd, r = await angFetch(u);
+        if (!r.ok && !r.gone) { sure = false; break; }
+        if (r.ok) { const t = angText(r.res); if (t.includes(m.k) && t.includes(here)) links[m.k] = u; }
+      }
+      for (const c of Object.keys(ANG_CAT)) { // 2. sonst die Übersicht für den Ort, wenn der Markt dort vorkommt
+        const need = ANG_MARKETS.filter(m => m.c === c && !links[m.k]);
+        if (!need.length || !sure) continue;
+        const u = KD + slug + "/" + ANG_CAT[c], r = await angFetch(u);
+        if (!r.ok && !r.gone) { sure = false; break; }
+        if (r.ok) { const t = angText(r.res); if (t.includes(here)) need.forEach(m => { if (t.includes(m.k)) links[m.k] = u; }); }
+      }
+    }
+    const b = angGet();
+    if (b.plz !== a.plz || b.ort !== a.ort) return; // inzwischen ein anderer Ort
+    if (!sure && !slug) return; // nichts herausgefunden: beim nächsten Start noch einmal
+    angSet(Object.assign({}, b, { slug, links: Object.assign({}, sure ? {} : b.links, links), chk: sure ? Date.now() : 0, t: Date.now() }));
+    angPush();
+  } catch (e) { console.warn("Angebote prüfen", e); }
+  finally { angBusy = false; angRefresh(); }
+}
+const angLink = (m, a) => (a.links && a.links[m.k]) || KD + "Geschaefte/" + m.gs;
+function offersHtml() {
+  const a = angGet(), pick = state.angPick;
+  if (pick) return `<div class="ang">
+    <p class="ang-lead">Zu ${esc(pick.plz)} gehören mehrere Orte. Welcher ist deiner?</p>
+    <ul class="ang-pick">${pick.orte.map((o, i) => `<li><button data-action="ang-ort" data-i="${i}">${esc(o)}</button></li>`).join("")}</ul>
+    <button class="tbtn ang-back" data-action="ang-cancel">Zurück</button>
+  </div>`;
+  if (state.angEdit || !a.plz) return `<div class="ang">
+    <p class="ang-lead">Die aktuellen Prospekte der Supermärkte in deiner Nähe. Gib einmal deine Postleitzahl ein.</p>
+    <form class="ang-form" id="ang-form" novalidate><input id="ang-plz" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" enterkeyhint="done" autocomplete="postal-code" placeholder="Postleitzahl" aria-label="Postleitzahl" value="${esc(a.plz || "")}">
+      <button class="btn primary" type="submit">Speichern</button></form>
+    ${a.plz ? `<button class="tbtn ang-back" data-action="ang-cancel">Abbrechen</button>` : ""}
+  </div>`;
+  if (!angBusy && angTried !== a.plz + "|" + a.ort) setTimeout(angCheck, 0); // Reiter geöffnet: Adressen prüfen, falls noch offen oder älter als 30 Tage
+  const note = angBusy ? "Ich suche gerade die Prospekte für deinen Ort …"
+    : a.chk && !a.slug ? "Für deinen Ort habe ich keine eigene Prospektseite gefunden. Es öffnet sich der allgemeine Prospekt – den Ort kannst du dort einstellen."
+    : "Ein Tipp öffnet den Prospekt dieser Woche zum Blättern.";
+  return `<div class="ang">
+    <div class="ang-loc">${icon("pin")}<span>Prospekte für <b>${esc(a.plz)}${a.ort ? " " + esc(a.ort) : ""}</b></span><button class="tbtn" data-action="ang-edit">Ändern</button></div>
+    <ul class="ang-grid">${ANG_MARKETS.map(m => `<li><a class="ang-tile" data-k="${m.k}" href="${esc(angLink(m, a))}" target="_blank" rel="noopener" style="background:${m.bg};color:${m.fg}">${esc(m.n)}</a></li>`).join("")}
+      <li><a class="ang-tile all" href="${esc(KD + (a.slug || ""))}" target="_blank" rel="noopener">${a.slug ? "Alle am Ort" : "Alle Prospekte"}</a></li></ul>
+    <p class="ang-note">${note}</p>
+    <p class="ang-src">Prospekte: kaufDA · Ortsdaten © OpenStreetMap-Mitwirkende</p>
+  </div>`;
+}
+
 /* ---------- Einkaufsliste ---------- */
 // Liegt im Konto: ein eigenes Dokument im Rezepte-Ordner – ohne createdAt und mit orig: true, so wie die Originalfotos.
 // Dadurch laden es die Rezeptliste und ältere App-Versionen nicht mit, und es braucht keine neue Firebase-Regel.
@@ -5125,6 +5312,9 @@ const actions = {
   sort: () => openSort(),
   install: () => openInstall(),
   "install-close": () => { state.installClosed = true; render(); },
+  "ang-edit": () => { state.angEdit = true; renderList(); const i = $("#ang-plz"); if (i) { i.focus(); try { i.select(); } catch (e) { /* egal */ } } },
+  "ang-cancel": () => { state.angEdit = false; state.angPick = null; renderList(); },
+  "ang-ort": el => { const p = state.angPick, o = p && p.orte[Number(el.dataset.i)]; if (o) angPlace(p.plz, o); },
   "install-never": () => { try { localStorage.setItem("rezepte-install-hidden", "1"); } catch (e) { /* egal */ } closeLayer(); render(); },
   "unsure-ok": async () => {
     const r = current(); if (!r || !col) return;
@@ -5540,6 +5730,7 @@ document.addEventListener("submit", e => {
   e.preventDefault();
   if (e.target && e.target.id === "login-form") loginEmail();
   if (e.target && e.target.id === "shop-form") shopAddText();
+  if (e.target && e.target.id === "ang-form") angSave();
 });
 
 render();
