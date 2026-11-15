@@ -1101,7 +1101,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "86";
+const APP_VERSION = "87";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1382,6 +1382,7 @@ function subscribe() {
     setTimeout(queueTags, 3000);
     setTimeout(queueTimes, 4000);
     setTimeout(queuePlayFix, 2500);
+    setTimeout(() => whenCalm(queueCoverFix), 15000);
     if (snap.metadata && !snap.metadata.fromCache) repairCreatedAt(myUid);
   }, err => {
     if (uid !== myUid) return;
@@ -2134,6 +2135,147 @@ async function storeCover(blob, unplay) {
   return { dataUrl: await blobToDataUrl(small) };
 }
 
+/* ---------- V87: Titelbild von Instagram ---------- */
+// Hochkant-Bild auf höchstens 4:5 zuschneiden (Mitte). Höher zeigt die App Titelbilder nirgends; so bleibt bei gleicher
+// Dateigröße mehr Schärfe in der Breite (ein Reel ist 9:16).
+async function cropTall(blob, maxRatio) {
+  const { img, url } = await loadImg(blob);
+  try {
+    const W = img.naturalWidth, H = img.naturalHeight;
+    if (!(H > W * maxRatio + 2)) return blob;
+    const h = Math.round(W * maxRatio), c = document.createElement("canvas");
+    c.width = W; c.height = h;
+    c.getContext("2d").drawImage(img, 0, Math.round((H - h) / 2), W, h, 0, 0, W, h);
+    return await new Promise((res, rej) => c.toBlob(x => x ? res(x) : rej(new Error("encode")), "image/jpeg", 0.9));
+  } finally { URL.revokeObjectURL(url); }
+}
+// clean: das Originalbild des Reels (ohne Play-Knopf) – wird im Rezept vermerkt (cover.c), dann fasst es niemand mehr an.
+// Sonst das Vorschaubild mit eingebranntem Knopf: herausrechnen wie bisher.
+async function storeIgCover(blob, clean) {
+  if (!clean) { try { const b = await unplayBlob(blob); if (b) blob = b; } catch (e) { /* Bild bleibt, wie es ist */ } }
+  try { blob = await cropTall(blob, 1.25); } catch (e) { /* unbeschnitten */ }
+  const cover = await storeCover(blob, false);
+  if (clean) cover.c = 1;
+  return cover;
+}
+// Ist das neue Bild dasselbe Motiv wie das gespeicherte Titelbild? Verglichen wird klein und in Graustufen. Die Bildmitte
+// (wo der Play-Knopf saß) zählt nicht mit. Das gespeicherte Bild darf ein Ausschnitt des neuen sein (Instagram schneidet
+// sein Vorschaubild zu): Es wird in mehreren Größen über das neue geschoben, die beste Übereinstimmung zählt (1 = gleich).
+function grayThumb(img, w) { // erst dreifach größer zeichnen, dann mitteln: ruhiger als direkt klein zeichnen
+  const h = Math.max(1, Math.round(w * img.naturalHeight / img.naturalWidth)), k = 3;
+  const c = document.createElement("canvas"); c.width = w * k; c.height = h * k;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(img, 0, 0, w * k, h * k);
+  const d = g.getImageData(0, 0, w * k, h * k).data, out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let sum = 0;
+    for (let yy = 0; yy < k; yy++) for (let xx = 0; xx < k; xx++) { const i = ((y * k + yy) * w * k + x * k + xx) * 4; sum += d[i] * .299 + d[i + 1] * .587 + d[i + 2] * .114; }
+    out[y * w + x] = sum / (k * k);
+  }
+  return { w, h, d: out };
+}
+function coverMatch(oldImg, newImg) {
+  const NW = 48, N = grayThumb(newImg, NW);
+  let best = -1;
+  for (const sc of [1, .92, .84, .76, .68, .6]) {
+    const ow = Math.round(NW * sc);
+    let O = grayThumb(oldImg, ow);
+    if (O.h > N.h) { // gespeichertes Bild höher als das neue: nur seine Mitte vergleichen
+      if (sc !== 1) continue;
+      const y0 = Math.floor((O.h - N.h) / 2); O = { w: ow, h: N.h, d: O.d.subarray(y0 * ow, (y0 + N.h) * ow) };
+    }
+    const cx = (ow - 1) / 2, cy = (O.h - 1) / 2, r2 = Math.pow(Math.min(ow, O.h) * .24, 2), xs = [], ys = [], vs = [];
+    for (let y = 0; y < O.h; y++) for (let x = 0; x < ow; x++) if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > r2) { xs.push(x); ys.push(y); vs.push(O.d[y * ow + x]); }
+    const n = vs.length; if (n < 200) continue;
+    let so = 0, soo = 0; for (let i = 0; i < n; i++) { so += vs[i]; soo += vs[i] * vs[i]; }
+    const mo = so / n, vo = soo / n - mo * mo; if (vo < 30) continue; // fast einfarbig: lässt sich nicht vergleichen
+    for (let oy = 0; oy <= N.h - O.h; oy++) for (let ox = 0; ox <= N.w - ow; ox++) {
+      let sn = 0, snn = 0, son = 0;
+      for (let i = 0; i < n; i++) { const v = N.d[(ys[i] + oy) * N.w + xs[i] + ox]; sn += v; snn += v * v; son += v * vs[i]; }
+      const mn = sn / n, vn = snn / n - mn * mn; if (vn < 30) continue;
+      const c = (son / n - mo * mn) / Math.sqrt(vo * vn);
+      if (c > best) best = c;
+    }
+    if (best > .985) break;
+  }
+  return best;
+}
+async function sameCover(oldDataUrl, newBlob) {
+  const a = await loadImg(await (await fetch(oldDataUrl)).blob()), b = await loadImg(newBlob);
+  try { return coverMatch(a.img, b.img) >= .9; } finally { URL.revokeObjectURL(a.url); URL.revokeObjectURL(b.url); }
+}
+
+// Schon gespeicherte Rezepte von Instagram: nach und nach nachsehen, ob es das Titelbild auch ohne Play-Knopf gibt.
+// - nur, wenn der Server das schon kann (Versionsabfrage ohne Kosten), nur in ruhigen Momenten, ein Rezept alle 45 Sekunden,
+//   höchstens 20 je Sitzung: Instagram soll davon nichts merken, neue Reels gehen immer vor
+// - getauscht wird nur, wenn es dasselbe Bild ist (eigene Fotos bleiben); kostet keine KI
+// - sperrt Instagram gerade: drei Stunden Pause. Je Gerät gemerkt, was geprüft ist (höchstens 3 Versuche je Rezept).
+let workerV = 0, workerVAt = 0;
+async function workerVersion() {
+  if (workerV >= 2 || (workerVAt && Date.now() - workerVAt < 10 * 60000)) return workerV;
+  workerVAt = Date.now();
+  try { const r = await fetch(WORKER_URL.replace(/\/$/, "") + "/", { cache: "no-store" }); const j = await r.json(); workerV = Number(j && j.v) || 1; }
+  catch (e) { /* kein Netz: später */ }
+  return workerV;
+}
+let cfBusy = false, cfOff = false, cfCount = 0;
+const cfKey = () => "rezepte-coverfix:" + (uid || "");
+const cfSig = r => r.id + ":" + ((r.cover && r.cover.dataUrl) || "").length;
+function cfLoad() { try { const o = JSON.parse(localStorage.getItem(cfKey()) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } }
+function cfSave(o) { try { const ks = Object.keys(o).filter(k => k !== "_pause"); ks.slice(0, Math.max(0, ks.length - 600)).forEach(k => delete o[k]); localStorage.setItem(cfKey(), JSON.stringify(o)); } catch (e) { /* egal */ } }
+function cfNext(o) {
+  const now = Date.now();
+  return state.recipes.find(r => {
+    if (!(r.cover && r.cover.dataUrl && !r.cover.c && isIgLink(r.link || ""))) return false;
+    const e = o[cfSig(r)];
+    return !e || (!e.done && e.n < 3 && now - e.t > 5 * 864e5);
+  });
+}
+async function queueCoverFix() {
+  if (cfBusy || cfOff || !col || !uid || !state.loaded || state.storage !== "ok" || state.slow || navigator.onLine === false || document.visibilityState === "hidden") return;
+  const o = cfLoad();
+  if (o._pause && Date.now() < o._pause) return;
+  const r = cfNext(o);
+  if (!r) return;
+  cfBusy = true;
+  const sig = cfSig(r), myUid = uid, myCol = col;
+  let again = 45000;
+  try {
+    if (state.jobs.length || (state.edit && state.edit.id === r.id)) return; // gerade wird gelesen oder bearbeitet: später
+    if (await workerVersion() < 2) { cfOff = true; return; } // Server kann es noch nicht: nichts abrufen, nichts merken
+    let pg;
+    try { pg = await fetchPage(r.link); }
+    catch (e) {
+      if (e && (e.code === "insta_blocked" || e.code === "upstream_error" || e.code === "rate_limited")) { const o2 = cfLoad(); o2._pause = Date.now() + 3 * 3600000; cfSave(o2); }
+      cfOff = true; return; // für diesmal Schluss
+    }
+    if (uid !== myUid || col !== myCol) return;
+    const m = (pg && pg.meta) || {};
+    const o2 = cfLoad(), e = o2[sig] || { n: 0 };
+    e.n++; e.t = Date.now();
+    if (++cfCount >= 20) cfOff = true; // genug für diese Sitzung
+    const url = pg && pg.kind === "instagram" && Array.isArray(m.clean) ? m.clean.map(u => String(u || "")).find(u => /^https:\/\//.test(u)) : "";
+    if (url) {
+      let blob = null;
+      try { blob = await fetchImage(url); } catch (e2) { blob = null; }
+      if (blob) {
+        e.done = 1;
+        if (await sameCover(r.cover.dataUrl, blob)) {
+          const cover = await storeIgCover(blob, true);
+          const now = state.recipes.find(x => x.id === r.id);
+          if (uid !== myUid || col !== myCol || !now || cfSig(now) !== sig || (state.edit && state.edit.id === r.id)) return; // inzwischen geändert
+          await withRetry(() => col.doc(r.id).update({ cover }));
+          patchLocal(r.id, { cover });
+          playMark(r.id + ":" + cover.dataUrl.length);
+          onDataChanged(); qsSave();
+        }
+      }
+    }
+    o2[sig] = e; cfSave(o2);
+  } catch (e) { console.warn("Titelbild", e); again = 60000; }
+  finally { cfBusy = false; if (!cfOff && uid === myUid) setTimeout(() => whenCalm(queueCoverFix), again); }
+}
+
 /* ---------- Play-Knopf aus Instagram-Bildern herausrechnen ---------- */
 // Vorschaubilder von Reels haben oft einen eingebrannten Play-Knopf: ein halbdurchsichtig dunkler Kreis mit weißem Dreieck
 // genau in der Bildmitte. Nur wenn beides sicher erkannt ist (Kreisrand rundum gleich abgedunkelt, darin ein weißes Dreieck
@@ -2287,7 +2429,7 @@ function playMark(sig) { const s2 = playSeen(); s2.add(sig); try { localStorage.
 function queuePlayFix() {
   if (playBusy || !col || !uid || !state.loaded || document.visibilityState === "hidden") return;
   const seen = playSeen();
-  const r = state.recipes.find(x => x.cover && x.cover.dataUrl && isIgLink(x.link || "") && !seen.has(playSig(x)) && !playDone.has(playSig(x)));
+  const r = state.recipes.find(x => x.cover && x.cover.dataUrl && !x.cover.c && isIgLink(x.link || "") && !seen.has(playSig(x)) && !playDone.has(playSig(x))); // V87: saubere Originalbilder (cover.c) bleiben unangetastet
   if (!r) return;
   playBusy = true;
   const sig = playSig(r), myUid = uid, myCol = col;
@@ -4338,7 +4480,7 @@ ${(r.steps || []).map(l => "- " + l).join("\n")}`;
     finally { tagBusy = false; setTimeout(queueTags, 1500); }
   })();
 }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { setTimeout(queueTags, 2000); setTimeout(queueTimes, 2600); setTimeout(queuePlayFix, 3200); } });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { setTimeout(queueTags, 2000); setTimeout(queueTimes, 2600); setTimeout(queuePlayFix, 3200); setTimeout(() => whenCalm(queueCoverFix), 12000); } });
 /* Zeit schätzen, wenn im Rezept keine steht (ältere und von Hand angelegte Rezepte; beim Einlesen schätzt Claude sie gleich mit).
    Einmal je Rezept: „timeEst“ merkt, ob geschätzt wurde (true) oder die Zeit von Hand geändert bzw. gelöscht ist (false). Angezeigt wird sie wie jede andere Zeit. */
 const noCa = s => String(s || "").replace(/^\s*(?:ca\.?|circa|etwa|ungefähr)\s*/i, "").trim();
@@ -4833,11 +4975,11 @@ function aiErrorText(e) {
 }
 
 /* Rezept direkt speichern (ohne Editor) */
-async function saveData(d, coverBlob, coverUrl, origBlobs) {
+async function saveData(d, coverBlob, coverUrl, origBlobs, igCover) {
   if (!col) throw { code: "permission", message: "nicht angemeldet" };
   const myCol = col;
   let cover = null;
-  if (coverBlob) { try { cover = await storeCover(coverBlob, isIgLink(d.link || "")); } catch (e) { cover = null; } }
+  if (coverBlob) { try { cover = igCover ? await storeIgCover(coverBlob, igCover === "clean") : await storeCover(coverBlob, isIgLink(d.link || "")); } catch (e) { cover = null; } }
   if (col !== myCol) throw { code: "cancelled" }; // inzwischen anderes Konto
   else if (coverUrl && /^https:\/\//.test(coverUrl)) cover = { url: coverUrl.slice(0, 1500) };
   const sv = parseFloat(String(d.servings).replace(",", "."));
@@ -4962,7 +5104,7 @@ async function runJob(job) {
       }
     }
     job.phase = "save"; refreshJobs();
-    const savedId = await saveData(conv.data, conv.coverBlob, conv.coverUrl, conv.orig);
+    const savedId = await saveData(conv.data, conv.coverBlob, conv.coverUrl, conv.orig, conv.igCover);
     removeJob(job);
     toast(`„${conv.data.title}“ gespeichert`);
     if (savedId && !nutriComplete(cleanNutrition(conv.data.nutrition))) nutriInBackground(savedId);
@@ -4977,7 +5119,7 @@ async function runJob(job) {
   try {
     // Schon gelesen, nur das Speichern hatte gehakt: nicht nochmal lesen (kostet Guthaben)
     if (job.conv) { await done(job.conv); return; }
-    let src = job.src, pageImage = "", thumb = null, igUser = "";
+    let src = job.src, pageImage = "", thumb = null, igUser = "", igCover = "";
     if (src.mode === "link") {
       let pg;
       try { pg = await fetchPage(src.link, job.ctl.signal); }
@@ -4991,9 +5133,16 @@ async function runJob(job) {
       pageImage = m["og:image"] || "";
       // Vorschaubild(er) gleich mitholen und in der App speichern. Bei Instagram bis zu zwei, Claude nimmt eins ohne Play-Knopf.
       const isInsta = pg && pg.kind === "instagram";
-      const cand = [...new Set([pageImage, ...(isInsta && Array.isArray(m.images) ? m.images : [])].filter(u => /^https:\/\//.test(String(u || ""))))].slice(0, isInsta ? 2 : 1);
-      const got = await Promise.all(cand.map(u => fetchImage(u, job.ctl.signal).catch(e => { if (e && e.code === "cancelled") throw e; return null; })));
-      const thumbs = got.filter(Boolean);
+      const getImg = u => fetchImage(u, job.ctl.signal).catch(e => { if (e && e.code === "cancelled") throw e; return null; });
+      // V87: Schickt der Server das Originalbild des Reels mit (sicher ohne Play-Knopf), reicht dieses eine Bild
+      const cleanUrl = isInsta && Array.isArray(m.clean) ? m.clean.map(u => String(u || "")).find(u => /^https:\/\//.test(u)) : "";
+      let thumbs = [];
+      if (cleanUrl) { const b0 = await getImg(cleanUrl); if (b0) { thumbs = [b0]; igCover = "clean"; } }
+      if (!thumbs.length) {
+        const cand = [...new Set([pageImage, ...(isInsta && Array.isArray(m.images) ? m.images : [])].filter(u => /^https:\/\//.test(String(u || ""))))].slice(0, isInsta ? 2 : 1);
+        thumbs = (await Promise.all(cand.map(getImg))).filter(Boolean);
+        if (isInsta && thumbs.length) igCover = "thumb";
+      }
       thumb = thumbs[0] || null;
       if (isInsta) {
         igUser = m.user || "";
@@ -5026,6 +5175,7 @@ async function runJob(job) {
       else if (box) { try { conv.coverBlob = await cropBox(conv.coverBlob, box); } catch (e) { conv.coverBlob = null; } }
     }
     if (!conv.coverBlob && thumb) conv.coverBlob = thumb;
+    if (insta && igCover && conv.coverBlob) conv.igCover = igCover; // Bild kommt von Instagram: „clean“ = Original ohne Play-Knopf
     if (!conv.coverBlob && pageImage && !insta) conv.coverUrl = pageImage;
     if (src.mode === "photo" && imgs.length) conv.orig = imgs; // Originalfotos mit aufheben
     job.conv = conv;
