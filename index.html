@@ -1114,7 +1114,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "96";
+const APP_VERSION = "97";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -3311,6 +3311,30 @@ function angLink(m, a) {
   if (x && Date.now() - x.t < ANG_LEAF_MAX) return KD + "contentViewer/static/" + x.id + "?retailerName=" + encodeURIComponent(m.rn) + "&zip=" + (f.p || a.plz) + "&locality=" + encodeURIComponent(f.o || a.ort) + "&page=1";
   return l || KD + "Geschaefte/" + (m.k === "aldi" && angNord(a) ? "Aldi-Nord" : m.gs);
 }
+// V97: Die Symbole der Märkte liegen nach dem ersten Laden auf dem Gerät. Vorher kamen sie bei jedem Zeichnen neu aus dem Netz
+// und standen manchmal erst nach einem Moment da. Geholt werden sie einmal über den eigenen Server (alle 30 Tage neu).
+const ANG_ICON_KEY = "rezepte-ang-icons", ANG_ICON_AGE = 30 * 864e5;
+let angIcons = null, angIconBusy = false, angIconAt = 0;
+function angIconGet() { if (!angIcons) { try { angIcons = JSON.parse(localStorage.getItem(ANG_ICON_KEY) || "{}") || {}; } catch (e) { angIcons = {}; } } return angIcons; }
+const angIconUrl = m => "https://www.google.com/s2/favicons?domain=" + m.d + "&sz=128";
+const angIconSrc = m => { const c = angIconGet()[m.k]; return c && typeof c.u === "string" && c.u.startsWith("data:image/") ? c.u : angIconUrl(m); };
+async function angIconLoad() {
+  if (angIconBusy || !authUser || Date.now() - angIconAt < 6e5) return;
+  const ic = angIconGet(), todo = ANG_MARKETS.filter(m => !ic[m.k] || Date.now() - (ic[m.k].t || 0) > ANG_ICON_AGE);
+  if (!todo.length) return;
+  angIconBusy = true; angIconAt = Date.now();
+  try {
+    for (const m of todo) {
+      let blob;
+      try { blob = await workerPost("/img", JSON.stringify({ url: angIconUrl(m) }), null, 12000, true); }
+      catch (e) { break; } // Server nicht erreichbar oder nicht freigeschaltet: Die Symbole kommen weiter direkt aus dem Netz
+      if (!blob || blob.size > 60000 || !/^image\//.test(blob.type || "")) continue;
+      const u = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result || "")); f.onerror = () => r(""); f.readAsDataURL(blob); });
+      if (u.startsWith("data:image/")) ic[m.k] = { u, t: Date.now() };
+    }
+    try { localStorage.setItem(ANG_ICON_KEY, JSON.stringify(ic)); } catch (e) { /* Speicher voll: dann eben weiter aus dem Netz */ }
+  } finally { angIconBusy = false; }
+}
 // Das Symbol des Markts kommt von dessen eigener Website; lädt es nicht, bleibt das Preisschild in der Farbe des Markts stehen
 document.addEventListener("error", e => { const t = e.target; if (t && t.tagName === "IMG" && t.closest && t.closest(".ang-logo")) t.remove(); }, true);
 function offersHtml() {
@@ -3328,7 +3352,7 @@ function offersHtml() {
   </div>`;
   // Reiter geöffnet: Märkte prüfen (falls noch offen oder älter als 30 Tage), sonst nur nachsehen, ob es neue Prospekte gibt.
   // V94: beides immer anstoßen – angCheck setzt angBusy sofort, wenn es wirklich läuft; dann wartet angLeaf.
-  if (!angBusy && !angLeafBusy) setTimeout(() => { angCheck(); angLeaf(); }, 0);
+  if (!angBusy && !angLeafBusy) setTimeout(() => { angCheck(); angLeaf(); angIconLoad(); }, 0);
   const known = !!(a.chk && a.slug && Object.keys(a.st || {}).length); // die Umgebung ist bekannt: nur Märkte zeigen, die es dort gibt
   const list = ANG_MARKETS.filter(m => !known || a.st[m.k] || a.links[m.k]);
   // Zeile 1: Straße · Zeile 2: Ort und Entfernung (die Entfernung bleibt beim Umbrechen zusammen)
@@ -3341,7 +3365,7 @@ function offersHtml() {
   return `<div class="ang">
     <div class="ang-loc">${icon("pin")}<span>Prospekte für <b>${esc(a.plz)}${a.ort ? " " + esc(a.ort) : ""}</b></span><button class="tbtn" data-action="ang-edit">Ändern</button></div>
     <ul class="ang-list">${list.map(m => `<li><a class="ang-row" data-k="${m.k}" href="${esc(angLink(m, a))}" target="_blank" rel="noopener">
-        <span class="ang-logo" style="background:${m.bg};color:${m.fg}">${icon("price")}<img src="https://www.google.com/s2/favicons?domain=${m.d}&amp;sz=128" alt="" loading="lazy"></span>
+        <span class="ang-logo" style="background:${m.bg};color:${m.fg}">${icon("price")}<img src="${esc(angIconSrc(m))}" alt="" decoding="sync"></span>
         <span class="ang-b"><span class="ang-n">${esc(m.k === "aldi" && angNord(a) ? "Aldi Nord" : m.n)}</span>${where(m)}</span>${icon("chev")}</a></li>`).join("")}</ul>
     ${note ? `<p class="ang-note">${note}</p>` : ""}
   </div>`;
