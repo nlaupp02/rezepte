@@ -1114,7 +1114,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "95";
+const APP_VERSION = "96";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -3410,8 +3410,11 @@ function shopSubscribe() { // Liste aus dem Konto holen und Änderungen von eine
 /* Bereiche im Supermarkt. Zuordnung über eine feste Wortliste: kostet nichts und geht auch ohne Netz.
    Reihenfolge der Regeln zählt (Genaueres zuerst: „Paprikapulver“ vor „Paprika“, „Kokosmilch“ vor „Milch“). */
 const SHOP_CATS = [["obst", "Obst & Gemüse"], ["kuehl", "Milch, Käse & Eier"], ["fleisch", "Fleisch & Fisch"], ["brot", "Brot & Backwaren"],
-  ["vorrat", "Nudeln, Reis & Vorrat"], ["backen", "Backen & Süßes"], ["gewuerz", "Gewürze & Öl"], ["tk", "Tiefkühl"], ["getraenke", "Getränke"], ["sonst", "Sonstiges"]];
+  ["vorrat", "Nudeln, Reis & Vorrat"], ["backen", "Backen"], ["gewuerz", "Gewürze & Öl"], ["tk", "Tiefkühl"], ["getraenke", "Getränke"], ["suess", "Nervennahrung"], ["sonst", "Sonstiges"]];
 const SHOP_RULES = [
+  // V96: Süßigkeiten bekommen einen eigenen Bereich mit Augenzwinkern („Nervennahrung“). Steht ganz vorn, damit Marken und „Schokolade“ als
+  // Nascherei hier landen; Backzutaten wie „Zartbitterschokolade“, „Kuvertüre“ oder „Kakao“ bleiben bei „Backen“.
+  ["suess", /haribo|milka|bueno|kinder\s?(?:riegel|schoko|country|pingui|joy|überraschung)|überraschungsei|\bduplo\b|hanuta|knoppers|toffifee|raffaello|ferrero|rocher|\blindt\b|ritter\s?sport|snickers|\bmars\b|twix|kit\s?kat|bounty|milky\s?way|maoam|nimm\s?2|katjes|trolli|mentos|tic\s?tac|m&m|smarties|oreo|\blion\b|balisto|prinzenrolle|nutella|gummibär|weingummi|fruchtgummi|lakritz|bonbon|lutscher|schokoriegel|schokobon|\bschoki\b|\bschokolade\b|vollmilchschokolade|praline|\bkekse?\b|butterkeks|marshmallow|zuckerwatte|süßigkeit|süßkram|naschkram|nascherei|\bsüßes\b/],
   ["tk", /\btk\b|tiefkühl|tiefgekühlt|gefroren/],
   ["gewuerz", /paprikapulver|chiliflocken|chilipulver|knoblauchpulver|zwiebelpulver|getrocknet|italienische kräuter|kräuter der provence|currypulver|gewürz|fischsauce|austernsauce/],
   ["vorrat", /dose|passiert|gehackte tomaten|stückige tomaten|tomatenmark|kokosmilch|erdnussbutter|brühe|\bfond\b|röstzwiebel|zitronensaft|kichererbsen|linsen|kidneybohnen|weiße bohnen|\bmais\b/],
