@@ -125,6 +125,14 @@ html.dim .statusfill { z-index: 25; }
 
 /* Seitenwechsel: Abbild der alten Seite in einer festen Ebene, die neue gleitet darüber (oder darunter hervor) */
 body { overflow-x: clip; }
+/* V86: In der App (vom Home-Bildschirm) rollt die Seite in einem eigenen Bereich statt als Ganzes. Die Leisten oben und unten
+   liegen fest darüber und reagieren sofort, auch während die Liste noch nachrollt oder nachfedert (wie bei iPhone-Apps).
+   Die Seite selbst rollt nie. Beim Bearbeiten, Importieren und Anmelden (Tastatur) und in Safari bleibt alles wie bisher. */
+html.insc, html.insc body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+html.insc #sc { position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; }
+html.insc #sc::-webkit-scrollbar { display: none; width: 0; height: 0; }
+html.insc #sc > .app { min-height: calc(100% + 1px); box-sizing: border-box; } /* federt auch auf kurzen Seiten nach */
+html.insc .statusfill { pointer-events: auto; } /* Tipp ganz oben (bei der Uhr): zurück nach oben */
 .nav-ghost { position: fixed; inset: 0; overflow: hidden; background: var(--bg); pointer-events: none; z-index: 1; }
 .nav-shade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 2; }
 body.nav-anim #app { position: relative; z-index: 3; background: var(--bg); min-height: 100lvh; will-change: transform; }
@@ -429,6 +437,14 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .hero { aspect-ratio: 16 / 9; max-height: 360px; margin: -6px -16px 0; overflow: hidden; background: var(--ph); }
 @media (min-width: 700px) { .hero { margin: 0; border-radius: 14px; } }
 .hero img { width: 100%; height: 100%; object-fit: cover; }
+.hero { position: relative; }
+.hero-play { position: absolute; left: 50%; top: 50%; width: 76px; height: 76px; margin: -38px 0 0 -38px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  background: rgba(20, 20, 20, .56); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .22), inset 0 0 0 .5px rgba(255, 255, 255, .3); transition: transform .2s ease; -webkit-tap-highlight-color: transparent; }
+.hero-play .ic { width: 30px; height: 30px; margin-left: 4px; stroke-width: 0; }
+.hero-play.big { width: 90px; height: 90px; margin: -45px 0 0 -45px; background: rgba(24, 24, 24, .86); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.hero-play.big .ic { width: 34px; height: 34px; }
+.hero-play:active { transform: scale(.92); transition-duration: .08s; }
 .hero .ph .ic { width: 48px; height: 48px; stroke-width: 1.4; }
 .d-head { display: grid; gap: 4px; }
 /* Kategorie und Zeit direkt unter dem Titel, Merkmale als kleine Etiketten */
@@ -494,6 +510,13 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .stars button { width: 32px; height: 38px; border: 0; background: none; padding: 0; display: grid; place-items: center; color: var(--faint); }
 .stars .ic { width: 20px; height: 20px; stroke-width: 1.6; }
 .stars button.on { color: var(--star); }
+/* V86: kleine Rückmeldungen – Herz und Sterne federn kurz, Mengen leuchten auf, wenn man die Personenzahl ändert */
+@media (prefers-reduced-motion: no-preference) {
+  .ic.pop { animation: pop .36s cubic-bezier(.3, 1.5, .5, 1) backwards; }
+  @keyframes pop { 0% { transform: scale(.55); } 55% { transform: scale(1.25); } 100% { transform: none; } }
+  .ing-q.flash { animation: qflash .75s ease-out; }
+  @keyframes qflash { 0%, 30% { color: var(--accent); } }
+}
 .row-m .chk { color: #8A5A00; background: #FFF0C2; border-radius: 5px; padding: 0 5px; font-weight: 600; font-size: 13px; margin-right: 2px; }
 .check { display: grid; gap: 4px; background: #FFF6DA; border-radius: 12px; padding: 12px 14px; margin: 14px 0 4px; }
 .check b { font-size: 16px; }
@@ -762,10 +785,10 @@ body.kb .sheet.link .imp-in { max-height: 22vh; }
 .cook-prog i { display: block; height: 100%; width: 0; border-radius: 2px; background: var(--accent); transition: width .25s; }
 .cook-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 30px 22px 24px; touch-action: pan-y; }
 .cook-h { font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-.cook-text { margin: 0; font-family: var(--serif); font-size: 28px; line-height: 1.38; overflow-wrap: break-word; }
+.cook-text { margin: 0; font-family: var(--serif); font-size: var(--cs, 28px); line-height: 1.38; overflow-wrap: break-word; }
 .cook-ings { margin-top: 30px; padding: 14px 16px 16px; border-radius: 14px; background: var(--warm); }
 .cook-ih { font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
-.cook-ings ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 20px; line-height: 1.35; }
+.cook-ings ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: clamp(20px, calc(var(--cs, 28px) * .62), 26px); line-height: 1.35; }
 .cook-ings b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .cook-nav { display: grid; grid-template-columns: 1fr 1.7fr; gap: 10px; padding: 10px 16px calc(env(safe-area-inset-bottom) + 12px); }
 .cook-nav .btn { min-height: 58px; font-size: 19px; border-radius: 14px; }
@@ -808,6 +831,16 @@ body.nav-anim #app.pin-h > .home-head, body.nav-anim #app.pin-t > .topbar { visi
 .app.pin-c > .home-head.lined { box-shadow: none; }
 body.nav-anim #app.pin-c > .chips { visibility: hidden; }
 .home-head.lined { box-shadow: 0 .5px 0 var(--line); }
+/* V86: Hat man ein Stück gerollt, wird der Kopf flacher (Titel kleiner, Kategorien rücken nach oben): mehr Platz für die Rezepte.
+   Ganz oben ist er wieder groß. Der Inhalt darunter verschiebt sich dabei nicht (die Seite hält weiter den vollen Platz frei). */
+.app.pin-h > .home-head { transition: height .24s cubic-bezier(.3, .7, .2, 1), padding .24s cubic-bezier(.3, .7, .2, 1); }
+.app.pin-h > .home-head .brand { transform-origin: 0 50%; transition: transform .24s cubic-bezier(.3, .7, .2, 1); }
+.app.pin-c > .chips { transition: top .24s cubic-bezier(.3, .7, .2, 1), height .24s cubic-bezier(.3, .7, .2, 1), padding .24s cubic-bezier(.3, .7, .2, 1); }
+.app.pin-h.shr > .home-head { height: calc(50px + env(safe-area-inset-top)); padding-top: calc(3px + env(safe-area-inset-top)); padding-bottom: 3px; }
+.app.pin-h.shr > .home-head .brand { transform: scale(.66); }
+.app.pin-c.shr > .chips { top: calc(50px + env(safe-area-inset-top)); height: 54px; padding-top: 6px; }
+.app.shr-off > .home-head, .app.shr-off > .home-head .brand, .app.shr-off > .chips { transition: none !important; }
+@media (prefers-reduced-motion: reduce) { .app.pin-h > .home-head, .app.pin-h > .home-head .brand, .app.pin-c > .chips { transition: none; } }
 
 /* V74: Liste in der Sammlung mit größerem Bild und drei Punkten je Zeile */
 .thumb-lg { position: relative; width: 108px; height: 72px; flex: none; border-radius: 12px; overflow: hidden; background: var(--ph); }
@@ -925,7 +958,7 @@ button.sf-n:active { opacity: .55; }
 </head>
 <body>
 <div class="statusfill" aria-hidden="true"></div>
-<div id="app" class="app"></div>
+<div id="sc"><div id="app" class="app"></div></div>
 <input class="vh" id="quick-pick" type="file" accept="image/*" multiple data-file="quick" aria-label="Rezeptfoto auswählen">
 <input class="vh" id="cam-pick" type="file" accept="image/*" capture="environment" data-file="quick" aria-label="Foto aufnehmen">
 <div id="layer"></div>
@@ -939,6 +972,15 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const app = $("#app");
 const layer = $("#layer"), layer2 = $("#layer2");
+// V86: Rollbereich. In der App rollt #sc (siehe CSS), sonst die Seite. Alles, was die Rollposition liest oder setzt, geht hier durch.
+const SC = $("#sc");
+const inSc = () => document.documentElement.classList.contains("insc");
+const getY = () => inSc() ? SC.scrollTop : window.scrollY;
+const setY = (y, smooth) => {
+  const t = inSc() ? SC : window;
+  if (smooth) t.scrollTo({ top: y, behavior: "smooth" }); else if (t === SC) SC.scrollTop = y; else window.scrollTo(0, y);
+};
+const onScroll = fn => { window.addEventListener("scroll", fn, { passive: true }); SC.addEventListener("scroll", fn, { passive: true }); };
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -1000,6 +1042,7 @@ const ICONS = {
   home: '<path d="M4.5 10.6 12 4.3l7.5 6.3V19a1.4 1.4 0 0 1-1.4 1.4h-3.5v-5.6H9.4v5.6H5.9A1.4 1.4 0 0 1 4.5 19z"/>',
   sortl: '<path d="M4 7h16M7 12h10M10 17h4"/>',
   dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01" stroke-width="3"/>',
+  stack: '<rect x="4" y="9.5" width="16" height="10.5" rx="2.6"/><path d="M6.6 6.4h10.8M8.8 3.4h6.4"/>', // V86: Sammlungen in der Leiste unten (Stapel)
   gridv: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
   folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
   salad: '<path d="M19.496 12a2.5 2.5 0 00.399-2.214A2 2 0 0020.32 6.5 2 2 0 0019 3a2 2 0 00-1.5.68 2 2 0 00-3.287.424 2.5 2.5 0 00-3.189 2.06A3 3 0 0012 12l4-4" /><path d="M4 12a1 1 0 00-.99 1.133A9 9 0 0012 21a9 9 0 008.99-7.867A1 1 0 0020 12z" /><path d="M7 21h10" /><path d="M9.85 6.907A3.5 3.5 0 005.05 12" />',
@@ -1058,7 +1101,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "85";
+const APP_VERSION = "86";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1187,6 +1230,7 @@ qsGet().then(c => {
   state.recipes = c.recipes; state.loaded = true; state.storage = "ok"; state.slow = false;
   bootFade(); state.view = "list"; render();
   setTimeout(() => whenCalm(prewarmCovers), 1200);
+  setTimeout(() => whenCalm(() => { try { if (canCopy()) ghostSheet(); } catch (e) { /* egal */ } }), 1500); // V86: Stilvorlage fürs Gleiten vorab, damit der erste Seitenwechsel nicht hakt
 });
 
 const initPromise = (async () => {
@@ -1247,7 +1291,7 @@ function onAuth(u) {
   state.login = null;
   subscribe(); readyResolve();
   if (histDepth() > 0) { try { history.replaceState({ v: "list", d: 0 }, ""); } catch (e) { /* egal */ } }
-  state.view = "list"; state.listScroll = 0; render(); window.scrollTo(0, 0);
+  state.view = "list"; state.listScroll = 0; render(); setY(0);
   resumeJobs();
 }
 
@@ -1334,6 +1378,7 @@ function subscribe() {
     onDataChanged();
     qsSave();
     setTimeout(() => whenCalm(prewarmCovers), 500);
+    setTimeout(() => whenCalm(() => { try { if (canCopy()) ghostSheet(); } catch (e) { /* egal */ } }), 1500);
     setTimeout(queueTags, 3000);
     setTimeout(queueTimes, 4000);
     setTimeout(queuePlayFix, 2500);
@@ -1781,7 +1826,7 @@ const warmIO = "IntersectionObserver" in window ? new IntersectionObserver(es =>
   const i = e.target; warmIO.unobserve(i);
   if (i.dataset.cv && !i.getAttribute("src")) { const r = state.recipes.find(x => x.id === i.dataset.cv), src = r && coverSrc(r.cover, coverKey(r)); if (src) i.src = src; }
   if (i.decode && i.getAttribute("src")) i.decode().catch(() => { /* egal */ });
-}), { rootMargin: "1400px 0px" }) : null;
+}), { root: document.documentElement.classList.contains("standalone") ? SC : null, rootMargin: "1400px 0px" }) : null;
 function warmImgs(root) {
   if (!warmIO || !root) return;
   root.querySelectorAll("img[data-ph]").forEach(i => { if (!i.dataset.w && (i.dataset.cv || localSrc(i.getAttribute("src")))) { i.dataset.w = "1"; warmIO.observe(i); } });
@@ -2450,6 +2495,9 @@ if (window.visualViewport) {
     // so weit verdeckt die Tastatur den unteren Rand: um so viel rückt das Eingabefeld der Einkaufsliste hoch
     const kb = editing() && Math.abs(vv.scale - 1) < 0.02 ? Math.max(0, Math.round(window.innerHeight - vv.offsetTop - vv.height)) : 0;
     if (kb !== lastKb) { lastKb = kb; if (kb) root.style.setProperty("--kbb", kb + "px"); else root.style.removeProperty("--kbb"); }
+    // V86: Im eigenen Rollbereich steht die Seite selbst immer bei 0. Schiebt iOS sie für die Tastatur hoch, kommt sie nach dem Tippen zurück
+    // (von Hand ließe sie sich dort nicht mehr zurückschieben).
+    if (!editing() && inSc() && (window.scrollY > 0 || root.scrollTop > 0)) window.scrollTo(0, 0);
     if (o === last) return;
     last = o;
     if (o) root.style.setProperty("--vvo", o + "px"); else root.style.removeProperty("--vvo");
@@ -2478,17 +2526,29 @@ document.addEventListener("pointerup", () => {
   if (!el) return;
   el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 140); // kurzer Tipp: kurz grau
 }, { passive: true });
-window.addEventListener("scroll", clearPress, { passive: true });
+onScroll(clearPress);
 // feine Linie unter der Kopfzeile, sobald Inhalt darunter durchläuft
 function headLine() {
   const t = app.querySelector(".topbar, .home-head"); if (!t) return;
-  t.classList.toggle("lined", window.scrollY > 2);
+  t.classList.toggle("lined", getY() > 2);
   const ch = app.classList.contains("pin-c") ? app.querySelector(":scope > .chips") : null;
-  if (ch) ch.classList.toggle("lined", window.scrollY > 2);
+  if (ch) ch.classList.toggle("lined", getY() > 2);
+  headShrink(t);
   // Im Rezept: ist der große Titel unter der Leiste verschwunden, steht der Name klein in der Mitte
   if (state.view === "detail") { const h = app.querySelector(".d-title"); t.classList.toggle("named", !!h && h.getBoundingClientRect().bottom < t.getBoundingClientRect().bottom + 2); }
 }
-window.addEventListener("scroll", headLine, { passive: true });
+// V86: flacher Kopf, sobald ein Stück gerollt ist. Zwischen „an“ und „aus“ liegt etwas Abstand, damit nichts flackert.
+// Frisch gezeichnet (anderer Reiter, zurück aus dem Rezept) steht er sofort richtig da, ohne Bewegung.
+let shrT = 0;
+function headShrink(h) {
+  const pin = !!h && state.view === "list" && app.classList.contains("pin-h") && h.matches(".home-head");
+  const on = app.classList.contains("shr"), y = getY(), want = pin && (on ? y > 10 : y > 44);
+  if (h && !h._t) h._t = performance.now();
+  if (want === on) return;
+  if (!pin || performance.now() - h._t < 300) { app.classList.add("shr-off"); clearTimeout(shrT); shrT = setTimeout(() => app.classList.remove("shr-off"), 90); }
+  app.classList.toggle("shr", want);
+}
+onScroll(headLine);
 
 let sheetDrag = null, suppressClick = false, shotsFor = null;
 document.addEventListener("cancel", e => { if (e.target && e.target.id === "quick-pick") shotsFor = null; }, true);
@@ -2685,11 +2745,12 @@ function go(view, opts) {
     : from === "detail" && view === "list" && Date.now() - navOwn < 1500 ? "pop" : null;
   navOwn = 0;
   if (!(opts && opts.nohist) && view !== "list" && (from === "list" || (view === "edit" && from === "detail"))) histPush(view);
-  if (from === "list") state.listScroll = window.scrollY;
+  if (from === "list") state.listScroll = getY();
   navAnim(kind, () => {
     state.view = view;
     render();
-    window.scrollTo(0, view === "list" ? state.listScroll : 0);
+    setY(view === "list" ? state.listScroll : 0);
+    headLine();
   });
   keepAwake(view === "detail");
 }
@@ -2704,18 +2765,43 @@ function pinHead() {
   app.classList.toggle("pin-h", ok && !!h && h.matches(".home-head"));
   app.classList.toggle("pin-t", ok && !!h && h.matches(".topbar"));
 }
-function pageCopy() {
-  const g = document.createElement("div");
-  g.className = "nav-ghost"; g.setAttribute("aria-hidden", "true"); g.inert = true;
-  const root = g.attachShadow({ mode: "closed" });
+// Stilvorlage fürs Abbild: einmal bauen (in einem ruhigen Moment nach dem Start, sonst beim ersten Seitenwechsel)
+function ghostSheet() {
   if (!ghostCss) {
     ghostCss = new CSSStyleSheet();
     ghostCss.replaceSync([...document.querySelectorAll("style")].map(st => st.sheet ? [...st.sheet.cssRules].map(r => r.cssText).join("\n") : "").join("\n"));
   }
-  root.adoptedStyleSheets = [ghostCss];
+  return ghostCss;
+}
+// V86: Ins Abbild kommt nur, was gerade zu sehen ist. Bei 100 Rezepten wären es sonst 100 Kacheln, die das iPhone erst
+// neu berechnet, bevor sich etwas bewegt. Die Zeilen darüber werden durch gleich viel Abstand ersetzt (Lage bleibt genau gleich).
+function trimCopy(c) {
+  const sel = "ul.tiles > li, ul.list > li";
+  const a = app.querySelectorAll(sel), b = c.querySelectorAll(sel);
+  if (a.length !== b.length || a.length < 14) return;
+  const H = window.innerHeight, pad = 60, rects = [...a].map(e => e.getBoundingClientRect()), lists = new Map();
+  a.forEach((e, i) => {
+    const r = rects[i], ul = b[i].parentNode;
+    let t = lists.get(ul);
+    if (!t) lists.set(ul, t = { src: e.parentNode, first: r.top, kept: null });
+    if (r.bottom < -pad || r.top > H + pad) b[i].remove(); else if (t.kept == null) t.kept = r.top;
+  });
+  lists.forEach((t, ul) => {
+    if (t.kept == null) { ul.style.height = t.src.getBoundingClientRect().height + "px"; return; } // ganz außerhalb: Platz bleibt
+    if (t.kept > t.first + .5) ul.style.marginTop = ((parseFloat(getComputedStyle(t.src).marginTop) || 0) + t.kept - t.first) + "px";
+  });
+}
+function pageCopy() {
+  const g = document.createElement("div");
+  g.className = "nav-ghost"; g.setAttribute("aria-hidden", "true"); g.inert = true;
+  const root = g.attachShadow({ mode: "closed" });
+  root.adoptedStyleSheets = [ghostSheet()];
   const c = app.cloneNode(true); // schneller als über innerHTML (kein Text dazwischen)
-  c.removeAttribute("id"); c.querySelectorAll("[id]").forEach(e => e.removeAttribute("id"));
-  c.style.cssText = `margin-top:${-window.scrollY}px;min-height:100lvh`;
+  try { trimCopy(c); } catch (e) { /* dann eben alles */ }
+  // V86: Die Namen (id) der Teile bleiben im Abbild: Es liegt in einem eigenen, abgeschlossenen Baum, dort stören sie niemanden.
+  // Ohne sie griffen Regeln wie „#grid > .tiles“ nicht, und die Liste sprang zu Beginn des Gleitens 8 Punkte nach unten.
+  c.removeAttribute("id");
+  c.style.cssText = `margin-top:${-getY()}px;min-height:100lvh`;
   root.appendChild(c);
   return g;
 }
@@ -2837,14 +2923,14 @@ function diceRoll() {
 /* Sammlung öffnen und wieder verlassen (wie eine eigene Seite) */
 function openSet(name, nohist) {
   if (state.view !== "list") return;
-  state.homeScroll = window.scrollY;
+  state.homeScroll = getY();
   // Eigener Schritt im Verlauf: Zurückwischen (und „‹ Rezepte“) führt zurück zu allen Rezepten, wie beim Rezept
   if (!nohist) try { history.pushState({ v: "list", set: name, d: histDepth() + 1 }, ""); } catch (e) { /* egal */ }
   // V78: gleitet von rechts herein wie ein Rezept
-  navAnim(nohist ? null : "push", () => { state.query = ""; state.filter = "set:" + name; renderList(); window.scrollTo(0, 0); });
+  navAnim(nohist ? null : "push", () => { state.query = ""; state.filter = "set:" + name; renderList(); setY(0); headLine(); });
 }
 function leaveSet(anim) {
-  navAnim(anim ? "pop" : null, () => { state.filter = "all"; state.query = ""; renderList(); window.scrollTo(0, state.homeScroll || 0); });
+  navAnim(anim ? "pop" : null, () => { state.filter = "all"; state.query = ""; renderList(); setY(state.homeScroll || 0); headLine(); });
 }
 window.addEventListener("popstate", e => {
   clearPress(); document.querySelectorAll(".pressed").forEach(x => x.classList.remove("pressed")); // nach dem Zurückwischen bleibt sonst eine Kachel „gedrückt“ stehen
@@ -2900,7 +2986,15 @@ async function keepAwake(on) {
   } catch (e) { /* nicht unterstützt oder abgelehnt */ }
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.view === "detail") keepAwake(true); });
+// Passt der Rollbereich zur Ansicht? Rezepte, Sammlungen, Rezept: eigener Bereich. Bearbeiten, Import, Anmelden: die Seite (Tastatur).
+function scMode() {
+  const root = document.documentElement, want = root.classList.contains("standalone") && (state.view === "list" || state.view === "detail");
+  if (want === root.classList.contains("insc")) return;
+  root.classList.toggle("insc", want);
+  if (want) window.scrollTo(0, 0); else SC.scrollTop = 0;
+}
 function render() {
+  scMode();
   app.classList.toggle("home", state.view === "list");
   if (state.view !== "list") app.classList.remove("tabs");
   if (state.view !== "list" && state.view !== "detail") app.classList.remove("pin-h", "pin-t");
@@ -2925,7 +3019,7 @@ function banner() {
 const curSet = () => state.filter.startsWith("set:") ? state.filter.slice(4) : null;
 function renderList() {
   lastBanner = bannerKey();
-  const y = window.scrollY;
+  const y = getY();
   const oldImgs = keepImgs(app); // zurück aus dem Rezept: Bilder nicht neu laden
   const set = curSet(), tab = set == null ? state.tab : null;
   app.dataset.set = set == null ? "" : "set:" + set; // welcher Kopf gerade steht (alle Rezepte oder eine Sammlung)
@@ -2958,27 +3052,27 @@ function renderList() {
   pinHead();
   renderListBody();
   reuseImgs(app, oldImgs); warmImgs(app);
-  if (y) window.scrollTo(0, y);
+  if (y) setY(y);
   headLine();
 }
 /* Leiste unten: vier Hauptseiten. Wechseln legt keinen Schritt im Verlauf an (wie in iOS). */
 // Einkaufsliste an/aus. Aus: kein Reiter, kein Knopf im Rezept, kein Eintrag im Zeilen-Menü, keine Verbindung zur Liste
 // im Konto (was dort gespeichert ist, bleibt unangetastet).
 const SHOP_ON = true;
-const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "gridv"], ...(SHOP_ON ? [["ein", "Einkaufsliste", "cart"]] : []), ["pro", "Profil", "user"]];
+const TABS = [["rez", "Rezepte", "home"], ["sam", "Sammlungen", "stack"], ...(SHOP_ON ? [["ein", "Einkaufsliste", "cart"]] : []), ["pro", "Profil", "user"]];
 function tabbarHtml() {
   return `<nav class="tabbar" aria-label="Bereiche">${TABS.map(([k, l, ic]) => `<button data-action="tab" data-t="${k}" class="${state.tab === k ? "on" : ""}"${state.tab === k ? ' aria-current="page"' : ""}>${icon(ic)}<span>${l}</span></button>`).join("")}</nav>`;
 }
 const tabScroll = {};
 function switchTab(t) {
   if (state.view !== "list" || curSet() != null || !TABS.some(x => x[0] === t)) return;
-  if (t === state.tab) { window.scrollTo({ top: 0, behavior: noMotion() ? "auto" : "smooth" }); return; } // nochmal tippen: nach oben
-  tabScroll[state.tab] = window.scrollY;
+  if (t === state.tab) { setY(0, !noMotion()); return; } // nochmal tippen: nach oben
+  tabScroll[state.tab] = getY();
   state.tab = t;
   if (!state.query) state.searchOpen = false;
   if (!state.samQuery) state.samSearchOpen = false;
   renderList();
-  window.scrollTo(0, tabScroll[t] || 0);
+  setY(tabScroll[t] || 0);
   headLine();
 }
 function profileHtml() {
@@ -3723,6 +3817,11 @@ function renderDetail() {
   });
 
   const hasCover = !!(r.cover && (r.cover.url || r.cover.dataUrl));
+  // V86: Reel oder Video: Play-Knopf mitten auf dem Titelbild statt des breiten Knopfs darunter (ohne Titelbild und bei Foto-Beiträgen bleibt der Knopf)
+  const vidHero = hasCover && (vid === "Reel ansehen" || vid === "Video ansehen");
+  // Titelbilder von Instagram tragen meist noch das eingebrannte Play-Zeichen: Dort ist der Knopf etwas größer und dunkler und deckt es ab.
+  // (cover.c = Titelbild ohne Zeichen geholt)
+  const playBig = vidHero && /instagram\.com/i.test(link) && !(r.cover && r.cover.c);
   const html = `
     <div class="topbar">
       <button class="back" data-action="back">${icon("back")}<span class="bl">Rezepte</span></button>
@@ -3732,11 +3831,11 @@ function renderDetail() {
       <button class="tbtn" data-action="edit">Bearbeiten</button>
     </div>
     <article class="detail">
-      ${hasCover ? `<div class="hero">${coverHtml(r)}</div>` : ""}
+      ${hasCover ? `<div class="hero">${coverHtml(r)}${vidHero ? `<a class="hero-play${playBig ? " big" : ""}" href="${esc(link)}" target="_blank" rel="noopener" aria-label="${vid}">${icon("play", "filled")}</a>` : ""}</div>` : ""}
       <div class="d-head"><h1 class="d-title">${esc(r.title || "Ohne Titel")}</h1>
         ${metaHtml ? `<p class="d-meta2">${metaHtml}</p>` : ""}
         ${starsHtml(r)}
-        ${vid ? `<a class="btn vidbtn" href="${esc(link)}" target="_blank" rel="noopener">${icon("play", "filled")}${vid}</a>` : ""}</div>
+        ${vid && !vidHero ? `<a class="btn vidbtn" href="${esc(link)}" target="_blank" rel="noopener">${icon("play", "filled")}${vid}</a>` : ""}</div>
       ${uns.length ? checkHtml(uns, r) : ""}
       ${info.length ? `<dl class="info">${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
       <section class="sec">
@@ -3776,6 +3875,8 @@ function fitQtyCol() {
   } catch (e) { /* bei der Schätzung bleiben */ }
 }
 
+const qtyFlash = () => app.querySelectorAll(".ings .ing-q").forEach(e => e.classList.add("flash"));
+
 function checkHtml(uns, r) {
   const sw = servWords(r.category);
   const label = u => u.in === "title" ? "Name" : u.in === "servings" ? sw.many : u.in === "time" ? "Zeit" : u.line ? `„${u.line}“` : u.in === "steps" ? "Zubereitung" : "Zutaten";
@@ -3799,20 +3900,90 @@ function cookSteps(r) {
   });
   return out;
 }
-// Welche Zutaten kommen in diesem Schritt vor? (Wortstamm im Text, „alle Zutaten“ = alle), Mengen wie gerade eingestellt
-function cookIngs(r, text) {
+// Welche Zutaten kommen in diesem Schritt vor? Mengen wie gerade eingestellt.
+// V86: Gesucht wird nach den Hauptwörtern der Zutat, und zwar als ganzes Wort: „Butter“, nicht „geschmolzene“; was nach
+// „zum …“ kommt („zum Servieren“), zählt nicht; „Zucker“ passt nicht auf „Puderzucker“. Zusammensetzungen zählen, wenn im
+// Schritt ein Hauptwort steht, das hinten oder vorn in der Zutat steckt (Cherrytomaten ↔ „Tomaten“, Knoblauchzehen ↔ „Knoblauch“),
+// oder wenn die Zutat vorn im Wort steht (Kartoffeln ↔ „Kartoffelwürfel“). Kommt eine Zutat sonst in keinem Schritt vor,
+// darf sie auch hinten im Wort stehen (Sahne ↔ „Schlagsahne“). „Alle Zutaten“ = alle.
+const stemW = w => w === "eier" || w === "eiern" || w === "eies" ? "ei" : w.length >= 5 ? w.replace(/(?:ern|en|er|es|e|n|s)$/, m => w.length - m.length >= 4 ? "" : m) : w;
+const ING_STOP = new Set([...STOP, "von", "vom", "aus", "auf", "pro", "ca", "bzw", "sowie", "je", "den", "dem", "des", "einen", "einem", "im", "in", "am", "an", "bei", "zur", "als", "bio", "tk", "el", "tl", "kg", "ml", "st", "stk", "gr"].map(norm));
+const ING_ADJ = new Set("frisch klein groß rot gelb grün reif weich kalt warm süß sauer braun weiß dunkel dunkl hell ganz halb mittelgroß trocken flüssig stückig passiert fein grob mager fettarm griechisch italienisch jung neu vegan optional lauwarm zimmerwarm natur tiefgekühlt".split(" ").map(norm));
+const ING_SHAPE = new Set("würfel scheibe stück streifen ring blatt blätter pulver sauce soße hälfte viertel spalte stift röllchen masse mischung".split(" ").map(w => stemW(norm(w))));
+const ING_ART = new Set("die den das der dem ein eine einen einem alle alles".split(" "));
+const adjLike = w => /^ge[a-zß]{3,}(?:t|te|ter|tes|ten|tem|en|ene|ener|enes|enen|enem)$/.test(w) || ING_ADJ.has(w) || ING_ADJ.has(w.replace(/(?:e|er|es|en|em)$/, ""));
+const WORD_RE = /[A-Za-zÀ-ÖØ-öø-ÿ]+/g, isCap = w => w[0] !== w[0].toLowerCase();
+// Hauptwörter einer Zutat (Wortstämme): „30 g geschmolzene Butter“ → butter; „Geschmolzene Schokolade zum Servieren“ → schokolade
+function ingKeys(name) {
+  let t = String(name || "").replace(/\([^)]*\)/g, " ");
+  const ci = t.search(/[,;]/);
+  if (ci >= 0) t = /[A-ZÄÖÜ]/.test(t.slice(ci)) ? t.replace(/[,;]/g, " ") : t.slice(0, ci); // „Butter, geschmolzen“ kürzen – „Tomaten, Gurken“ nicht
+  t = t.replace(/\s(?:zum|zur|für|fürs|nach|als|bei|in|im)\s.*$/, " ");
+  const toks = (t.match(WORD_RE) || []).map(w => ({ cap: isCap(w), n: norm(w) })).filter(x => x.n.length >= 2 && !ING_STOP.has(x.n));
+  let keys = toks.filter(x => x.cap);
+  if (keys.length > 1 && adjLike(keys[0].n)) keys = keys.slice(1); // am Zeilenanfang groß: „Geschmolzene Schokolade“
+  if (!keys.length) keys = toks.filter(x => !adjLike(x.n));
+  if (!keys.length) keys = toks;
+  return [...new Set(keys.map(x => stemW(x.n)))];
+}
+// Wörter eines Schritts: Wortstamm, und ob es ein Hauptwort ist (groß geschrieben; am Satzanfang nur, wenn kein Artikel folgt: „Hacke die Zwiebel“)
+function stepWords(text) {
+  const src = String(text || ""), out = []; let m, prev = 0, first = true;
+  WORD_RE.lastIndex = 0;
+  while ((m = WORD_RE.exec(src))) {
+    if (/[.!?:]/.test(src.slice(prev, m.index))) first = true;
+    out.push({ s: stemW(norm(m[0])), n: norm(m[0]), cap: isCap(m[0]), first });
+    first = false; prev = WORD_RE.lastIndex;
+  }
+  out.forEach((w, i) => { w.noun = w.cap && !(w.first && out[i + 1] && ING_ART.has(out[i + 1].n)); });
+  return out;
+}
+// Für jeden Schritt: welche Zutaten (Nummern in „ents“) kommen vor?
+function cookHits(ents, steps) {
+  const res = steps.map(() => new Set()), weak = steps.map(() => []), seen = new Set();
+  let anyAll = false;
+  steps.forEach((st, k) => {
+    if (/\balle[nrs]? (?:(?:anderen|restlichen|ubrigen|weiteren) )?zutaten\b/.test(norm(st.text))) { anyAll = true; ents.forEach((e, n) => res[k].add(n)); return; }
+    const done = new Set();
+    for (const w of stepWords(st.text)) {
+      const ts = w.s; if (done.has(ts + w.noun)) continue; done.add(ts + w.noun);
+      const ex = [], pa = [], wk = [];
+      ents.forEach((e, n) => {
+        let c = 0;
+        for (const ks of e.keys) {
+          if (ks === ts) { if (ks !== "hack" || w.noun) { c = 3; break; } continue; } // „Zwiebel hacken“ meint nicht das Hack
+          if (ks.length > ts.length) {
+            if (w.noun && ((ts.length >= 4 || ts === "ol") && ks.endsWith(ts) && !ING_SHAPE.has(ts) || ts.length >= 5 && ks.startsWith(ts))) c = Math.max(c, 2);
+          } else if (ks.length >= 4) {
+            if (ts.startsWith(ks)) c = Math.max(c, 2); else if (ts.endsWith(ks)) c = Math.max(c, 1);
+          }
+        }
+        if (c === 3) ex.push(n); else if (c === 2) pa.push(n); else if (c === 1) wk.push(n);
+      });
+      if (ex.length) ex.forEach(n => { res[k].add(n); seen.add(n); });
+      else if (pa.length) pa.forEach(n => { res[k].add(n); seen.add(n); });
+      else wk.forEach(n => weak[k].push(n));
+    }
+  });
+  if (!anyAll) weak.forEach((l, k) => l.forEach(n => { if (!seen.has(n)) res[k].add(n); }));
+  return res;
+}
+function cookIngs(r, steps, k) {
   const base = Number(r.servings) > 0 ? Number(r.servings) : null;
   const factor = base ? (state.servings || base) / base : state.factor;
   const items = ingItems((Array.isArray(r.ingredients) ? r.ingredients : []).filter(x => typeof x === "string"), factor);
-  const t = norm(text), all = /\balle[nrs]? (?:zutaten|anderen zutaten)\b/.test(t);
-  const hit = name => norm(name).replace(/\([^)]*\)/g, " ").split(/[^a-zß]+/).filter(w => w.length >= 4 && !STOP.has(w))
-    .some(w => t.includes(w.slice(0, Math.max(4, w.length - 2))));
+  const ents = [];
+  items.forEach((it, ii) => {
+    if (it.head) return;
+    if (it.spices) it.spices.forEach((l, si) => ents.push({ ii, si, keys: ingKeys(l) })); else ents.push({ ii, si: -1, keys: ingKeys(it.qty ? it.bare : it.full) });
+  });
+  const hit = cookHits(ents, steps)[k] || new Set(), has = (ii, si) => ents.some((e, n) => e.ii === ii && e.si === si && hit.has(n));
   const out = [];
-  for (const it of items) {
-    if (it.head) continue;
-    if (it.spices) { const sp = it.spices.filter(l => all || hit(l)); if (sp.length) out.push(`<li>${esc(sp.map(spiceName).join(", "))}</li>`); continue; }
-    if (all || hit(it.qty ? it.bare : it.full)) out.push(it.qty ? `<li><b>${esc(it.qty)}</b> ${esc(it.name)}</li>` : `<li>${esc(it.full)}</li>`);
-  }
+  items.forEach((it, ii) => {
+    if (it.head) return;
+    if (it.spices) { const sp = it.spices.filter((l, si) => has(ii, si)); if (sp.length) out.push(`<li>${esc(sp.map(spiceName).join(", "))}</li>`); return; }
+    if (has(ii, -1)) out.push(it.qty ? `<li><b>${esc(it.qty)}</b> ${esc(it.name)}</li>` : `<li>${esc(it.full)}</li>`);
+  });
   return out;
 }
 function openCook() {
@@ -3842,7 +4013,7 @@ function openCook() {
 function drawCook(dir) {
   const r = current(), body = $("#ck-body");
   if (!cook || !r || r.id !== cook.rid || !body) return;
-  const st = cook.steps[cook.k], last = cook.k === cook.steps.length - 1, ings = cookIngs(r, st.text);
+  const st = cook.steps[cook.k], last = cook.k === cook.steps.length - 1, ings = cookIngs(r, cook.steps, cook.k);
   $("#ck-t").textContent = `Schritt ${cook.k + 1} von ${cook.steps.length}`;
   $("#ck-prog").style.width = ((cook.k + 1) / cook.steps.length * 100) + "%";
   $("#ck-prev").disabled = cook.k === 0;
@@ -3852,7 +4023,17 @@ function drawCook(dir) {
       ${ings.length ? `<div class="cook-ings"><div class="cook-ih">Dafür brauchst du</div><ul>${ings.join("")}</ul></div>` : ""}</div>`;
   body.scrollTop = 0;
   const el = body.firstElementChild;
+  fitCook(body, el);
   if (dir && el.animate && !noMotion()) el.animate([{ transform: `translateX(${dir * 28}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 220, easing: "cubic-bezier(.2, .8, .2, 1)" });
+}
+// V86: Kurzer Schritt, große Schrift – so groß, wie alles (Text und Zutaten) ohne Rollen auf die Seite passt. Lange Schritte bleiben wie bisher.
+function fitCook(body, el) {
+  try {
+    const cs = getComputedStyle(body), room = body.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    el.style.removeProperty("--cs");
+    for (const px of [46, 42, 38, 34, 31]) { el.style.setProperty("--cs", px + "px"); if (el.offsetHeight <= room) return; }
+    el.style.removeProperty("--cs");
+  } catch (e) { /* bleibt bei der normalen Größe */ }
 }
 function cookGo(d) {
   if (!cook) return;
@@ -4067,7 +4248,8 @@ async function storeNutrition(r) {
     if (nutriSig(now) !== sig) { nutriTried.delete(r.id); return true; } // inzwischen geändert: verwerfen, wird neu geschätzt
     // Stehen im Rezept schon echte Werte (z. B. von der Webseite, nur ein Teil), bleiben die, ergänzt wird nur, was fehlt
     const keep = {}, old = now.nutrition && typeof now.nutrition === "object" ? now.nutrition : {};
-    for (const k of Object.keys(n)) { const v = Number(old[k]); if (old[k] != null && isFinite(v) && v >= 0) keep[k] = v; }
+    const oldC = cleanNutrition(old); // Lücken, die als 0 gespeichert sind, zählen nicht als vorhandene Werte
+    for (const k of Object.keys(n)) { const v = Number(old[k]); if (old[k] != null && isFinite(v) && v >= 0 && !(v === 0 && oldC && !(k in oldC))) keep[k] = v; }
     const merged = cleanNutrition(Object.assign({}, n, keep)) || n;
     await withRetry(() => col.doc(r.id).update({ nutrition: merged }));
     patchLocal(r.id, { nutrition: merged }); ok = true;
@@ -4208,7 +4390,8 @@ document.addEventListener("selectstart", e => { if (!editable(e.target)) e.preve
 document.addEventListener("contextmenu", e => { if (!editable(e.target)) e.preventDefault(); });
 // Zoomen mit zwei Fingern verhindern (Safari hält sich nicht immer an user-scalable=no)
 ["gesturestart", "gesturechange"].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
-document.addEventListener("touchmove", e => { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// V86: Kein Touch-Lauscher mehr, der jede Berührung abfängt – damit musste das iPhone bei jedem Wischen erst auf die App warten,
+// bevor es rollen durfte. Zoomen mit zwei Fingern sperrt das CSS (touch-action: pan-x pan-y).
 function autoNutrition(r) {
   if (!r || !col || nutriTried.has(r.id) || nutriQueue.includes(r.id)) return;
   if (!(r.ingredients || []).length || nutriComplete(cleanNutrition(r.nutrition))) return;
@@ -4403,7 +4586,7 @@ function startImport(mode) {
 // Ein neuer Auftrag steht oben bei den Rezepten: dorthin, damit man ihn sieht
 function showJobs() {
   if (state.view !== "list") { if (!histToList()) go("list", { nohist: true }); return; }
-  renderList(); window.scrollTo(0, 0);
+  renderList(); setY(0);
 }
 function renderImport() {
   const imp = state.imp;
@@ -4481,7 +4664,7 @@ ${imp.mode === "photo" ? `- "coverBox": Ist auf dem gewählten Bild außer dem G
 ` : ""}- "originalLanguage": Sprache des Originals auf Deutsch, z. B. "Deutsch", "Englisch", "Serbisch", "Ungarisch"
 - "tags": Liste der Merkmale, die sicher zutreffen, nur aus: ${TAGS.join(", ")} (${TAG_RULES}). Leere Liste, wenn keins passt.
 - "unsure": Liste der Stellen, bei denen du dir beim Lesen nicht sicher bist, z. B. schwer lesbare Handschrift, verwischte, verdeckte oder abgeschnittene Mengen, geratene Wörter. Je ein Objekt {"in": "title" | "ingredients" | "steps" | "servings" | "time", "n": Nummer des Eintrags in "ingredients" bzw. "steps" (ab 1, sonst weglassen), "note": kurz auf Deutsch, was unsicher ist, z. B. "250 oder 350 g?"}. Hast du die Personen, Stückzahl oder Portionen geschätzt, weil nichts dabeistand, trag das hier ein ({"in": "servings", "note": "geschätzt, stand nicht dabei"}). Geschätzte Zeiten trägst du hier nicht ein. Sonst nur echte Unsicherheiten beim Lesen, keine Umrechnungen und keine Schätzungen, die schon „ca.“ haben. Leere Liste, wenn alles gut lesbar ist.
-- "nutrition": nur wenn im Material Nährwerte stehen: pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm). Übernimm sie nur, wenn sie zur Zahl in "servings" passen; Angaben pro 100 g oder für andere Portionen rechnest du um. Stehen keine Nährwerte im Material, null (schätze sie nicht, das passiert danach).
+- "nutrition": nur wenn im Material Nährwerte stehen: pro Person bzw. Portion (bei Backen pro Stück, bei Getränken pro Glas) als Objekt {"kcal": Zahl, "fat": Zahl, "satFat": Zahl, "carbs": Zahl, "sugar": Zahl, "fiber": Zahl, "protein": Zahl, "salt": Zahl} (kcal = Brennwert; Fett, davon gesättigte Fettsäuren, Kohlenhydrate, davon Zucker, Ballaststoffe, Eiweiß und Salz in Gramm). Übernimm sie nur, wenn sie zur Zahl in "servings" passen; Angaben pro 100 g oder für andere Portionen rechnest du um. Einzelne Werte, die nicht im Material stehen (oft Zucker, gesättigte Fette, Ballaststoffe, Salz), lässt du im Objekt weg – schreibe dafür nicht 0. Stehen keine Nährwerte im Material, null (schätze sie nicht, das passiert danach).
 
 Regeln:
 - Lies auch Handschrift sorgfältig, selbst wenn sie unordentlich, schräg, verblasst oder durchgestrichen ist, und auch alte deutsche Schrift (Sütterlin, Kurrent). Nutze den Zusammenhang des Rezepts, um schwer lesbare Wörter und Mengen zu entziffern.
@@ -4610,6 +4793,9 @@ function cleanNutrition(n) {
   const v = (k, d = 0) => { const x = Number(n[k]); if (n[k] == null || !isFinite(x) || x < 0 || x >= 50000) return null; const f = 10 ** d; return Math.round(x * f) / f; };
   const out = { kcal: v("kcal"), fat: v("fat"), satFat: v("satFat"), carbs: v("carbs"), sugar: v("sugar"), fiber: v("fiber"), protein: v("protein"), salt: v("salt", 1) };
   Object.keys(out).forEach(k => { if (out[k] == null) delete out[k]; });
+  // V86: Zucker, gesättigte Fette und Salz alle genau 0 – das sind keine echten Werte, sondern Lücken (im Reel standen nur
+  // Kalorien, Eiweiß, Kohlenhydrate, Fett). Sie gelten als „fehlt“: nichts wird als „0 g“ gezeigt, die App ergänzt sie.
+  if (!out.sugar && !out.satFat && !out.salt) ["sugar", "satFat", "fiber", "salt"].forEach(k => { if (!out[k]) delete out[k]; });
   return out.kcal ? out : null;
 }
 function aiErrorText(e) {
@@ -4999,6 +5185,7 @@ const actions = {
     const v = Number(el.dataset.v) === Number(r.rating) ? 0 : Number(el.dataset.v);
     patchLocal(r.id, { rating: v });
     renderDetail();
+    if (v) app.querySelectorAll(".stars button.on .ic").forEach((ic, i) => { ic.style.animationDelay = i * 40 + "ms"; ic.classList.add("pop"); });
     try { await withRetry(() => col.doc(r.id).update({ rating: v })); }
     catch (e) { patchLocal(r.id, { rating: r.rating || 0 }); renderDetail(); toast(dbErrorText(e)); }
   },
@@ -5161,6 +5348,7 @@ const actions = {
     const v = !r.favorite;
     patchLocal(r.id, { favorite: v });
     renderDetail();
+    if (v) { const ic = app.querySelector(".topbar [data-action=fav] .ic"); if (ic) ic.classList.add("pop"); }
     try { await withRetry(() => col.doc(r.id).update({ favorite: v })); }
     catch (e) { patchLocal(r.id, { favorite: r.favorite }); renderDetail(); toast(dbErrorText(e)); }
   },
@@ -5206,10 +5394,12 @@ const actions = {
   serv: el => {
     const d = Number(el.dataset.d), r = current(), base = r && Number(r.servings) > 0 ? Number(r.servings) : 1;
     const cur = state.servings || 1, next = d > 0 ? Math.floor(cur) + 1 : Math.ceil(cur) - 1; // 1,5 → 2 bzw. 1
+    const was = state.servings;
     state.servings = Math.min(servMax(base), Math.max(1, next));
     renderDetail();
+    if (state.servings !== was) qtyFlash();
   },
-  factor: el => { state.factor = Number(el.dataset.f); renderDetail(); },
+  factor: el => { const was = state.factor; state.factor = Number(el.dataset.f); renderDetail(); if (state.factor !== was) qtyFlash(); },
   cook: () => openCook(),
   "cook-close": () => closeCook(),
   "cook-next": () => cookGo(1),
@@ -5283,6 +5473,12 @@ document.addEventListener("click", e => {
   if (TICK.has(a) && !el.disabled) tick();
   if (!col && quick && !VIEW_ONLY.has(a)) { whenReady().then(() => fn(el, e)); return; }
   fn(el, e);
+});
+// V86: Tipp ganz oben (Streifen bei der Uhr) oder auf den Seitentitel: zurück nach oben. Im eigenen Rollbereich macht iOS das nicht mehr selbst.
+document.addEventListener("click", e => {
+  if (!e.target.closest || !e.target.closest(".statusfill, .home-head .brand")) return;
+  if (layer.classList.contains("open") || layer2.classList.contains("open") || getY() < 2) return;
+  setY(0, !noMotion());
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && (layer.classList.contains("open") || layer2.classList.contains("open"))) {
