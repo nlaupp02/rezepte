@@ -1083,7 +1083,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "89";
+const APP_VERSION = "90";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2677,7 +2677,7 @@ function confirmDialog({ title, text, yes, danger }) {
 const ADD_OPTIONS = [
   { pick: "quick-pick", icon: "image", k: "Bild hochladen" },   // Fotos oder Screenshots (auch mehrere)
   { pick: "cam-pick", icon: "camera", k: "Foto aufnehmen" },
-  { mode: "link", icon: "link", k: "Link oder Text" },           // Instagram-Links erkennt die App selbst
+  { mode: "link", icon: "reel", k: "Link oder Text" },           // Instagram-Links erkennt die App selbst; V90: wieder das frühere Reel-Symbol
   { mode: "manual", icon: "pen", k: "Selbst eintippen" }
 ];
 // Die Foto-Kacheln sind <label> für die Dateiauswahl: iOS öffnet Fotos und Kamera nur direkt aus dem Antippen heraus
