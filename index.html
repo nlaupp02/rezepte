@@ -223,13 +223,18 @@ body.typing .tabbar { display: none; }
 .ang-loc span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .ang-loc b { color: var(--ink); font-weight: 600; }
 .ang-loc .tbtn { flex: none; }
-.ang-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.ang-tile { display: grid; place-items: center; aspect-ratio: 3 / 2; border-radius: 16px; padding: 8px; font-weight: 800; font-size: 25px; line-height: 1.05; letter-spacing: -.02em; text-align: center; text-decoration: none; -webkit-tap-highlight-color: transparent; transition: transform .2s ease, filter .2s ease; }
-.ang-tile:active { transform: scale(.97); filter: brightness(.92); transition-duration: .08s; }
-.ang-tile.all { background: var(--fill); color: var(--ink); font-size: 19px; font-weight: 600; letter-spacing: 0; }
+.ang-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ang-row { display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 10px 12px 10px 10px; border-radius: 16px; background: var(--fill); color: var(--ink); text-decoration: none; -webkit-tap-highlight-color: transparent; transition: transform .2s ease, filter .2s ease; }
+.ang-row:active { transform: scale(.98); filter: brightness(.95); transition-duration: .08s; }
+.ang-logo { position: relative; flex: none; width: 52px; height: 52px; border-radius: 13px; overflow: hidden; display: grid; place-items: center; }
+.ang-logo .ic { width: 26px; height: 26px; }
+.ang-logo img { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; padding: 6px; object-fit: contain; background: #fff; }
+.ang-b { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.ang-n { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.ang-w { font-size: 13.5px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
+.ang-row > .ic { flex: none; width: 18px; height: 18px; color: var(--muted); opacity: .7; }
 .ang-note { margin: 16px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; text-align: center; }
 .ang-src { margin: 6px 0 0; color: var(--muted); font-size: 11px; text-align: center; opacity: .8; }
-@media (max-width: 359px) { .ang-tile { font-size: 21px; } .ang-tile.all { font-size: 17px; } }
 .app.tabs { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .app.tabs .fab { bottom: calc(68px + env(safe-area-inset-bottom)); }
 .app.tabs .fab-fade { display: none; }
@@ -1110,7 +1115,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "91";
+const APP_VERSION = "92";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -3096,25 +3101,29 @@ function profileHtml() {
 // kaufDA schreibt Orte auf eigene Art („Vaihingen“ für Vaihingen an der Enz, „Stockstadt-a-Main“): Die App probiert die naheliegenden
 // Schreibweisen einmal über den eigenen Server durch (rund zehn Seitenaufrufe, danach 30 Tage Ruhe) und merkt sich nur Adressen,
 // die wirklich aufgehen. Alles, was sich nicht bestätigen lässt, führt zum allgemeinen Prospekt des Markts – der geht immer auf.
-const ANG_DOC = "_angebote", KD = "https://www.kaufda.de/", ANG_AGE = 30 * 864e5;
+const ANG_DOC = "_angebote", KD = "https://www.kaufda.de/", ANG_AGE = 30 * 864e5, ANG_KM = 20, ANG_V = 2;
+// k: Kürzel und Suchwort auf der Prospektseite · w: so steht der Markt in der Filial-Liste · d: Website des Markts (von dort kommt sein Symbol)
 const ANG_MARKETS = [
-  { k: "netto", n: "Netto", c: "d", kd: "Netto-Marken-Discount/p-r9", gs: "Netto-Marken-Discount", bg: "#FFE500", fg: "#D2001E" },
-  { k: "lidl", n: "Lidl", c: "d", kd: "Lidl/p-r74", gs: "Lidl", bg: "#0050AA", fg: "#FFF000" },
-  { k: "aldi", n: "Aldi Süd", c: "d", kd: "", gs: "Aldi-Sued", bg: "#1D2B69", fg: "#FFFFFF" },
-  { k: "rewe", n: "Rewe", c: "s", kd: "REWE/p-r101", gs: "REWE", bg: "#CC071E", fg: "#FFFFFF" },
-  { k: "edeka", n: "Edeka", c: "s", kd: "EDEKA/p-r107", gs: "Edeka", bg: "#FFDD00", fg: "#1B5FAA" },
-  { k: "kaufland", n: "Kaufland", c: "s", kd: "Kaufland/p-r2801", gs: "Kaufland", bg: "#E10915", fg: "#FFFFFF" },
-  { k: "penny", n: "Penny", c: "d", kd: "Penny-Markt/p-r75", gs: "Penny-Markt", bg: "#CD1414", fg: "#FFFFFF" }
+  { k: "netto", n: "Netto", w: "netto marken-discount", d: "netto-online.de", c: "d", kd: "Netto-Marken-Discount/p-r9", gs: "Netto-Marken-Discount", bg: "#FFE500", fg: "#D2001E" },
+  { k: "lidl", n: "Lidl", w: "lidl", d: "lidl.de", c: "d", kd: "Lidl/p-r74", gs: "Lidl", bg: "#0050AA", fg: "#FFF000" },
+  { k: "aldi", n: "Aldi Süd", w: "aldi", d: "aldi-sued.de", c: "d", kd: "", gs: "Aldi-Sued", bg: "#1D2B69", fg: "#FFFFFF" },
+  { k: "rewe", n: "Rewe", w: "rewe", d: "rewe.de", c: "s", kd: "REWE/p-r101", gs: "REWE", bg: "#CC071E", fg: "#FFFFFF" },
+  { k: "edeka", n: "Edeka", w: "edeka", d: "edeka.de", c: "s", kd: "EDEKA/p-r107", gs: "Edeka", bg: "#FFDD00", fg: "#1B5FAA" },
+  { k: "kaufland", n: "Kaufland", w: "kaufland", d: "kaufland.de", c: "s", kd: "Kaufland/p-r2801", gs: "Kaufland", bg: "#E10915", fg: "#FFFFFF" },
+  { k: "penny", n: "Penny", w: "penny", d: "penny.de", c: "d", kd: "Penny-Markt/p-r75", gs: "Penny-Markt", bg: "#CD1414", fg: "#FFFFFF" }
 ];
-// Hat ein Markt am Ort keine eigene Seite (die nächste Filiale liegt im Nachbarort), führt die Kachel zur Übersicht „Discounter“ bzw.
-// „Supermärkte“ für den Ort – dort steht sein Prospekt für die Umgebung. k ist auch das Suchwort („aldi“ passt auf Aldi Süd und Aldi Nord).
+// Die Übersichten „Discounter“ und „Supermärkte“ für den Ort nennen je Markt die nächste Filiale mit Adresse und Entfernung.
+// Daraus liest die App, welche Märkte es in der Umgebung gibt und in welchem Ort – dort liegt dann die Prospektseite des Markts.
 const ANG_CAT = { d: "Discounter/p-c5", s: "Supermarkt/p-c11" };
 const angKey = () => "rezepte-angebote:" + (uid || "");
 function angClean(o) { // nur das übernehmen, was die App selbst so schreiben würde (auch für den Stand aus dem Konto)
   if (!o || typeof o !== "object" || !/^\d{5}$/.test(String(o.plz || ""))) return {};
-  const links = {};
-  ANG_MARKETS.forEach(m => { const l = o.links && o.links[m.k]; if (typeof l === "string" && l.startsWith(KD) && l.length < 200) links[m.k] = l; });
-  return { plz: String(o.plz), ort: String(o.ort || "").slice(0, 80), slug: /^[A-Za-z0-9-]{1,80}$/.test(String(o.slug || "")) ? String(o.slug) : "", links, chk: Number(o.chk) || 0, t: Number(o.t) || 0 };
+  const links = {}, st = {};
+  ANG_MARKETS.forEach(m => {
+    const l = o.links && o.links[m.k]; if (typeof l === "string" && l.startsWith(KD) && l.length < 200) links[m.k] = l;
+    const f = o.st && o.st[m.k]; if (f && typeof f === "object") st[m.k] = { s: String(f.s || "").slice(0, 60), o: String(f.o || "").slice(0, 60), km: Number(f.km) || 0, nord: !!f.nord };
+  });
+  return { plz: String(o.plz), ort: String(o.ort || "").slice(0, 80), slug: /^[A-Za-z0-9-]{1,80}$/.test(String(o.slug || "")) ? String(o.slug) : "", links, st, chk: Number(o.chk) || 0, v: Number(o.v) || 0, t: Number(o.t) || 0 };
 }
 function angGet() { try { return angClean(JSON.parse(localStorage.getItem(angKey()) || "{}")); } catch (e) { return {}; } }
 function angSet(o) { try { localStorage.setItem(angKey(), JSON.stringify(angClean(o))); } catch (e) { /* egal */ } }
@@ -3156,7 +3165,7 @@ async function angSave() {
 }
 function angPlace(plz, ort) {
   const a = angGet(), same = a.plz === plz && a.ort === ort;
-  if (!same) { angSet({ plz, ort, slug: "", links: {}, chk: 0, t: Date.now() }); angTried = ""; angPush(); }
+  if (!same) { angSet({ plz, ort, slug: "", links: {}, st: {}, chk: 0, v: ANG_V, t: Date.now() }); angTried = ""; angPush(); }
   state.angEdit = false; state.angPick = null;
   if (angOn()) renderList();
   angCheck();
@@ -3182,45 +3191,68 @@ async function angFetch(url) { // gone: Die Seite gibt es sicher nicht. Sonst (k
   try { return { ok: true, res: await workerPost("/page", JSON.stringify({ url }), null, 15000) }; }
   catch (e) { return { ok: false, gone: !!(e && e.code === "upstream_error" && /antwortet mit 4(04|10)/.test(String(e.message || ""))) }; }
 }
+// Filial-Liste lesen: „Netto Marken-Discount Herrenwiesen 1 71665 Vaihingen an der Enz 4,45 km“ → je Markt die nächste Filiale
+function angStores(text) {
+  const out = {}, re = /(\d{5})\s+([^\d]{2,60}?)\s+(\d{1,3}(?:[.,]\d{1,2})?)\s*km\b/g;
+  let x;
+  while ((x = re.exec(text))) {
+    let before = text.slice(Math.max(0, x.index - 160), x.index);
+    const cutAt = before.lastIndexOf(" km"); if (cutAt >= 0) before = before.slice(cutAt + 3); // nicht in den Eintrag davor greifen
+    const low = before.toLowerCase(), km = parseFloat(x[3].replace(",", "."));
+    let best = null;
+    ANG_MARKETS.forEach(m => { const i = low.lastIndexOf(m.w); if (i >= 0 && (!best || i > best.i)) best = { m, i }; });
+    if (!best || !(km <= ANG_KM) || (out[best.m.k] && out[best.m.k].km <= km)) continue;
+    const rest = before.slice(best.i + best.m.w.length).replace(/\s+/g, " ").trim();
+    out[best.m.k] = { s: rest.replace(/^(?:(?:s[üu]d|nord|markt|city|center)\s+)+/i, "").slice(0, 60), o: x[2].replace(/\s+/g, " ").trim(), km, nord: best.m.k === "aldi" && /^nord\b/i.test(rest) };
+  }
+  return out;
+}
 let angBusy = false, angTried = "";
 async function angCheck() {
   const a = angGet();
   if (!a.plz || !a.ort || angBusy || !authUser) return;
   const key = a.plz + "|" + a.ort;
-  if (angTried === key || (a.chk && Date.now() - a.chk < ANG_AGE)) return; // in dieser Sitzung schon versucht bzw. geprüft und noch frisch
+  if (angTried === key || (a.chk && a.v === ANG_V && Date.now() - a.chk < ANG_AGE)) return; // in dieser Sitzung schon versucht bzw. geprüft und noch frisch
   angTried = key; angBusy = true; angRefresh();
   try {
-    let slug = "", sure = true; const links = {};
-    for (const c of angSlugs(a.ort)) {
-      const r = await angFetch(KD + c);
-      if (!r.ok && !r.gone) { sure = false; break; }
-      if (r.ok && angPlaceOk(r.res, a, c)) { slug = c; break; }
+    let slug = "", sure = true, placeText = ""; const links = {}, st = {};
+    const get = async u => { const r = await angFetch(u); if (!r.ok && !r.gone) sure = false; return r.ok ? r.res : null; }; // sure = false: kein Netz oder der Server kommt nicht durch
+    for (const c of angSlugs(a.ort)) { // 1. die Seite des Orts
+      const res = await get(KD + c); if (!sure) break;
+      if (res && angPlaceOk(res, a, c)) { slug = c; placeText = String(res.data || ""); break; }
     }
     if (slug && sure) {
-      const here = angFold(angBase(a.ort));
-      for (const m of ANG_MARKETS) { // 1. die eigene Seite des Markts für den Ort
-        if (!m.kd || !sure) continue;
-        const u = KD + slug + "/" + m.kd, r = await angFetch(u);
-        if (!r.ok && !r.gone) { sure = false; break; }
-        if (r.ok) { const t = angText(r.res); if (t.includes(m.k) && t.includes(here)) links[m.k] = u; }
+      const add = text => { const f = angStores(text); Object.keys(f).forEach(k => { if (!st[k] || f[k].km < st[k].km) st[k] = f[k]; }); };
+      add(placeText);
+      for (const c of Object.keys(ANG_CAT)) { // 2. welche Märkte gibt es in der Umgebung, und wo?
+        if (!sure) break;
+        const res = await get(KD + slug + "/" + ANG_CAT[c]); if (res) add(String(res.data || ""));
       }
-      for (const c of Object.keys(ANG_CAT)) { // 2. sonst die Übersicht für den Ort, wenn der Markt dort vorkommt
-        const need = ANG_MARKETS.filter(m => m.c === c && !links[m.k]);
-        if (!need.length || !sure) continue;
-        const u = KD + slug + "/" + ANG_CAT[c], r = await angFetch(u);
-        if (!r.ok && !r.gone) { sure = false; break; }
-        if (r.ok) { const t = angText(r.res); if (t.includes(here)) need.forEach(m => { if (t.includes(m.k)) links[m.k] = u; }); }
+      const towns = {}, any = Object.keys(st).length > 0; // towns: Ort → Schreibweise, die bei kaufDA aufgeht
+      towns[angFold(angBase(a.ort))] = slug;
+      for (const m of ANG_MARKETS) { // 3. die Prospektseite des Markts – im Ort seiner nächsten Filiale
+        if (!sure) break;
+        if (!m.kd || (any && !st[m.k])) continue;
+        const town = st[m.k] ? st[m.k].o : a.ort, tk = angFold(angBase(town));
+        for (const c of towns[tk] ? [towns[tk]] : angSlugs(town)) {
+          const u = KD + c + "/" + m.kd, res = await get(u); if (!sure) break;
+          if (res) { const t = angText(res); if (t.includes(m.k) && t.includes(tk)) { links[m.k] = u; towns[tk] = c; break; } }
+        }
       }
     }
     const b = angGet();
     if (b.plz !== a.plz || b.ort !== a.ort) return; // inzwischen ein anderer Ort
     if (!sure && !slug) return; // nichts herausgefunden: beim nächsten Start noch einmal
-    angSet(Object.assign({}, b, { slug, links: Object.assign({}, sure ? {} : b.links, links), chk: sure ? Date.now() : 0, t: Date.now() }));
+    angSet(Object.assign({}, b, { slug, links: Object.assign({}, sure ? {} : b.links, links), st: sure || Object.keys(st).length ? st : b.st, chk: sure ? Date.now() : 0, v: ANG_V, t: Date.now() }));
     angPush();
   } catch (e) { console.warn("Angebote prüfen", e); }
   finally { angBusy = false; angRefresh(); }
 }
-const angLink = (m, a) => (a.links && a.links[m.k]) || KD + "Geschaefte/" + m.gs;
+const angNord = a => !!(a.st && a.st.aldi && a.st.aldi.nord);
+// Geprüfte Prospektseite des Markts, sonst sein allgemeiner Prospekt – nie eine Übersicht mit allen Märkten
+const angLink = (m, a) => (a.links && a.links[m.k]) || KD + "Geschaefte/" + (m.k === "aldi" && angNord(a) ? "Aldi-Nord" : m.gs);
+// Das Symbol des Markts kommt von dessen eigener Website; lädt es nicht, bleibt das Preisschild in der Farbe des Markts stehen
+document.addEventListener("error", e => { const t = e.target; if (t && t.tagName === "IMG" && t.closest && t.closest(".ang-logo")) t.remove(); }, true);
 function offersHtml() {
   const a = angGet(), pick = state.angPick;
   if (pick) return `<div class="ang">
@@ -3234,14 +3266,23 @@ function offersHtml() {
       <button class="btn primary" type="submit">Speichern</button></form>
     ${a.plz ? `<button class="tbtn ang-back" data-action="ang-cancel">Abbrechen</button>` : ""}
   </div>`;
-  if (!angBusy && angTried !== a.plz + "|" + a.ort) setTimeout(angCheck, 0); // Reiter geöffnet: Adressen prüfen, falls noch offen oder älter als 30 Tage
-  const note = angBusy ? "Ich suche gerade die Prospekte für deinen Ort …"
+  if (!angBusy && angTried !== a.plz + "|" + a.ort) setTimeout(angCheck, 0); // Reiter geöffnet: Märkte prüfen, falls noch offen oder älter als 30 Tage
+  const known = !!(a.chk && a.slug && Object.keys(a.st || {}).length); // die Umgebung ist bekannt: nur Märkte zeigen, die es dort gibt
+  const list = ANG_MARKETS.filter(m => !known || a.st[m.k] || a.links[m.k]);
+  // Zeile 1: Straße · Zeile 2: Ort und Entfernung (die Entfernung bleibt beim Umbrechen zusammen)
+  const where = m => { const f = a.st && a.st[m.k]; if (!f) return ""; const km = f.km ? "\u00a0· " + f.km.toFixed(1).replace(".", ",") + "\u00a0km" : "";
+    return (f.s ? `<span class="ang-w">${esc(f.s)}</span>` : "") + `<span class="ang-w">${esc(f.o + km).replace(/· /, "·\u00a0")}</span>`; };
+  const note = angBusy ? "Ich suche gerade die Märkte in deiner Umgebung …"
     : a.chk && !a.slug ? "Für deinen Ort habe ich keine eigene Prospektseite gefunden. Es öffnet sich der allgemeine Prospekt – den Ort kannst du dort einstellen."
-    : "Ein Tipp öffnet den Prospekt dieser Woche zum Blättern.";
+    : known ? "Nur Märkte in deiner Umgebung. Ein Tipp öffnet den Prospekt des Markts."
+    : "Ein Tipp öffnet den Prospekt des Markts.";
   return `<div class="ang">
     <div class="ang-loc">${icon("pin")}<span>Prospekte für <b>${esc(a.plz)}${a.ort ? " " + esc(a.ort) : ""}</b></span><button class="tbtn" data-action="ang-edit">Ändern</button></div>
-    <ul class="ang-grid">${ANG_MARKETS.map(m => `<li><a class="ang-tile" data-k="${m.k}" href="${esc(angLink(m, a))}" target="_blank" rel="noopener" style="background:${m.bg};color:${m.fg}">${esc(m.n)}</a></li>`).join("")}
-      <li><a class="ang-tile all" href="${esc(KD + (a.slug || ""))}" target="_blank" rel="noopener">${a.slug ? "Alle am Ort" : "Alle Prospekte"}</a></li></ul>
+    <ul class="ang-list">${list.map(m => `<li><a class="ang-row" data-k="${m.k}" href="${esc(angLink(m, a))}" target="_blank" rel="noopener">
+        <span class="ang-logo" style="background:${m.bg};color:${m.fg}">${icon("price")}<img src="https://www.google.com/s2/favicons?domain=${m.d}&amp;sz=128" alt="" loading="lazy"></span>
+        <span class="ang-b"><span class="ang-n">${esc(m.k === "aldi" && angNord(a) ? "Aldi Nord" : m.n)}</span>${where(m)}</span>${icon("chev")}</a></li>`).join("")}
+      <li><a class="ang-row all" href="${esc(KD + (a.slug || ""))}" target="_blank" rel="noopener"><span class="ang-logo" style="background:#fff;color:var(--accent)">${icon("pin")}</span>
+        <span class="ang-b"><span class="ang-n">${a.slug ? "Alle Prospekte am Ort" : "Alle Prospekte"}</span></span>${icon("chev")}</a></li></ul>
     <p class="ang-note">${note}</p>
     <p class="ang-src">Prospekte: kaufDA · Ortsdaten © OpenStreetMap-Mitwirkende</p>
   </div>`;
