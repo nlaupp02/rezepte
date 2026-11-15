@@ -636,7 +636,7 @@ button.row.pressed::after { content: ""; position: absolute; inset: 0 -16px; bac
 .login.boot > * { visibility: hidden; } /* Symbol, Name und Kreis erscheinen zusammen in einem Bild, sobald das Symbol fertig ist */
 .login.boot.fx > * { visibility: visible; }
 .login.boot .spinner { justify-self: center; width: 28px; height: 28px; border-width: 3px; border-color: var(--line); border-top-color: var(--accent); margin-top: 12px; }
-#boot { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow: hidden; transition: opacity .3s; }
+#boot { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow: hidden; transition: opacity .2s; }
 #boot.off { opacity: 0; pointer-events: none; }
 .gbtn { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); gap: 10px; }
 .or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 15px; }
@@ -1114,7 +1114,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "94";
+const APP_VERSION = "95";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1669,13 +1669,13 @@ function bootShow() {
   if (img.decode) img.decode().then(ok, ok); else ok();
   setTimeout(ok, 300);
 }
-// Schnellstart: Die Liste liegt schon darunter. 0,9 s nach dem Erscheinen sanft ausblenden.
+// Schnellstart: Die Liste liegt schon darunter. 0,3 s nach dem Erscheinen sanft ausblenden (V95: vorher 0,9 s – die Liste ist längst fertig).
 function bootFade() {
   const d = bootEl; if (!d || bootTimer) return;
   bootTimer = setTimeout(async () => {
     await coversReady(600); // erst wenn die Fotos im ersten Bildschirm fertig sind: dann steht alles auf einmal da
-    d.classList.add("off"); setTimeout(() => { d.remove(); if (bootEl === d) bootEl = null; }, 350);
-  }, Math.max(0, 900 - (Date.now() - bootT0)));
+    d.classList.add("off"); setTimeout(() => { d.remove(); if (bootEl === d) bootEl = null; }, 240);
+  }, Math.max(0, 300 - (Date.now() - bootT0)));
 }
 // Kein Schnellstart (abgemeldet oder erster Start): Darunter steht dasselbe Bild in der Seite, also ohne Übergang wegnehmen.
 // Kommt danach die Liste: noch warten, bis ihre Fotos im ersten Bildschirm fertig sind (höchstens 0,4 s), sonst ploppen sie einzeln auf.
@@ -1814,6 +1814,29 @@ function reuseImgs(el, pool) {
   });
 }
 function setHTMLKeepImgs(el, html) { const old = keepImgs(el); el.innerHTML = html; reuseImgs(el, old); warmImgs(el); }
+// V95: Die fertig aufgebaute Liste bleibt liegen, wenn man in einen anderen Reiter oder in ein Rezept wechselt. Kommt man zurück und
+// hat sich nichts geändert, wird sie wieder eingehängt statt neu aufgebaut (bei vielen Rezepten war das der langsamste Schritt).
+// „Nichts geändert“ heißt: Der neue Aufbau ergäbe denselben Text (Fotos ausgenommen, die werden nach und nach umgewandelt)
+// und die Daten der Rezepte samt Fotos sind dieselben (listSig).
+let gridStash = [];
+const gridKey = html => html.replace(/<img [^>]*>/g, "<img>") + "\u0001" + lastListSig;
+function stashGrid() {
+  const g = document.getElementById("grid");
+  if (!g || g.__key == null || !g.isConnected) return;
+  gridStash = gridStash.filter(x => x.key !== g.__key && x.node !== g);
+  gridStash.push({ key: g.__key, node: g });
+  if (gridStash.length > 3) gridStash.shift();
+}
+function setGrid(grid, html) {
+  const key = gridKey(html), i = gridStash.findIndex(x => x.key === key && x.node !== grid);
+  if (i >= 0) {
+    const old = gridStash.splice(i, 1)[0].node;
+    old.querySelectorAll(".pressed").forEach(e => e.classList.remove("pressed")); // der Tipp, mit dem man weggegangen ist
+    grid.replaceChildren(...old.childNodes);
+    warmImgs(grid);
+  } else setHTMLKeepImgs(grid, html);
+  grid.__key = key;
+}
 // Fotos vom Gerät (fast alle) stehen sofort da: kein Einblenden, kein spätes Laden beim Scrollen.
 // Kurz bevor eine Kachel ins Bild rollt, ist ihr Foto schon fertig gemacht (gut anderthalb Bildschirme voraus).
 // Nur Fotos aus dem Internet blenden beim ersten Laden weich ein.
@@ -2998,6 +3021,7 @@ function scMode() {
   if (want) window.scrollTo(0, 0); else SC.scrollTop = 0;
 }
 function render() {
+  stashGrid(); // V95: die fertige Liste aufheben, bevor die Seite neu gezeichnet wird
   scMode();
   app.classList.toggle("home", state.view === "list");
   if (state.view !== "list") app.classList.remove("tabs");
@@ -3022,6 +3046,7 @@ function banner() {
 }
 const curSet = () => state.filter.startsWith("set:") ? state.filter.slice(4) : null;
 function renderList() {
+  stashGrid();
   lastBanner = bannerKey();
   const y = getY();
   const oldImgs = keepImgs(app); // zurück aus dem Rezept: Bilder nicht neu laden
@@ -3720,6 +3745,7 @@ function renderListBody() {
 function renderListBody0() {
   const chips = $("#chips"), grid = $("#grid"), sw = $("#search-wrap"), fab = $("#fab"), albums = $("#albums");
   if (!grid) return; // Profil: nichts zu füllen
+  grid.__key = null; // nur der fertige Aufbau ganz unten (setGrid) darf später wieder eingehängt werden
   const sam = curSet() == null && state.tab === "sam";
   const hh = $(".home-head"); // Hauptseite: die Suche ersetzt die Kopfzeile; in einer Sammlung wird das Feld selbst ein- und ausgeblendet
   const showSearch = on => { if (hh) { hh.classList.toggle("searching", !!on); sw.hidden = false; } else sw.hidden = !on; };
@@ -3807,7 +3833,7 @@ function renderListBody0() {
     </section>`);
     return;
   }
-  setHTMLKeepImgs(grid, ((jobsHtml || list.length)
+  setGrid(grid, ((jobsHtml || list.length)
     ? head + (tiles ? (jobsHtml ? `<ul class="list">${jobsHtml}</ul>` : "") + `<ul class="tiles">${rows}</ul>` : `<ul class="list">${jobsHtml}${rows}</ul>`)
     : `<p class="none">Nichts gefunden${state.query ? ` für „${esc(state.query)}“` : ""}.</p>`));
 }
