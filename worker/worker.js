@@ -7,7 +7,7 @@
 // POST /page  -> lädt eine Rezept-Webseite und gibt den Rezepttext zurück (bei Instagram: Beschreibung + Vorschaubild)
 // POST /img   -> lädt ein Bild (z. B. Vorschaubild), damit die App es dauerhaft speichern kann
 
-const WORKER_V = 2; // 2: Instagram – Originalbild ohne Play-Knopf wird auch in den Seitendaten gesucht (meta.clean)
+const WORKER_V = 3; // 3: /page nennt auch die Bildadressen der Seite (imgs) – daraus liest die App die Kennung des aktuellen Prospekts · 2: Instagram-Originalbild (meta.clean)
 const PROJECT_ID = "rezepte-d507e";
 const ALLOWED_ORIGINS = ["https://nlaupp02.github.io"];
 const MODELS = ["claude-sonnet-5-5", "claude-haiku-5-5"]; // Sonnet liest Rezepte, Haiku schätzt Nährwerte und Merkmale
@@ -357,11 +357,22 @@ async function page(request, cors, ctx) {
     try { collectRecipes(JSON.parse(mm[1].trim()), recipes); } catch (e) { /* kaputtes JSON überspringen */ }
   }
   if (recipes.length) {
-    return json({ kind: "recipe", url: target.toString(), meta, data: JSON.stringify(recipes[0]).slice(0, 60000) }, 200, cors);
+    return json({ kind: "recipe", url: target.toString(), meta, imgs: pageImages(html), data: JSON.stringify(recipes[0]).slice(0, 60000) }, 200, cors);
   }
   // 2. Sonst der lesbare Text der Seite
   const text = htmlToText(html).slice(0, 40000);
-  return json({ kind: "text", url: target.toString(), meta, data: text }, 200, cors);
+  return json({ kind: "text", url: target.toString(), meta, imgs: pageImages(html), data: text }, 200, cors);
+}
+// Bildadressen, die auf der Seite vorkommen (in der Reihenfolge der Seite, höchstens 80). Die Bilder selbst werden nicht geladen.
+function pageImages(html) {
+  const out = [], seen = new Set();
+  const re = /https?:\/\/[^\s"'<>\\)]+?\.(?:jpe?g|png|webp)(?:\?[^\s"'<>\\)]*)?/gi;
+  let m;
+  while ((m = re.exec(html)) && out.length < 80) {
+    const u = decodeEntities(m[0]).slice(0, 400);
+    if (!seen.has(u)) { seen.add(u); out.push(u); }
+  }
+  return out;
 }
 
 function collectRecipes(node, out) {

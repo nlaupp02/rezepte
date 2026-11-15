@@ -1115,7 +1115,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "92";
+const APP_VERSION = "93";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -3102,15 +3102,18 @@ function profileHtml() {
 // Schreibweisen einmal über den eigenen Server durch (rund zehn Seitenaufrufe, danach 30 Tage Ruhe) und merkt sich nur Adressen,
 // die wirklich aufgehen. Alles, was sich nicht bestätigen lässt, führt zum allgemeinen Prospekt des Markts – der geht immer auf.
 const ANG_DOC = "_angebote", KD = "https://www.kaufda.de/", ANG_AGE = 30 * 864e5, ANG_KM = 20, ANG_V = 2;
-// k: Kürzel und Suchwort auf der Prospektseite · w: so steht der Markt in der Filial-Liste · d: Website des Markts (von dort kommt sein Symbol)
+// V93: Der Tipp springt direkt in den Prospekt. Dessen Kennung wechselt mit jedem neuen Prospekt (meist wöchentlich); die App liest sie
+// beim Öffnen des Reiters neu von der Seite des Markts, höchstens alle 3 Stunden, und benutzt sie höchstens 36 Stunden lang.
+const ANG_LEAF_EVERY = 3 * 36e5, ANG_LEAF_MAX = 36 * 36e5;
+// k: Kürzel und Suchwort auf der Prospektseite · rn: Name bei kaufDA · w: so steht der Markt in der Filial-Liste · d: Website des Markts (von dort kommt sein Symbol)
 const ANG_MARKETS = [
-  { k: "netto", n: "Netto", w: "netto marken-discount", d: "netto-online.de", c: "d", kd: "Netto-Marken-Discount/p-r9", gs: "Netto-Marken-Discount", bg: "#FFE500", fg: "#D2001E" },
-  { k: "lidl", n: "Lidl", w: "lidl", d: "lidl.de", c: "d", kd: "Lidl/p-r74", gs: "Lidl", bg: "#0050AA", fg: "#FFF000" },
-  { k: "aldi", n: "Aldi Süd", w: "aldi", d: "aldi-sued.de", c: "d", kd: "", gs: "Aldi-Sued", bg: "#1D2B69", fg: "#FFFFFF" },
-  { k: "rewe", n: "Rewe", w: "rewe", d: "rewe.de", c: "s", kd: "REWE/p-r101", gs: "REWE", bg: "#CC071E", fg: "#FFFFFF" },
-  { k: "edeka", n: "Edeka", w: "edeka", d: "edeka.de", c: "s", kd: "EDEKA/p-r107", gs: "Edeka", bg: "#FFDD00", fg: "#1B5FAA" },
-  { k: "kaufland", n: "Kaufland", w: "kaufland", d: "kaufland.de", c: "s", kd: "Kaufland/p-r2801", gs: "Kaufland", bg: "#E10915", fg: "#FFFFFF" },
-  { k: "penny", n: "Penny", w: "penny", d: "penny.de", c: "d", kd: "Penny-Markt/p-r75", gs: "Penny-Markt", bg: "#CD1414", fg: "#FFFFFF" }
+  { k: "netto", rn: "Netto Marken-Discount", n: "Netto", w: "netto marken-discount", d: "netto-online.de", c: "d", kd: "Netto-Marken-Discount/p-r9", gs: "Netto-Marken-Discount", bg: "#FFE500", fg: "#D2001E" },
+  { k: "lidl", rn: "Lidl", n: "Lidl", w: "lidl", d: "lidl.de", c: "d", kd: "Lidl/p-r74", gs: "Lidl", bg: "#0050AA", fg: "#FFF000" },
+  { k: "aldi", rn: "ALDI SÜD", n: "Aldi Süd", w: "aldi", d: "aldi-sued.de", c: "d", kd: "ALDI-SUeD/p-r90", gs: "Aldi-Sued", bg: "#1D2B69", fg: "#FFFFFF" },
+  { k: "rewe", rn: "REWE", n: "Rewe", w: "rewe", d: "rewe.de", c: "s", kd: "REWE/p-r101", gs: "REWE", bg: "#CC071E", fg: "#FFFFFF" },
+  { k: "edeka", rn: "EDEKA", n: "Edeka", w: "edeka", d: "edeka.de", c: "s", kd: "EDEKA/p-r107", gs: "Edeka", bg: "#FFDD00", fg: "#1B5FAA" },
+  { k: "kaufland", rn: "Kaufland", n: "Kaufland", w: "kaufland", d: "kaufland.de", c: "s", kd: "Kaufland/p-r2801", gs: "Kaufland", bg: "#E10915", fg: "#FFFFFF" },
+  { k: "penny", rn: "Penny", n: "Penny", w: "penny", d: "penny.de", c: "d", kd: "Penny-Markt/p-r75", gs: "Penny-Markt", bg: "#CD1414", fg: "#FFFFFF" }
 ];
 // Die Übersichten „Discounter“ und „Supermärkte“ für den Ort nennen je Markt die nächste Filiale mit Adresse und Entfernung.
 // Daraus liest die App, welche Märkte es in der Umgebung gibt und in welchem Ort – dort liegt dann die Prospektseite des Markts.
@@ -3118,12 +3121,13 @@ const ANG_CAT = { d: "Discounter/p-c5", s: "Supermarkt/p-c11" };
 const angKey = () => "rezepte-angebote:" + (uid || "");
 function angClean(o) { // nur das übernehmen, was die App selbst so schreiben würde (auch für den Stand aus dem Konto)
   if (!o || typeof o !== "object" || !/^\d{5}$/.test(String(o.plz || ""))) return {};
-  const links = {}, st = {};
+  const links = {}, st = {}, lf = {};
   ANG_MARKETS.forEach(m => {
     const l = o.links && o.links[m.k]; if (typeof l === "string" && l.startsWith(KD) && l.length < 200) links[m.k] = l;
-    const f = o.st && o.st[m.k]; if (f && typeof f === "object") st[m.k] = { s: String(f.s || "").slice(0, 60), o: String(f.o || "").slice(0, 60), km: Number(f.km) || 0, nord: !!f.nord };
+    const f = o.st && o.st[m.k]; if (f && typeof f === "object") st[m.k] = { s: String(f.s || "").slice(0, 60), o: String(f.o || "").slice(0, 60), p: /^\d{5}$/.test(String(f.p || "")) ? String(f.p) : "", km: Number(f.km) || 0, nord: !!f.nord };
+    const x = o.lf && o.lf[m.k]; if (x && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(String(x.id || ""))) lf[m.k] = { id: String(x.id), t: Number(x.t) || 0 };
   });
-  return { plz: String(o.plz), ort: String(o.ort || "").slice(0, 80), slug: /^[A-Za-z0-9-]{1,80}$/.test(String(o.slug || "")) ? String(o.slug) : "", links, st, chk: Number(o.chk) || 0, v: Number(o.v) || 0, t: Number(o.t) || 0 };
+  return { plz: String(o.plz), ort: String(o.ort || "").slice(0, 80), slug: /^[A-Za-z0-9-]{1,80}$/.test(String(o.slug || "")) ? String(o.slug) : "", links, st, lf, lt: Number(o.lt) || 0, chk: Number(o.chk) || 0, v: Number(o.v) || 0, t: Number(o.t) || 0 };
 }
 function angGet() { try { return angClean(JSON.parse(localStorage.getItem(angKey()) || "{}")); } catch (e) { return {}; } }
 function angSet(o) { try { localStorage.setItem(angKey(), JSON.stringify(angClean(o))); } catch (e) { /* egal */ } }
@@ -3165,7 +3169,7 @@ async function angSave() {
 }
 function angPlace(plz, ort) {
   const a = angGet(), same = a.plz === plz && a.ort === ort;
-  if (!same) { angSet({ plz, ort, slug: "", links: {}, st: {}, chk: 0, v: ANG_V, t: Date.now() }); angTried = ""; angPush(); }
+  if (!same) { angSet({ plz, ort, slug: "", links: {}, st: {}, lf: {}, lt: 0, chk: 0, v: ANG_V, t: Date.now() }); angTried = ""; angPush(); }
   state.angEdit = false; state.angPick = null;
   if (angOn()) renderList();
   angCheck();
@@ -3203,7 +3207,7 @@ function angStores(text) {
     ANG_MARKETS.forEach(m => { const i = low.lastIndexOf(m.w); if (i >= 0 && (!best || i > best.i)) best = { m, i }; });
     if (!best || !(km <= ANG_KM) || (out[best.m.k] && out[best.m.k].km <= km)) continue;
     const rest = before.slice(best.i + best.m.w.length).replace(/\s+/g, " ").trim();
-    out[best.m.k] = { s: rest.replace(/^(?:(?:s[üu]d|nord|markt|city|center)\s+)+/i, "").slice(0, 60), o: x[2].replace(/\s+/g, " ").trim(), km, nord: best.m.k === "aldi" && /^nord\b/i.test(rest) };
+    out[best.m.k] = { s: rest.replace(/^(?:(?:s[üu]d|nord|markt|city|center)\s+)+/i, "").slice(0, 60), o: x[2].replace(/\s+/g, " ").trim(), p: x[1], km, nord: best.m.k === "aldi" && /^nord\b/i.test(rest) };
   }
   return out;
 }
@@ -3215,7 +3219,7 @@ async function angCheck() {
   if (angTried === key || (a.chk && a.v === ANG_V && Date.now() - a.chk < ANG_AGE)) return; // in dieser Sitzung schon versucht bzw. geprüft und noch frisch
   angTried = key; angBusy = true; angRefresh();
   try {
-    let slug = "", sure = true, placeText = ""; const links = {}, st = {};
+    let slug = "", sure = true, placeText = "", imgs = false; const links = {}, st = {}, lf = {};
     const get = async u => { const r = await angFetch(u); if (!r.ok && !r.gone) sure = false; return r.ok ? r.res : null; }; // sure = false: kein Netz oder der Server kommt nicht durch
     for (const c of angSlugs(a.ort)) { // 1. die Seite des Orts
       const res = await get(KD + c); if (!sure) break;
@@ -3232,25 +3236,56 @@ async function angCheck() {
       towns[angFold(angBase(a.ort))] = slug;
       for (const m of ANG_MARKETS) { // 3. die Prospektseite des Markts – im Ort seiner nächsten Filiale
         if (!sure) break;
-        if (!m.kd || (any && !st[m.k])) continue;
+        if (!m.kd || (any && !st[m.k]) || (m.k === "aldi" && st.aldi && st.aldi.nord)) continue;
         const town = st[m.k] ? st[m.k].o : a.ort, tk = angFold(angBase(town));
         for (const c of towns[tk] ? [towns[tk]] : angSlugs(town)) {
           const u = KD + c + "/" + m.kd, res = await get(u); if (!sure) break;
-          if (res) { const t = angText(res); if (t.includes(m.k) && t.includes(tk)) { links[m.k] = u; towns[tk] = c; break; } }
+          if (res) { const t = angText(res); if (t.includes(m.k) && t.includes(tk)) { links[m.k] = u; towns[tk] = c; if (Array.isArray(res.imgs)) imgs = true; const id = angLeafId(res); if (id) lf[m.k] = { id, t: Date.now() }; break; } }
         }
       }
     }
     const b = angGet();
     if (b.plz !== a.plz || b.ort !== a.ort) return; // inzwischen ein anderer Ort
     if (!sure && !slug) return; // nichts herausgefunden: beim nächsten Start noch einmal
-    angSet(Object.assign({}, b, { slug, links: Object.assign({}, sure ? {} : b.links, links), st: sure || Object.keys(st).length ? st : b.st, chk: sure ? Date.now() : 0, v: ANG_V, t: Date.now() }));
+    angSet(Object.assign({}, b, { slug, links: Object.assign({}, sure ? {} : b.links, links), st: sure || Object.keys(st).length ? st : b.st, lf, lt: imgs ? Date.now() : 0, chk: sure ? Date.now() : 0, v: ANG_V, t: Date.now() }));
     angPush();
   } catch (e) { console.warn("Angebote prüfen", e); }
   finally { angBusy = false; angRefresh(); }
 }
 const angNord = a => !!(a.st && a.st.aldi && a.st.aldi.nord);
-// Geprüfte Prospektseite des Markts, sonst sein allgemeiner Prospekt – nie eine Übersicht mit allen Märkten
-const angLink = (m, a) => (a.links && a.links[m.k]) || KD + "Geschaefte/" + (m.k === "aldi" && angNord(a) ? "Aldi-Nord" : m.gs);
+// Die Kennung des aktuellen Prospekts steckt in der Adresse seines Vorschaubilds oben auf der Seite des Markts
+function angLeafId(res) {
+  const u = (res && Array.isArray(res.imgs) ? res.imgs : []).find(x => /content-media\.bonial\.biz\/[0-9a-f-]{36}\/preview\.jpg\?\S*BOX-VIEWER/i.test(String(x)));
+  return u ? String(u).match(/bonial\.biz\/([0-9a-f-]{36})\//i)[1].toLowerCase() : "";
+}
+// Beim Öffnen des Reiters: die Kennungen auffrischen (neuer Prospekt?). Ein älterer Server nennt keine Bildadressen – dann bleibt es bei der Seite des Markts.
+let angLeafBusy = false, angLeafAt = 0, angLeafOff = false;
+async function angLeaf() {
+  const a = angGet(), ks = ANG_MARKETS.filter(m => a.links && a.links[m.k]);
+  if (angBusy || angLeafBusy || angLeafOff || !authUser || !a.slug || !ks.length) return;
+  if (Date.now() - (a.lt || 0) < ANG_LEAF_EVERY || Date.now() - angLeafAt < 6e5) return;
+  angLeafBusy = true; angLeafAt = Date.now();
+  try {
+    const lf = {}; let all = true;
+    for (const m of ks) {
+      const r = await angFetch(a.links[m.k]);
+      if (!r.ok) { if (!r.gone) { all = false; break; } continue; }
+      if (!Array.isArray(r.res.imgs)) { angLeafOff = true; return; } // Server noch ohne Bildadressen
+      const id = angLeafId(r.res); if (id) lf[m.k] = { id, t: Date.now() };
+    }
+    const b = angGet();
+    if (b.plz !== a.plz || b.ort !== a.ort || b.slug !== a.slug) return;
+    angSet(Object.assign({}, b, { lf: Object.assign({}, all ? {} : b.lf, lf), lt: all ? Date.now() : b.lt, t: Date.now() }));
+    angPush();
+  } catch (e) { console.warn("Angebote: Prospekt", e); }
+  finally { angLeafBusy = false; angRefresh(); }
+}
+// Direkt in den aktuellen Prospekt des Markts; sonst seine geprüfte Seite, sonst sein allgemeiner Prospekt – nie eine Übersicht mit allen Märkten
+function angLink(m, a) {
+  const l = a.links && a.links[m.k], x = l && a.lf && a.lf[m.k], f = (a.st && a.st[m.k]) || {};
+  if (x && Date.now() - x.t < ANG_LEAF_MAX) return KD + "contentViewer/static/" + x.id + "?retailerName=" + encodeURIComponent(m.rn) + "&zip=" + (f.p || a.plz) + "&locality=" + encodeURIComponent(f.o || a.ort) + "&page=1";
+  return l || KD + "Geschaefte/" + (m.k === "aldi" && angNord(a) ? "Aldi-Nord" : m.gs);
+}
 // Das Symbol des Markts kommt von dessen eigener Website; lädt es nicht, bleibt das Preisschild in der Farbe des Markts stehen
 document.addEventListener("error", e => { const t = e.target; if (t && t.tagName === "IMG" && t.closest && t.closest(".ang-logo")) t.remove(); }, true);
 function offersHtml() {
@@ -3267,6 +3302,7 @@ function offersHtml() {
     ${a.plz ? `<button class="tbtn ang-back" data-action="ang-cancel">Abbrechen</button>` : ""}
   </div>`;
   if (!angBusy && angTried !== a.plz + "|" + a.ort) setTimeout(angCheck, 0); // Reiter geöffnet: Märkte prüfen, falls noch offen oder älter als 30 Tage
+  else if (!angBusy) setTimeout(angLeaf, 0); // sonst nur nachsehen, ob es einen neuen Prospekt gibt
   const known = !!(a.chk && a.slug && Object.keys(a.st || {}).length); // die Umgebung ist bekannt: nur Märkte zeigen, die es dort gibt
   const list = ANG_MARKETS.filter(m => !known || a.st[m.k] || a.links[m.k]);
   // Zeile 1: Straße · Zeile 2: Ort und Entfernung (die Entfernung bleibt beim Umbrechen zusammen)
