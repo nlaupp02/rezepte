@@ -1114,7 +1114,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "100";
+const APP_VERSION = "101";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1805,11 +1805,14 @@ function keepImgs(el) {
   while (imgPool.size > 400) imgPool.delete(imgPool.keys().next().value);
   return imgPool;
 }
+// V101: Ein Bild, das in einer beiseitegelegten Liste steckt (gridStash), ist nicht frei – die Liste wird später wieder eingehängt.
+// Sonst holte sich z. B. das Rezept das Bild aus seiner Kachel, und die Kachel war nach „Zurück“ leer.
+const inStash = x => gridStash.some(s => s.node.contains(x));
 function reuseImgs(el, pool) {
   if (!pool.size) return;
   el.querySelectorAll("img[src]").forEach(n => {
     const arr = pool.get(n.getAttribute("src"));
-    const o = arr && arr.find(x => x !== n && !x.isConnected);
+    const o = arr && arr.find(x => x !== n && !x.isConnected && !inStash(x));
     if (!o) return;
     o.className = n.className; n.replaceWith(o);
   });
@@ -1830,8 +1833,9 @@ function stashGrid() {
 }
 function setGrid(grid, html) {
   const key = gridKey(html), i = gridStash.findIndex(x => x.key === key && x.node !== grid);
-  if (i >= 0) {
-    const old = gridStash.splice(i, 1)[0].node;
+  const old = i >= 0 ? gridStash.splice(i, 1)[0].node : null;
+  // Sicherung (V101): nur wieder einhängen, wenn jedes Bild noch an seinem Platz ist; sonst neu aufbauen
+  if (old && old.querySelectorAll("img, .ph").length === (html.match(/<img |<div class="ph">/g) || []).length) {
     old.querySelectorAll(".pressed").forEach(e => e.classList.remove("pressed")); // der Tipp, mit dem man weggegangen ist
     grid.replaceChildren(...old.childNodes);
     warmImgs(grid);
@@ -2264,7 +2268,7 @@ async function workerVersion() {
   catch (e) { /* kein Netz: später */ }
   return workerV;
 }
-let cfBusy = false, cfOff = false, cfCount = 0;
+let cfBusy = false, cfOff = false, cfCount = 0, cfTimer = 0;
 const cfKey = () => "rezepte-coverfix:" + (uid || "");
 const cfSig = r => r.id + ":" + ((r.cover && r.cover.dataUrl) || "").length;
 function cfLoad() { try { const o = JSON.parse(localStorage.getItem(cfKey()) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } }
@@ -2280,6 +2284,7 @@ function cfNext(o) {
   });
 }
 async function queueCoverFix() {
+  if (cfTimer) return; // die nächste Runde ist schon geplant (jede Änderung im Konto stößt hier an): Abstand einhalten
   if (cfBusy || cfOff || !col || !uid || !state.loaded || state.storage !== "ok" || state.slow || navigator.onLine === false || document.visibilityState === "hidden") return;
   const o = cfLoad();
   if (o._pause && Date.now() < o._pause) return;
@@ -2328,7 +2333,7 @@ async function queueCoverFix() {
     }
     o2[sig] = e; cfSave(o2);
   } catch (e) { console.warn("Titelbild", e); again = 60000; }
-  finally { cfBusy = false; if (!cfOff && uid === myUid) setTimeout(() => whenCalm(queueCoverFix), again); }
+  finally { cfBusy = false; if (!cfOff && uid === myUid) cfTimer = setTimeout(() => { cfTimer = 0; whenCalm(queueCoverFix); }, again); }
 }
 
 /* ---------- Play-Knopf aus Instagram-Bildern herausrechnen ---------- */
