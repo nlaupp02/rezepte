@@ -965,6 +965,13 @@ button.sf-n:active { opacity: .55; }
   #print img:last-child { break-after: auto; page-break-after: auto; }
   @page { size: A4; margin: 0; }
 }
+/* V102: versteckte Prüfseite für die Titelbilder */
+#cfv { position: fixed; inset: 0; z-index: 70; background: var(--bg); display: grid; grid-template-rows: auto 1fr; }
+#cfv .cfv-bar { display: flex; align-items: center; gap: 10px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; box-shadow: 0 .5px 0 rgba(0, 0, 0, .14); }
+#cfv .cfv-bar .tbtn { flex: none; min-width: 64px; text-align: left; }
+#cfv .cfv-t { flex: 1; min-width: 0; font-weight: 600; font-size: 16px; text-align: center; }
+#cfv .cfv-sp { flex: none; width: 64px; }
+#cfv .cfv-body { margin: 0; padding: 12px 16px calc(20px + env(safe-area-inset-bottom)); overflow: auto; -webkit-overflow-scrolling: touch; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.42 -apple-system, system-ui, sans-serif; color: var(--ink); -webkit-user-select: text; user-select: text; }
 </style>
 </head>
 <body>
@@ -1114,7 +1121,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "101";
+const APP_VERSION = "102";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2248,13 +2255,14 @@ async function coverCompare(oldDataUrl, newBlob) {
   const a = await loadImg(await (await fetch(oldDataUrl)).blob()), b = await loadImg(newBlob);
   try {
     const ra = a.img.naturalWidth / Math.max(1, a.img.naturalHeight), rb = b.img.naturalWidth / Math.max(1, b.img.naturalHeight);
-    return { same: coverMatch(a.img, b.img) >= .9, shape: Math.abs(ra - rb) < .04 };
+    const val = coverMatch(a.img, b.img);
+    return { same: val >= .9, shape: Math.abs(ra - rb) < .04, val };
   } finally { URL.revokeObjectURL(a.url); URL.revokeObjectURL(b.url); }
 }
 
 // Schon gespeicherte Rezepte von Instagram: nach und nach nachsehen, ob es das Titelbild auch ohne Play-Knopf gibt.
-// - nur, wenn der Server das kann (Versionsabfrage ohne Kosten), nur in ruhigen Momenten, ein Rezept alle 45 Sekunden,
-//   höchstens 20 je Sitzung; neue Reels gehen immer vor
+// - nur, wenn der Server das kann (Versionsabfrage ohne Kosten), nur in ruhigen Momenten, ein Rezept alle 15 Sekunden,
+//   höchstens 60 je Sitzung (V102, vorher 45 Sekunden und 20); neue Reels gehen immer vor
 // - Schickt Instagram das Originalbild mit: getauscht wird nur, wenn es dasselbe Motiv ist (eigene Fotos bleiben).
 // - Sonst: das Vorschaubild noch einmal holen und den Knopf mit dem Verfahren aus V100 herausrechnen. Nur wenn das
 //   gespeicherte Bild aus genau diesem Vorschaubild stammt (gleiches Format und Motiv) und wirklich ein Knopf drin ist.
@@ -2283,6 +2291,70 @@ function cfNext(o) {
     return !e || (!e.done && e.n < 3 && now - e.t > 5 * 864e5);
   });
 }
+// Ein Rezept nachsehen. Liefert { cover } (neues Titelbild oder null) oder { stop } wenn die Seite nicht zu bekommen ist
+// ("block": Instagram sperrt). e: der Merkzettel dieses Rezepts (wird fortgeschrieben). note: Zwischenstände für die Prüfseite.
+async function coverFixOne(r, e, note) {
+  note = note || (() => {});
+  let pg;
+  try { pg = await fetchPage(r.link); }
+  catch (err) {
+    const code = (err && (err.code || err.message)) || "Fehler";
+    note("Seite: nicht bekommen (" + code + ")");
+    return { stop: err && (err.code === "insta_blocked" || err.code === "upstream_error" || err.code === "rate_limited") ? "block" : "error" };
+  }
+  const m = (pg && pg.meta) || {}, isIg = !!(pg && pg.kind === "instagram"), https = u => /^https:\/\//.test(u);
+  e.n = (e.n || 0) + 1; e.t = Date.now();
+  const get = async u => { try { return await fetchImage(u); } catch (e2) { return null; } };
+  const size = async bl => { try { const x = await loadImg(bl); const t = x.img.naturalWidth + "×" + x.img.naturalHeight; URL.revokeObjectURL(x.url); return t; } catch (e2) { return "?"; } };
+  const jn = v => v ? "ja" : "nein";
+  const cleanUrl = isIg && Array.isArray(m.clean) ? m.clean.map(u => String(u || "")).find(https) : "";
+  note("Seite: geholt" + (pg && pg.cached ? " (Zwischenspeicher)" : "") + (isIg ? "" : " · kein Instagram") + " · Original dabei: " + jn(cleanUrl));
+  let cover = null;
+  if (cleanUrl) {
+    const blob = await get(cleanUrl);
+    if (!blob) note("Originalbild: nicht geladen");
+    else {
+      e.done = 1;
+      const cmp = await coverCompare(r.cover.dataUrl, blob);
+      note("Originalbild: " + await size(blob) + " · gleiches Motiv: " + jn(cmp.same) + " (" + cmp.val.toFixed(2).replace(".", ",") + ")");
+      if (cmp.same) cover = await storeIgCover(blob, true);
+    }
+  } else if (isIg && !(r.cover.u >= 2)) {
+    const tu = [m["og:image"], ...(Array.isArray(m.images) ? m.images : [])].map(u => String(u || "")).find(https);
+    const blob = tu ? await get(tu) : null;
+    if (!blob) note("Vorschaubild: " + (tu ? "nicht geladen" : "keins genannt"));
+    else {
+      const cmp = await coverCompare(r.cover.dataUrl, blob);
+      note("Vorschaubild: " + await size(blob) + " · gleiches Motiv: " + jn(cmp.same) + " (" + cmp.val.toFixed(2).replace(".", ",") + ") · gleiches Format: " + jn(cmp.shape));
+      if (cmp.same && cmp.shape) {
+        unplayLast = null;
+        const c2 = await storeIgCover(blob, false);
+        note("Play-Knopf erkannt: " + jn(c2.u === 2) + (c2.u === 2 && unplayLast ? " · gefüllt: Dreieck " + unplayLast.tri + ", Rand " + unplayLast.ring : ""));
+        if (c2.u === 2) cover = c2; // nur wenn wirklich ein Knopf drin war
+      }
+    }
+  } else if (isIg) note("Schon neu gerechnet, ein Original gibt es gerade nicht");
+  return { cover };
+}
+// Neues Titelbild eintragen (wenn sich das Rezept inzwischen nicht geändert hat) und alles merken
+async function coverFixApply(r, sig, cover, e, myUid, myCol) {
+  const o2 = cfLoad();
+  let done = false;
+  if (cover) {
+    const now = state.recipes.find(x => x.id === r.id);
+    if (uid !== myUid || col !== myCol || !now || cfSig(now) !== sig || (state.edit && state.edit.id === r.id)) return false; // inzwischen geändert
+    await withRetry(() => col.doc(r.id).update({ cover }));
+    patchLocal(r.id, { cover });
+    const ns = r.id + ":" + cover.dataUrl.length;
+    playMark(ns); playMark(ns + ":c");
+    o2[ns] = e; // das neue Bild zählt als nachgesehen
+    onDataChanged(); qsSave();
+    done = true;
+  }
+  o2[sig] = e; cfSave(o2);
+  return done;
+}
+const cfPause = () => { const o2 = cfLoad(); o2._pause = Date.now() + 3 * 3600000; cfSave(o2); };
 async function queueCoverFix() {
   if (cfTimer) return; // die nächste Runde ist schon geplant (jede Änderung im Konto stößt hier an): Abstand einhalten
   if (cfBusy || cfOff || !col || !uid || !state.loaded || state.storage !== "ok" || state.slow || navigator.onLine === false || document.visibilityState === "hidden") return;
@@ -2292,48 +2364,71 @@ async function queueCoverFix() {
   if (!r) return;
   cfBusy = true;
   const sig = cfSig(r), myUid = uid, myCol = col;
-  let again = 45000;
+  let again = 15000;
   try {
     if (state.jobs.length || (state.edit && state.edit.id === r.id)) return; // gerade wird gelesen oder bearbeitet: später
     if (await workerVersion() < 2) { cfOff = true; return; } // Server kann es noch nicht: nichts abrufen, nichts merken
-    let pg;
-    try { pg = await fetchPage(r.link); }
-    catch (e) {
-      if (e && (e.code === "insta_blocked" || e.code === "upstream_error" || e.code === "rate_limited")) { const o2 = cfLoad(); o2._pause = Date.now() + 3 * 3600000; cfSave(o2); }
-      cfOff = true; return; // für diesmal Schluss
-    }
+    const e = o[sig] || { n: 0 };
+    const res = await coverFixOne(r, e);
+    if (res.stop) { if (res.stop === "block") cfPause(); cfOff = true; return; } // für diesmal Schluss
     if (uid !== myUid || col !== myCol) return;
-    const m = (pg && pg.meta) || {}, isIg = !!(pg && pg.kind === "instagram"), https = u => /^https:\/\//.test(u);
-    const o2 = cfLoad(), e = o2[sig] || { n: 0 };
-    e.n++; e.t = Date.now();
-    if (++cfCount >= 20) cfOff = true; // genug für diese Sitzung
-    const get = async u => { try { return await fetchImage(u); } catch (e2) { return null; } };
-    const cleanUrl = isIg && Array.isArray(m.clean) ? m.clean.map(u => String(u || "")).find(https) : "";
-    let cover = null;
-    if (cleanUrl) {
-      const blob = await get(cleanUrl);
-      if (blob) { e.done = 1; if ((await coverCompare(r.cover.dataUrl, blob)).same) cover = await storeIgCover(blob, true); }
-    } else if (isIg && !(r.cover.u >= 2)) {
-      const tu = [m["og:image"], ...(Array.isArray(m.images) ? m.images : [])].map(u => String(u || "")).find(https);
-      const blob = tu ? await get(tu) : null;
-      if (blob) {
-        const cmp = await coverCompare(r.cover.dataUrl, blob);
-        if (cmp.same && cmp.shape) { const c2 = await storeIgCover(blob, false); if (c2.u === 2) cover = c2; } // nur wenn wirklich ein Knopf drin war
-      }
-    }
-    if (cover) {
-      const now = state.recipes.find(x => x.id === r.id);
-      if (uid !== myUid || col !== myCol || !now || cfSig(now) !== sig || (state.edit && state.edit.id === r.id)) return; // inzwischen geändert
-      await withRetry(() => col.doc(r.id).update({ cover }));
-      patchLocal(r.id, { cover });
-      const ns = r.id + ":" + cover.dataUrl.length;
-      playMark(ns); playMark(ns + ":c");
-      o2[ns] = e; // das neue Bild zählt als nachgesehen
-      onDataChanged(); qsSave();
-    }
-    o2[sig] = e; cfSave(o2);
+    if (++cfCount >= 60) cfOff = true; // genug für diese Sitzung
+    await coverFixApply(r, sig, res.cover, e, myUid, myCol);
   } catch (e) { console.warn("Titelbild", e); again = 60000; }
   finally { cfBusy = false; if (!cfOff && uid === myUid) cfTimer = setTimeout(() => { cfTimer = 0; whenCalm(queueCoverFix); }, again); }
+}
+
+// Versteckte Prüfseite (fünfmal auf die Version im Profil tippen): zeigt den Stand und sieht die ersten Rezepte, deren
+// Titelbild noch nicht das Original ist, sofort nach – Schritt für Schritt mitgeschrieben. Tauscht dabei wie sonst auch.
+let cfvRun = 0;
+function cfvClose() { cfvRun++; const d = document.getElementById("cfv"); if (d) d.remove(); }
+async function cfvOpen() {
+  cfvClose();
+  const my = ++cfvRun, d = document.createElement("div");
+  d.id = "cfv";
+  d.innerHTML = `<div class="cfv-bar"><button type="button" class="tbtn" data-action="cfv-close">Fertig</button><div class="cfv-t">Titelbild-Prüfung</div><span class="cfv-sp"></span></div><pre class="cfv-body"></pre>`;
+  document.body.appendChild(d);
+  const body = d.querySelector(".cfv-body"), lines = [], put = () => { if (my === cfvRun) body.textContent = lines.join("\n"); };
+  const hm = t => new Date(t).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const igs = state.recipes.filter(r => r.cover && r.cover.dataUrl && isIgLink(r.link || ""));
+  const nC = igs.filter(r => r.cover.c).length, nU = igs.filter(r => !r.cover.c && r.cover.u >= 2).length, o = cfLoad();
+  lines.push("Version " + APP_VERSION + " · Server …");
+  lines.push("Instagram-Rezepte mit Bild: " + igs.length);
+  lines.push("Original: " + nC + " · neu gerechnet: " + nU + " · alt: " + (igs.length - nC - nU));
+  lines.push("Schon nachgesehen: " + igs.filter(r => o[cfSig(r)]).length + " · in dieser Sitzung: " + cfCount + (cfOff ? " (beendet)" : ""));
+  lines.push("Pause wegen Sperre: " + (o._pause && Date.now() < o._pause ? "bis " + hm(o._pause) + " Uhr" : "nein"));
+  put();
+  const v = await workerVersion();
+  lines[0] = "Version " + APP_VERSION + " · Server " + (v || "nicht erreichbar");
+  put();
+  if (!col || !uid || v < 2) { lines.push("", "Prüfung nicht möglich."); put(); return; }
+  for (let w = 0; cfBusy && w < 120 && my === cfvRun; w++) await new Promise(res => setTimeout(res, 500)); // läuft gerade eine Runde: abwarten
+  if (my !== cfvRun) return;
+  cfBusy = true;
+  try {
+    const todo = igs.filter(r => !r.cover.c).slice(0, 4);
+    if (!todo.length) lines.push("", "Alle Titelbilder sind schon das Original.");
+    for (const r0 of todo) {
+      if (my !== cfvRun) break;
+      const r = state.recipes.find(x => x.id === r0.id); if (!r || !r.cover || r.cover.c) continue;
+      const sig = cfSig(r), e = cfLoad()[sig] || { n: 0 }, myUid = uid, myCol = col;
+      let dim = "?"; try { const x = await loadImg(await (await fetch(r.cover.dataUrl)).blob()); dim = x.img.naturalWidth + "×" + x.img.naturalHeight; URL.revokeObjectURL(x.url); } catch (e2) { /* egal */ }
+      lines.push("", String(r.title || "Rezept").slice(0, 40));
+      lines.push("Gespeichert: " + dim + " · " + (r.cover.u >= 2 ? "neu gerechnet" : "alt") + " · bisher " + (e.n || 0) + "× nachgesehen" + (e.t ? " (" + hm(e.t) + ")" : ""));
+      lines.push("…"); put();
+      let res;
+      try { res = await coverFixOne(r, e, t => { lines.splice(lines.length - 1, 0, t); put(); }); }
+      catch (err) { res = { err: String((err && err.message) || err).slice(0, 80) }; }
+      lines.pop();
+      if (res.err) { lines.push("→ Fehler: " + res.err); put(); continue; }
+      if (res.stop) { if (res.stop === "block") cfPause(); lines.push("→ abgebrochen: Instagram gibt die Seite gerade nicht her"); put(); break; }
+      let done = false;
+      try { done = await coverFixApply(r, sig, res.cover, e, myUid, myCol); } catch (err) { lines.push("→ Speichern ging nicht: " + String((err && err.message) || err).slice(0, 60)); put(); continue; }
+      lines.push(done ? "→ getauscht (" + (res.cover.c ? "Original" : "neu gerechnet") + ")" : "→ bleibt, wie es ist");
+      put();
+    }
+    lines.push("", "Fertig."); put();
+  } finally { cfBusy = false; }
 }
 
 /* ---------- Play-Knopf aus Instagram-Bildern herausrechnen ---------- */
@@ -2449,6 +2544,7 @@ async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
   for (const i of list) { const y = ((i / w) | 0) - Y0, x = i % w - X0, k = (y * W0 + x) * 3; p[i * 4] = a0.im[k]; p[i * 4 + 1] = a0.im[k + 1]; p[i * 4 + 2] = a0.im[k + 2]; }
   return true;
 }
+let unplayLast = null; // wie beim letzten Herausrechnen gefüllt wurde (für die Prüfseite)
 async function unplayCanvas(src) {
   const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, m = Math.min(w, h);
   if (!w || !h || m < 120) return null;
@@ -2577,6 +2673,7 @@ async function unplayCanvas(src) {
   }
   // 4d. Füllen: mit Bildstücken aus der Umgebung. Geht das nicht (kein Platz ringsum), von außen nach innen glatt füllen.
   let filled = false;
+  unplayLast = { tri: "", ring: "" };
   try { filled = await patchFill(p, w, h, tl, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc))); } catch (e) { console.warn("Füllen", e); filled = false; }
   if (!filled) {
     const todo = new Set(tl);
@@ -2610,6 +2707,7 @@ async function unplayCanvas(src) {
     for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) if (Math.abs(Math.hypot(x - ux, y - uy) - ur) <= bw && !inHole[y * w + x]) ring.push(y * w + x);
     let ok2 = false;
     try { ok2 = await patchFill(p, w, h, ring, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc)), true); } catch (e) { console.warn("Füllen", e); ok2 = false; }
+    unplayLast = { tri: filled ? "Bildstücke" : "glatt", ring: ok2 ? "Bildstücke" : "glatt" };
     if (!ok2) {
       const kk = Math.max(1, Math.round(1.1 * sc)), cp = p.slice();
       for (const i of ring) {
@@ -3431,7 +3529,7 @@ function profileHtml() {
     </div>
     ${unv ? `<p class="note">Zum Einlesen von Rezepten muss die E-Mail bestätigt sein. Bei Google-Konten ist sie das schon.</p>` : ""}
     <div class="group"><button class="cell danger" data-action="logout">Abmelden</button></div>
-    <p class="rc-note ver-box" style="margin:0">Version ${APP_VERSION}</p>
+    <p class="rc-note ver-box" style="margin:0;cursor:pointer" data-action="ver-tap">Version ${APP_VERSION}</p>
     <p class="rc-note" style="margin:6px 0 0;font-size:11px;opacity:.8">Angebote: Prospekte von kaufDA · Ortsdaten © OpenStreetMap-Mitwirkende</p>
   </div>`;
 }
@@ -5761,7 +5859,10 @@ async function recognize() {
 }
 
 /* ---------- Actions ---------- */
+let verTaps = 0, verT = 0;
 const actions = {
+  "ver-tap": () => { const n = Date.now(); verTaps = n - verT < 1200 ? verTaps + 1 : 1; verT = n; if (verTaps >= 5) { verTaps = 0; cfvOpen(); } },
+  "cfv-close": () => cfvClose(),
   "open-add": () => openSheet(),
   sort: () => openSort(),
   install: () => openInstall(),
