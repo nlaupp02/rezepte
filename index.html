@@ -1114,7 +1114,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "99";
+const APP_VERSION = "100";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -1396,6 +1396,7 @@ function subscribe() {
     setTimeout(queueTags, 3000);
     setTimeout(queueTimes, 4000);
     setTimeout(queuePlayFix, 2500);
+    setTimeout(() => whenCalm(queueCoverFix), 15000);
     if (snap.metadata && !snap.metadata.fromCache) repairCreatedAt(myUid);
   }, err => {
     if (uid !== myUid) return;
@@ -2171,11 +2172,279 @@ async function storeCover(blob, unplay) {
   return { dataUrl: await blobToDataUrl(small) };
 }
 
+/* ---------- V100: Titelbild von Instagram ---------- */
+// Hochkant-Bild auf höchstens 4:5 zuschneiden (Mitte). Höher zeigt die App Titelbilder nirgends; so bleibt bei gleicher
+// Dateigröße mehr Schärfe in der Breite (ein Reel ist 9:16).
+async function cropTall(blob, maxRatio) {
+  const { img, url } = await loadImg(blob);
+  try {
+    const W = img.naturalWidth, H = img.naturalHeight;
+    if (!(H > W * maxRatio + 2)) return blob;
+    const h = Math.round(W * maxRatio), c = document.createElement("canvas");
+    c.width = W; c.height = h;
+    c.getContext("2d").drawImage(img, 0, Math.round((H - h) / 2), W, h, 0, 0, W, h);
+    return await new Promise((res, rej) => c.toBlob(x => x ? res(x) : rej(new Error("encode")), "image/jpeg", 0.9));
+  } finally { URL.revokeObjectURL(url); }
+}
+// Titelbild eines Instagram-Rezepts ablegen. clean: das Originalbild des Reels (ohne Play-Knopf), im Rezept vermerkt als
+// cover.c – das fasst danach niemand mehr an. Sonst das Vorschaubild: Steckt ein Play-Knopf drin, wird er herausgerechnet
+// (vermerkt als cover.u = 2: mit dem Verfahren aus V100).
+async function storeIgCover(blob, clean) {
+  let hit = false;
+  if (!clean) { try { const b = await unplayBlob(blob); if (b) { blob = b; hit = true; } } catch (e) { /* Bild bleibt, wie es ist */ } }
+  try { blob = await cropTall(blob, 1.25); } catch (e) { /* unbeschnitten */ }
+  const cover = await storeCover(blob, false);
+  if (clean) cover.c = 1; else if (hit) cover.u = 2;
+  return cover;
+}
+// Ist das neue Bild dasselbe Motiv wie das gespeicherte Titelbild? Verglichen wird klein und in Graustufen. Die Bildmitte
+// (wo der Play-Knopf saß) zählt nicht mit. Das gespeicherte Bild darf ein Ausschnitt des neuen sein (Instagram schneidet
+// sein Vorschaubild zu): Es wird in mehreren Größen über das neue geschoben, die beste Übereinstimmung zählt (1 = gleich).
+function grayThumb(img, w) { // erst dreifach größer zeichnen, dann mitteln: ruhiger als direkt klein zeichnen
+  const h = Math.max(1, Math.round(w * img.naturalHeight / img.naturalWidth)), k = 3;
+  const c = document.createElement("canvas"); c.width = w * k; c.height = h * k;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(img, 0, 0, w * k, h * k);
+  const d = g.getImageData(0, 0, w * k, h * k).data, out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let sum = 0;
+    for (let yy = 0; yy < k; yy++) for (let xx = 0; xx < k; xx++) { const i = ((y * k + yy) * w * k + x * k + xx) * 4; sum += d[i] * .299 + d[i + 1] * .587 + d[i + 2] * .114; }
+    out[y * w + x] = sum / (k * k);
+  }
+  return { w, h, d: out };
+}
+function coverMatch(oldImg, newImg) {
+  const NW = 48, N = grayThumb(newImg, NW);
+  let best = -1;
+  for (const sc of [1, .92, .84, .76, .68, .6]) {
+    const ow = Math.round(NW * sc);
+    let O = grayThumb(oldImg, ow);
+    if (O.h > N.h) { // gespeichertes Bild höher als das neue: nur seine Mitte vergleichen
+      if (sc !== 1) continue;
+      const y0 = Math.floor((O.h - N.h) / 2); O = { w: ow, h: N.h, d: O.d.subarray(y0 * ow, (y0 + N.h) * ow) };
+    }
+    const cx = (ow - 1) / 2, cy = (O.h - 1) / 2, r2 = Math.pow(Math.min(ow, O.h) * .24, 2), xs = [], ys = [], vs = [];
+    for (let y = 0; y < O.h; y++) for (let x = 0; x < ow; x++) if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > r2) { xs.push(x); ys.push(y); vs.push(O.d[y * ow + x]); }
+    const n = vs.length; if (n < 200) continue;
+    let so = 0, soo = 0; for (let i = 0; i < n; i++) { so += vs[i]; soo += vs[i] * vs[i]; }
+    const mo = so / n, vo = soo / n - mo * mo; if (vo < 30) continue; // fast einfarbig: lässt sich nicht vergleichen
+    for (let oy = 0; oy <= N.h - O.h; oy++) for (let ox = 0; ox <= N.w - ow; ox++) {
+      let sn = 0, snn = 0, son = 0;
+      for (let i = 0; i < n; i++) { const v = N.d[(ys[i] + oy) * N.w + xs[i] + ox]; sn += v; snn += v * v; son += v * vs[i]; }
+      const mn = sn / n, vn = snn / n - mn * mn; if (vn < 30) continue;
+      const c = (son / n - mo * mn) / Math.sqrt(vo * vn);
+      if (c > best) best = c;
+    }
+    if (best > .985) break;
+  }
+  return best;
+}
+// same: dasselbe Motiv · shape: auch dasselbe Seitenverhältnis (dann stammt das gespeicherte Bild aus genau diesem Bild)
+async function coverCompare(oldDataUrl, newBlob) {
+  const a = await loadImg(await (await fetch(oldDataUrl)).blob()), b = await loadImg(newBlob);
+  try {
+    const ra = a.img.naturalWidth / Math.max(1, a.img.naturalHeight), rb = b.img.naturalWidth / Math.max(1, b.img.naturalHeight);
+    return { same: coverMatch(a.img, b.img) >= .9, shape: Math.abs(ra - rb) < .04 };
+  } finally { URL.revokeObjectURL(a.url); URL.revokeObjectURL(b.url); }
+}
+
+// Schon gespeicherte Rezepte von Instagram: nach und nach nachsehen, ob es das Titelbild auch ohne Play-Knopf gibt.
+// - nur, wenn der Server das kann (Versionsabfrage ohne Kosten), nur in ruhigen Momenten, ein Rezept alle 45 Sekunden,
+//   höchstens 20 je Sitzung; neue Reels gehen immer vor
+// - Schickt Instagram das Originalbild mit: getauscht wird nur, wenn es dasselbe Motiv ist (eigene Fotos bleiben).
+// - Sonst: das Vorschaubild noch einmal holen und den Knopf mit dem Verfahren aus V100 herausrechnen. Nur wenn das
+//   gespeicherte Bild aus genau diesem Vorschaubild stammt (gleiches Format und Motiv) und wirklich ein Knopf drin ist.
+// - kostet keine KI. Sperrt Instagram gerade: drei Stunden Pause. Je Gerät gemerkt, was nachgesehen ist; ohne Originalbild
+//   noch zwei weitere Versuche im Abstand von fünf Tagen.
+let workerV = 0, workerVAt = 0;
+async function workerVersion() {
+  if (workerV >= 2 || (workerVAt && Date.now() - workerVAt < 10 * 60000)) return workerV;
+  workerVAt = Date.now();
+  try { const r = await fetch(WORKER_URL.replace(/\/$/, "") + "/", { cache: "no-store" }); const j = await r.json(); workerV = Number(j && j.v) || 1; }
+  catch (e) { /* kein Netz: später */ }
+  return workerV;
+}
+let cfBusy = false, cfOff = false, cfCount = 0;
+const cfKey = () => "rezepte-coverfix:" + (uid || "");
+const cfSig = r => r.id + ":" + ((r.cover && r.cover.dataUrl) || "").length;
+function cfLoad() { try { const o = JSON.parse(localStorage.getItem(cfKey()) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } }
+function cfSave(o) { try { const ks = Object.keys(o).filter(k => k !== "_pause"); ks.slice(0, Math.max(0, ks.length - 600)).forEach(k => delete o[k]); localStorage.setItem(cfKey(), JSON.stringify(o)); } catch (e) { /* egal */ } }
+// Ein gerade gespeichertes Titelbild gilt als nachgesehen (done: endgültig, sonst kommt nach fünf Tagen noch ein Versuch)
+function cfTouch(id, cover, done) { if (!(cover && cover.dataUrl)) return; const o = cfLoad(); o[id + ":" + cover.dataUrl.length] = done ? { n: 1, t: Date.now(), done: 1 } : { n: 1, t: Date.now() }; cfSave(o); }
+function cfNext(o) {
+  const now = Date.now();
+  return state.recipes.find(r => {
+    if (!(r.cover && r.cover.dataUrl && !r.cover.c && isIgLink(r.link || ""))) return false;
+    const e = o[cfSig(r)];
+    return !e || (!e.done && e.n < 3 && now - e.t > 5 * 864e5);
+  });
+}
+async function queueCoverFix() {
+  if (cfBusy || cfOff || !col || !uid || !state.loaded || state.storage !== "ok" || state.slow || navigator.onLine === false || document.visibilityState === "hidden") return;
+  const o = cfLoad();
+  if (o._pause && Date.now() < o._pause) return;
+  const r = cfNext(o);
+  if (!r) return;
+  cfBusy = true;
+  const sig = cfSig(r), myUid = uid, myCol = col;
+  let again = 45000;
+  try {
+    if (state.jobs.length || (state.edit && state.edit.id === r.id)) return; // gerade wird gelesen oder bearbeitet: später
+    if (await workerVersion() < 2) { cfOff = true; return; } // Server kann es noch nicht: nichts abrufen, nichts merken
+    let pg;
+    try { pg = await fetchPage(r.link); }
+    catch (e) {
+      if (e && (e.code === "insta_blocked" || e.code === "upstream_error" || e.code === "rate_limited")) { const o2 = cfLoad(); o2._pause = Date.now() + 3 * 3600000; cfSave(o2); }
+      cfOff = true; return; // für diesmal Schluss
+    }
+    if (uid !== myUid || col !== myCol) return;
+    const m = (pg && pg.meta) || {}, isIg = !!(pg && pg.kind === "instagram"), https = u => /^https:\/\//.test(u);
+    const o2 = cfLoad(), e = o2[sig] || { n: 0 };
+    e.n++; e.t = Date.now();
+    if (++cfCount >= 20) cfOff = true; // genug für diese Sitzung
+    const get = async u => { try { return await fetchImage(u); } catch (e2) { return null; } };
+    const cleanUrl = isIg && Array.isArray(m.clean) ? m.clean.map(u => String(u || "")).find(https) : "";
+    let cover = null;
+    if (cleanUrl) {
+      const blob = await get(cleanUrl);
+      if (blob) { e.done = 1; if ((await coverCompare(r.cover.dataUrl, blob)).same) cover = await storeIgCover(blob, true); }
+    } else if (isIg && !(r.cover.u >= 2)) {
+      const tu = [m["og:image"], ...(Array.isArray(m.images) ? m.images : [])].map(u => String(u || "")).find(https);
+      const blob = tu ? await get(tu) : null;
+      if (blob) {
+        const cmp = await coverCompare(r.cover.dataUrl, blob);
+        if (cmp.same && cmp.shape) { const c2 = await storeIgCover(blob, false); if (c2.u === 2) cover = c2; } // nur wenn wirklich ein Knopf drin war
+      }
+    }
+    if (cover) {
+      const now = state.recipes.find(x => x.id === r.id);
+      if (uid !== myUid || col !== myCol || !now || cfSig(now) !== sig || (state.edit && state.edit.id === r.id)) return; // inzwischen geändert
+      await withRetry(() => col.doc(r.id).update({ cover }));
+      patchLocal(r.id, { cover });
+      const ns = r.id + ":" + cover.dataUrl.length;
+      playMark(ns); playMark(ns + ":c");
+      o2[ns] = e; // das neue Bild zählt als nachgesehen
+      onDataChanged(); qsSave();
+    }
+    o2[sig] = e; cfSave(o2);
+  } catch (e) { console.warn("Titelbild", e); again = 60000; }
+  finally { cfBusy = false; if (!cfOff && uid === myUid) setTimeout(() => whenCalm(queueCoverFix), again); }
+}
+
 /* ---------- Play-Knopf aus Instagram-Bildern herausrechnen ---------- */
 // Vorschaubilder von Reels haben oft einen eingebrannten Play-Knopf: ein halbdurchsichtig dunkler Kreis mit weißem Dreieck
 // genau in der Bildmitte. Nur wenn beides sicher erkannt ist (Kreisrand rundum gleich abgedunkelt, darin ein weißes Dreieck
 // an der richtigen Stelle), wird der Kreis wieder aufgehellt und das Dreieck aus der Umgebung aufgefüllt. Sonst: null.
-function unplayCanvas(src) {
+// V100: Der Kreis wird genau zurückgerechnet (Lage auf Viertelpixel, Abdunklung als Verlauf über den Rand), das Dreieck mit
+// passenden Bildstücken aus der Umgebung gefüllt statt weichgezeichnet. Läuft in kurzen Abschnitten, die App bleibt bedienbar.
+// Ein Loch im Bild mit Stücken aus der Umgebung füllen. Erst grob in einem verkleinerten Bild, dann in voller Größe: Für jedes
+// Stück, das ins Loch ragt, wird das ähnlichste Stück ohne Loch aus der Nähe gesucht (PatchMatch); jedes Loch-Pixel bekommt den
+// Mittelwert aus allen Stücken, die es überdecken. Das wiederholt sich, bis Muster und Kanten ringsum zusammenpassen.
+// p: RGBA-Daten des ganzen Bilds, list: Pixel des Lochs. Gesucht wird nur im Quadrat um (cx, cy) mit halber Seite rad.
+// thin: schmales Loch (ein Streifen) – nur in voller Größe und gemittelt, das reicht dort und bleibt ruhig.
+async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
+  const X0 = Math.max(0, Math.floor(cx - rad)), Y0 = Math.max(0, Math.floor(cy - rad)), X1 = Math.min(w - 1, Math.ceil(cx + rad)), Y1 = Math.min(h - 1, Math.ceil(cy + rad));
+  const W0 = X1 - X0 + 1, H0 = Y1 - Y0 + 1, PS = 2 * hp + 1;
+  if (!list.length || W0 < 8 * PS || H0 < 8 * PS) return false;
+  let seed = 9001; const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; // immer dieselbe Folge: gleiches Bild, gleiches Ergebnis
+  let t0 = performance.now(); const breathe = async () => { if (performance.now() - t0 > 12) { await new Promise(res => setTimeout(res, 0)); t0 = performance.now(); } };
+  // Stufe 0: volles Bild
+  const lv = [];
+  { const N = W0 * H0, im = new Float32Array(N * 3), hole = new Uint8Array(N);
+    for (let y = 0; y < H0; y++) for (let x = 0; x < W0; x++) { const j = ((y + Y0) * w + x + X0) * 4, k = (y * W0 + x) * 3; im[k] = p[j]; im[k + 1] = p[j + 1]; im[k + 2] = p[j + 2]; }
+    for (const i of list) { const y = ((i / w) | 0) - Y0, x = i % w - X0; if (x < 2 * PS || y < 2 * PS || x >= W0 - 2 * PS || y >= H0 - 2 * PS) return false; hole[y * W0 + x] = 1; }
+    lv.push({ W: W0, H: H0, im, hole }); }
+  // kleinere Stufen: je 2×2 Pixel gemittelt (nur bekannte); Loch, sobald eins der vier im Loch liegt
+  while (lv.length < (thin ? 1 : 3)) {
+    const a = lv[lv.length - 1], W = a.W >> 1, H = a.H >> 1; if (W < 6 * PS || H < 6 * PS) break;
+    const im = new Float32Array(W * H * 3), hole = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let n = 0, r = 0, g = 0, bl = 0, hl = 0;
+      for (let d = 0; d < 4; d++) { const q = (2 * y + (d >> 1)) * a.W + 2 * x + (d & 1); if (a.hole[q]) hl = 1; else { r += a.im[q * 3]; g += a.im[q * 3 + 1]; bl += a.im[q * 3 + 2]; n++; } }
+      const k = y * W + x; hole[k] = hl; if (n) { im[k * 3] = r / n; im[k * 3 + 1] = g / n; im[k * 3 + 2] = bl / n; }
+    }
+    lv.push({ W, H, im, hole });
+  }
+  let prev = null; // Zuordnung der gröberen Stufe
+  for (let li = lv.length - 1; li >= 0; li--) {
+    const { W, H, im, hole } = lv[li], N = W * H;
+    const S = new Int32Array((W + 1) * (H + 1));
+    for (let y = 0; y < H; y++) { let row = 0; for (let x = 0; x < W; x++) { row += hole[y * W + x]; S[(y + 1) * (W + 1) + x + 1] = S[y * (W + 1) + x + 1] + row; } }
+    const cnt = (x, y) => S[(y + hp + 1) * (W + 1) + x + hp + 1] - S[(y - hp) * (W + 1) + x + hp + 1] - S[(y + hp + 1) * (W + 1) + x - hp] + S[(y - hp) * (W + 1) + x - hp];
+    const inB = (x, y) => x >= hp && y >= hp && x < W - hp && y < H - hp;
+    const srcOk = (x, y) => inB(x, y) && cnt(x, y) === 0;
+    const src = [], tg = [], tix = new Int32Array(N).fill(-1), hl = [];
+    for (let y = hp; y < H - hp; y++) for (let x = hp; x < W - hp; x++) { const c = cnt(x, y); if (c === 0) src.push(y * W + x); else { tix[y * W + x] = tg.length; tg.push(y * W + x); } }
+    for (let k = 0; k < N; k++) if (hole[k]) hl.push(k);
+    if (src.length < 200 || !tg.length) return false;
+    const T = tg.length, nn = new Int32Array(T), nd = new Float32Array(T);
+    const dist = (t, s2, lim) => { let e = 0; for (let dy = -hp; dy <= hp; dy++) { const a = (t + dy * W - hp) * 3, b2 = (s2 + dy * W - hp) * 3; for (let i = 0; i < PS * 3; i++) { const d = im[a + i] - im[b2 + i]; e += d * d; } if (e >= lim) return e; } return e; };
+    // Start: gröbste Stufe von außen nach innen glatt füllen und zufällig zuordnen; sonst die Zuordnung der gröberen Stufe übernehmen
+    if (!prev) {
+      const todo = new Set(hl);
+      while (todo.size) {
+        const layer = [];
+        for (const k of todo) { let n = 0, r = 0, g = 0, bl = 0; for (const q of [k - 1, k + 1, k - W, k + W]) if (!todo.has(q)) { r += im[q * 3]; g += im[q * 3 + 1]; bl += im[q * 3 + 2]; n++; } if (n) layer.push([k, r / n, g / n, bl / n]); }
+        if (!layer.length) return false;
+        for (const [k, r, g, bl] of layer) { im[k * 3] = r; im[k * 3 + 1] = g; im[k * 3 + 2] = bl; todo.delete(k); }
+      }
+      for (let i = 0; i < T; i++) nn[i] = src[(rnd() * src.length) | 0];
+    } else {
+      for (let i = 0; i < T; i++) {
+        const t = tg[i], y = (t / W) | 0, x = t - y * W, px = Math.min(prev.W - 1, x >> 1), py = Math.min(prev.H - 1, y >> 1), j = prev.tix[py * prev.W + px];
+        let ok = false;
+        if (j >= 0) { const s2 = prev.nn[j], sy = (s2 / prev.W) | 0, sx = s2 - sy * prev.W, nx = 2 * sx + (x & 1), ny = 2 * sy + (y & 1); if (srcOk(nx, ny)) { nn[i] = ny * W + nx; ok = true; } }
+        if (!ok) nn[i] = src[(rnd() * src.length) | 0];
+      }
+    }
+    const vote = sharp => { // jedes Loch-Pixel: Mittel aus allen Stücken, die es überdecken; gut passende Stücke zählen mehr
+      if (sharp) { // zum Schluss: je Pixel nur das am besten passende Stück (sonst wird die Stelle weich und fällt als Fleck auf)
+        const bd = new Float32Array(N).fill(Infinity), bo = new Int32Array(N).fill(-1);
+        for (let i = 0; i < T; i++) { const t = tg[i], s2 = nn[i];
+          for (let dy = -hp; dy <= hp; dy++) for (let dx = -hp; dx <= hp; dx++) { const q = t + dy * W + dx; if (!hole[q]) continue; const e = nd[i] * (1 + .15 * (dx * dx + dy * dy)); if (e < bd[q]) { bd[q] = e; bo[q] = s2 + dy * W + dx; } } }
+        for (const q of hl) if (bo[q] >= 0) { const o = bo[q] * 3; im[q * 3] = im[o]; im[q * 3 + 1] = im[o + 1]; im[q * 3 + 2] = im[o + 2]; }
+        return;
+      }
+      const srt = Float32Array.from(nd).sort(), sig = Math.max(1, srt[(T * .75) | 0]);
+      const acc = new Float32Array(N * 4);
+      for (let i = 0; i < T; i++) {
+        const t = tg[i], s2 = nn[i], wt = Math.exp(-nd[i] / (2 * sig)) + 1e-6;
+        for (let dy = -hp; dy <= hp; dy++) for (let dx = -hp; dx <= hp; dx++) { const q = t + dy * W + dx; if (!hole[q]) continue; const o = (s2 + dy * W + dx) * 3; acc[q * 4] += im[o] * wt; acc[q * 4 + 1] += im[o + 1] * wt; acc[q * 4 + 2] += im[o + 2] * wt; acc[q * 4 + 3] += wt; }
+      }
+      for (const q of hl) { const wsum = acc[q * 4 + 3]; if (wsum > 0) { im[q * 3] = acc[q * 4] / wsum; im[q * 3 + 1] = acc[q * 4 + 1] / wsum; im[q * 3 + 2] = acc[q * 4 + 2] / wsum; } }
+    };
+    if (prev) { for (let i = 0; i < T; i++) nd[i] = 1; vote(false); } // feineres Bild zuerst aus der übernommenen Zuordnung aufbauen
+    const iters = thin ? 3 : li === lv.length - 1 ? 8 : li === 0 ? 3 : 5, RMAX = Math.max(W, H);
+    for (let it = 0; it < iters; it++) {
+      for (let i = 0; i < T; i++) nd[i] = dist(tg[i], nn[i], Infinity);
+      for (let sweep = 0; sweep < (thin ? 2 : 4); sweep++) {
+        const fwd = sweep % 2 === 0;
+        for (let ii = 0; ii < T; ii++) {
+          const i = fwd ? ii : T - 1 - ii, t = tg[i], sgn = fwd ? 1 : -1;
+          // vom linken/oberen (bzw. rechten/unteren) Nachbarn übernehmen: dessen Quelle, um eins verschoben
+          for (const st of [1, W]) {
+            const j = tix[t - sgn * st]; if (j < 0) continue;
+            const c = nn[j] + sgn * st, cy2 = (c / W) | 0, cx2 = c - cy2 * W; if (!srcOk(cx2, cy2)) continue;
+            const e = dist(t, c, nd[i]); if (e < nd[i]) { nd[i] = e; nn[i] = c; }
+          }
+          // zufällig in der Nähe der bisher besten Quelle suchen, in immer kleinerem Umkreis
+          for (let rr = RMAX; rr >= 1; rr = rr >> 1) {
+            const by = (nn[i] / W) | 0, bx = nn[i] - by * W, nx = bx + Math.round((rnd() * 2 - 1) * rr), ny = by + Math.round((rnd() * 2 - 1) * rr);
+            if (!srcOk(nx, ny)) continue;
+            const c = ny * W + nx, e = dist(t, c, nd[i]); if (e < nd[i]) { nd[i] = e; nn[i] = c; }
+          }
+          if ((ii & 255) === 0) await breathe();
+        }
+      }
+      vote(!thin && li === 0 && it === iters - 1);
+    }
+    prev = { W, H, tix, nn };
+  }
+  const a0 = lv[0];
+  for (const i of list) { const y = ((i / w) | 0) - Y0, x = i % w - X0, k = (y * W0 + x) * 3; p[i * 4] = a0.im[k]; p[i * 4 + 1] = a0.im[k + 1]; p[i * 4 + 2] = a0.im[k + 2]; }
+  return true;
+}
+async function unplayCanvas(src) {
   const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, m = Math.min(w, h);
   if (!w || !h || m < 120) return null;
   const c = document.createElement("canvas"); c.width = w; c.height = h;
@@ -2242,47 +2511,69 @@ function unplayCanvas(src) {
   if (!tn || tsum / tn < 200 || tbright / tn < .9) return null; // kein weißes Dreieck
   if (!ring.length || med(ring) > 175) return null;              // um das Dreieck herum muss es dunkler sein
   if (!sn2 || sb2 / sn2 > .2) return null;                       // weiß ist nur das Dreieck, nicht eine runde Fläche drumherum
-  // 4. Kreis wieder aufhellen
-  const R = Math.ceil(r + 4 * sc);
-  for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(h - 1, Math.ceil(cy + R)); y++)
-    for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(w - 1, Math.ceil(cx + R)); x++) {
-      if (Math.hypot(x - cx, y - cy) < r) { const j = (y * w + x) * 4; p[j] = Math.min(255, p[j] / f); p[j + 1] = Math.min(255, p[j + 1] / f); p[j + 2] = Math.min(255, p[j + 2] / f); }
-    }
-  // Auffüllen: Pixel der Maske immer wieder aus den vier Nachbarn mitteln (die Nachbarn außerhalb bleiben fest)
-  const relax = (mask, list, iters) => {
-    for (let it = 0; it < iters; it++) for (const i of list) {
-      const y = (i / w) | 0, x = i - y * w;
-      for (let ch = 0; ch < 3; ch++) {
-        let s2 = 0, c2 = 0;
-        if (x > 0) { s2 += p[(i - 1) * 4 + ch]; c2++; } if (x < w - 1) { s2 += p[(i + 1) * 4 + ch]; c2++; }
-        if (y > 0) { s2 += p[(i - w) * 4 + ch]; c2++; } if (y < h - 1) { s2 += p[(i + w) * 4 + ch]; c2++; }
-        p[i * 4 + ch] = s2 / c2;
-      }
-    }
+  // 4. Zurückrechnen. Der Kreis ist nur abgedunkelt: Das Bild darunter ist noch da.
+  // 4a. Mitte und Radius auf Viertelpixel genau: dort, wo der Sprung von dunkel nach hell rundum am größten ist
+  const bil = (x, y) => {
+    x = x < 0 ? 0 : x > w - 1.01 ? w - 1.01 : x; y = y < 0 ? 0 : y > h - 1.01 ? h - 1.01 : y;
+    const xi = x | 0, yi = y | 0, fx = x - xi, fy = y - yi, i = yi * w + xi;
+    return (L[i] * (1 - fx) + L[i + 1] * fx) * (1 - fy) + (L[i + w] * (1 - fx) + L[i + w + 1] * fx) * fy;
   };
-  // Rand des Kreises (Kantenglättung des Originals) glätten
-  const band = [];
-  for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(h - 1, Math.ceil(cy + R)); y++)
-    for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(w - 1, Math.ceil(cx + R)); x++) {
-      const d = Math.hypot(x - cx, y - cy); if (d > r - 3.2 * sc && d < r + 2.2 * sc) band.push(y * w + x);
+  const A = 360, ca = new Float32Array(A), sa = new Float32Array(A), qa = new Float32Array(A / 2);
+  for (let k = 0; k < A; k++) { ca[k] = Math.cos(2 * Math.PI * k / A); sa[k] = Math.sin(2 * Math.PI * k / A); }
+  const jump = (x0, y0, rr) => { for (let k = 0; k < A; k += 2) qa[k >> 1] = (bil(x0 + (rr + 1.5) * ca[k], y0 + (rr + 1.5) * sa[k]) + 1) / (bil(x0 + (rr - 1.5) * ca[k], y0 + (rr - 1.5) * sa[k]) + 1); return med(qa); };
+  let ux = cx, uy = cy, ur = r, us = jump(cx, cy, r);
+  for (const [span, st] of [[1.5 * sc, .5], [.25, .25]]) {
+    const bx = ux, by = uy, br = ur;
+    for (let dx = -span; dx <= span + 1e-6; dx += st) for (let dy = -span; dy <= span + 1e-6; dy += st) for (let dr = -span; dr <= span + 1e-6; dr += st) {
+      const v = jump(bx + dx, by + dy, br + dr);
+      if (v > us) { us = v; ux = bx + dx; uy = by + dy; ur = br + dr; }
     }
-  relax(null, band, 60);
-  // Dreieck auffüllen. Ist die Umgebung ringsum ähnlich (Nudeln, Soße …), wird Struktur von links hereingespiegelt und zum Rand hin
-  // weich mit einer glatten Füllung gemischt. Liegt das Dreieck auf einer Kante zwischen hell und dunkel, nur glatt füllen:
-  // sonst entsteht aus dem Gespiegelten wieder eine Dreiecksform.
-  const g = 3.5 * sc, tl = [];
-  let mx = Infinity, lS = 0, lN = 0, rS = 0, rN = 0;
-  for (let y = Math.max(0, y0); y <= Math.min(h - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(w - 1, x1); x++) {
-    const o = outer(x, y);
-    if (o >= -g || (o >= -7 * sc && L[y * w + x] > 140)) { tl.push(y * w + x); if (x < mx) mx = x; } // mit dem hellen Saum des Dreiecks
-    else if (o > -g - 4 * sc) { const j = (y * w + x) * 4, v = (p[j] + p[j + 1] + p[j + 2]) / 3; if (x < cx - .05 * r) { lS += v; lN++; } else if (x > cx + .1 * r) { rS += v; rN++; } }
   }
-  const even = lN && rN && Math.abs(lS / lN - rS / rN) < 35;
-  const mir = new Float32Array(tl.length * 3);
-  tl.forEach((i, n2) => { const y = (i / w) | 0, x = i - y * w, xs = Math.max(0, Math.min(w - 1, 2 * mx - x - 2)), j = (y * w + xs) * 4;
-    mir[n2 * 3] = p[j]; mir[n2 * 3 + 1] = p[j + 1]; mir[n2 * 3 + 2] = p[j + 2]; });
-  if (even) tl.forEach((i, n2) => { p[i * 4] = mir[n2 * 3]; p[i * 4 + 1] = mir[n2 * 3 + 1]; p[i * 4 + 2] = mir[n2 * 3 + 2]; });
-  else { // von außen Schicht für Schicht nach innen füllen: jede Seite setzt sich ein Stück fort (hell bleibt hell, dunkel dunkel)
+  // 4b. Wie stark ist im Abstand d von der Mitte abgedunkelt? Je Abstand der mittlere Wert aller Richtungen, gemessen gegen
+  // das Bild knapp außerhalb des Kreises. Ergibt einen Verlauf über den Rand statt einer harten Stufe (sonst bleibt ein Ring).
+  const D0 = -8 * sc, D1 = 4 * sc, ST = .25, ND = Math.round((D1 - D0) / ST) + 1, prof = new Float32Array(ND);
+  const ref = new Float32Array(A); let nref = 0;
+  for (let k = 0; k < A; k++) { let v = 0; for (const o of [5, 6, 7]) v += bil(ux + (ur + o * sc) * ca[k], uy + (ur + o * sc) * sa[k]); ref[k] = v / 3; if (ref[k] > 30) nref++; }
+  let fin = f;
+  if (nref >= 60) {
+    const tmp = [], inner = [];
+    for (let j = 0; j < ND; j++) {
+      const dd = D0 + j * ST; tmp.length = 0;
+      for (let k = 0; k < A; k++) if (ref[k] > 30) tmp.push(bil(ux + (ur + dd) * ca[k], uy + (ur + dd) * sa[k]) / ref[k]);
+      prof[j] = med(tmp); if (dd < -5 * sc) inner.push(prof[j]);
+    }
+    const fi = med(inner); if (fi >= .4 && fi <= .8) fin = fi;
+    for (let j = 0; j < ND; j++) {
+      const dd = D0 + j * ST; let v = Math.min(1, Math.max(fin, prof[j]));
+      if (dd <= -4.5 * sc) v = fin; if (dd >= 3 * sc) v = 1;
+      if (j && v < prof[j - 1]) v = prof[j - 1]; // von innen nach außen nur heller
+      prof[j] = v;
+    }
+  } else for (let j = 0; j < ND; j++) { const dd = D0 + j * ST; prof[j] = dd <= -1 ? fin : dd >= 1 ? 1 : fin + (1 - fin) * (dd + 1) / 2; } // zu dunkel zum Messen: einfache Stufe
+  const R = Math.ceil(ur + D1 + 2), bx0 = Math.max(0, Math.floor(ux - R)), bx1 = Math.min(w - 1, Math.ceil(ux + R)), by0 = Math.max(0, Math.floor(uy - R)), by1 = Math.min(h - 1, Math.ceil(uy + R));
+  for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) {
+    const t = (Math.hypot(x - ux, y - uy) - ur - D0) / ST; if (t >= ND - 1) continue;
+    const t0 = t <= 0 ? 0 : t | 0, fm = t <= 0 ? fin : prof[t0] + (prof[t0 + 1] - prof[t0]) * (t - t0);
+    if (fm < .999) { const j = (y * w + x) * 4; p[j] = Math.min(255, p[j] / fm); p[j + 1] = Math.min(255, p[j + 1] / fm); p[j + 2] = Math.min(255, p[j + 2] / fm); }
+  }
+  // 4c. Das Loch: das weiße Dreieck mit seinem hellen Saum
+  // Maßgeblich sind die wirklich hellen Pixel: Im abgedunkelten Kreis kann vom Bild selbst nichts heller sein als etwa 255 × 0,65.
+  // Drumherum ein paar Pixel Zugabe für den weichen Rand des Dreiecks.
+  const tl = [], inHole = new Uint8Array(n), core = [], grow = Math.max(2, Math.round(3 * sc)), lim = Math.min(215, 255 * fin + 12);
+  for (let y = Math.max(0, y0); y <= Math.min(h - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(w - 1, x1); x++)
+    if (outer(x, y) >= -8 * sc && L[y * w + x] > lim) core.push(y * w + x);
+  for (const i of core) {
+    const y = (i / w) | 0, x = i - y * w;
+    for (let dy = -grow; dy <= grow; dy++) for (let dx = -grow; dx <= grow; dx++) {
+      if (dx * dx + dy * dy > grow * grow + 1) continue;
+      const yy = y + dy, xx = x + dx; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+      const q = yy * w + xx; if (!inHole[q]) { inHole[q] = 1; tl.push(q); }
+    }
+  }
+  // 4d. Füllen: mit Bildstücken aus der Umgebung. Geht das nicht (kein Platz ringsum), von außen nach innen glatt füllen.
+  let filled = false;
+  try { filled = await patchFill(p, w, h, tl, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc))); } catch (e) { console.warn("Füllen", e); filled = false; }
+  if (!filled) {
     const todo = new Set(tl);
     while (todo.size) {
       const layer = [];
@@ -2297,19 +2588,39 @@ function unplayCanvas(src) {
       if (!layer.length) break;
       for (const [i, r2, g2, b2] of layer) { p[i * 4] = r2; p[i * 4 + 1] = g2; p[i * 4 + 2] = b2; todo.delete(i); }
     }
+    for (let it = 0; it < 40; it++) for (const i of tl) {
+      const y = (i / w) | 0, x = i - y * w;
+      for (let ch = 0; ch < 3; ch++) {
+        let s2 = 0, c2 = 0;
+        if (x > 0) { s2 += p[(i - 1) * 4 + ch]; c2++; } if (x < w - 1) { s2 += p[(i + 1) * 4 + ch]; c2++; }
+        if (y > 0) { s2 += p[(i - w) * 4 + ch]; c2++; } if (y < h - 1) { s2 += p[(i + w) * 4 + ch]; c2++; }
+        p[i * 4 + ch] = s2 / c2;
+      }
+    }
   }
-  relax(null, tl, even ? 250 : 40);
-  if (even) tl.forEach((i, n2) => {
-    const y = (i / w) | 0, x = i - y * w, wt = outer(x, y) + g >= 3 * sc ? .85 : .45;
-    for (let ch = 0; ch < 3; ch++) p[i * 4 + ch] = mir[n2 * 3 + ch] * wt + p[i * 4 + ch] * (1 - wt);
-  });
+  // 4e. Am Kreisrand bleibt vom Verlauf eine feine Linie (Farbe und Schärfe stimmen dort nie ganz). Den schmalen Streifen
+  // ebenfalls aus der Umgebung füllen; klappt das nicht, ganz leicht glätten.
+  {
+    const bw = 2 * sc, ring = [];
+    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) if (Math.abs(Math.hypot(x - ux, y - uy) - ur) <= bw && !inHole[y * w + x]) ring.push(y * w + x);
+    let ok2 = false;
+    try { ok2 = await patchFill(p, w, h, ring, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc)), true); } catch (e) { console.warn("Füllen", e); ok2 = false; }
+    if (!ok2) {
+      const kk = Math.max(1, Math.round(1.1 * sc)), cp = p.slice();
+      for (const i of ring) {
+        const y = (i / w) | 0, x = i - y * w, e = Math.abs(Math.hypot(x - ux, y - uy) - ur), wt = (1 - e / (bw + 1)) * .6, j = i * 4; let s0 = 0, s1 = 0, s2 = 0, c2 = 0;
+        for (let yy = Math.max(0, y - kk); yy <= Math.min(h - 1, y + kk); yy++) for (let xx = Math.max(0, x - kk); xx <= Math.min(w - 1, x + kk); xx++) { const q = (yy * w + xx) * 4; s0 += cp[q]; s1 += cp[q + 1]; s2 += cp[q + 2]; c2++; }
+        p[j] = p[j] * (1 - wt) + s0 / c2 * wt; p[j + 1] = p[j + 1] * (1 - wt) + s1 / c2 * wt; p[j + 2] = p[j + 2] * (1 - wt) + s2 / c2 * wt;
+      }
+    }
+  }
   ctx.putImageData(id, 0, 0);
   return c;
 }
 async function unplayBlob(blob) {
   const { img, url } = await loadImg(blob);
   try {
-    const c = unplayCanvas(img); if (!c) return null;
+    const c = await unplayCanvas(img); if (!c) return null;
     try { return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("encode")), "image/jpeg", .92)); }
     finally { c.width = c.height = 0; }
   } finally { URL.revokeObjectURL(url); }
@@ -2327,7 +2638,7 @@ function queuePlayFix() {
   // V89: Titelbilder, die Version 87 als „Original ohne Play-Zeichen“ eingetragen hat (cover.c), werden einmal wie alle anderen
   // geprüft: Ist doch ein Zeichen drin, wird es wie bisher herausgerechnet. Ist keins drin, bleibt das Bild, wie es ist.
   const sigC = x => playSig(x) + (x.cover && x.cover.c ? ":c" : "");
-  const r = state.recipes.find(x => x.cover && x.cover.dataUrl && isIgLink(x.link || "") && !seen.has(sigC(x)) && !playDone.has(sigC(x)));
+  const r = state.recipes.find(x => x.cover && x.cover.dataUrl && !(x.cover.u >= 2) && isIgLink(x.link || "") && !seen.has(sigC(x)) && !playDone.has(sigC(x)));
   if (!r) return;
   playBusy = true;
   const sig = sigC(r), myUid = uid, myCol = col;
@@ -2340,7 +2651,7 @@ function queuePlayFix() {
       if (fixed) {
         const now = state.recipes.find(x => x.id === r.id);
         if (!now || sigC(now) !== sig) return; // inzwischen ein anderes Titelbild
-        const cover = await storeCover(fixed);
+        const cover = await storeCover(fixed); cover.u = 2;
         await withRetry(() => col.doc(r.id).update({ cover }));
         patchLocal(r.id, { cover });
         playMark(r.id + ":" + cover.dataUrl.length); // das neue Bild nicht nochmal prüfen
@@ -4620,7 +4931,7 @@ ${(r.steps || []).map(l => "- " + l).join("\n")}`;
     finally { tagBusy = false; setTimeout(queueTags, 1500); }
   })();
 }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { setTimeout(queueTags, 2000); setTimeout(queueTimes, 2600); setTimeout(queuePlayFix, 3200); } });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { setTimeout(queueTags, 2000); setTimeout(queueTimes, 2600); setTimeout(queuePlayFix, 3200); setTimeout(() => whenCalm(queueCoverFix), 12000); } });
 /* Zeit schätzen, wenn im Rezept keine steht (ältere und von Hand angelegte Rezepte; beim Einlesen schätzt Claude sie gleich mit).
    Einmal je Rezept: „timeEst“ merkt, ob geschätzt wurde (true) oder die Zeit von Hand geändert bzw. gelöscht ist (false). Angezeigt wird sie wie jede andere Zeit. */
 const noCa = s => String(s || "").replace(/^\s*(?:ca\.?|circa|etwa|ungefähr)\s*/i, "").trim();
@@ -4832,6 +5143,7 @@ async function saveRecipe() {
     if (!existing) Object.assign(doc, { link: d.link.trim(), favorite: false, createdAt: now, rating: 0, nutrition: cleanNutrition(d.nutrition), viewedAt: null, timeEst: d.timeEst ? true : null });
     else doc.createdAt = existing.createdAt || now; // ohne createdAt taucht ein Rezept nicht in der Liste auf (z. B. wenn es parallel auf dem anderen Handy gelöscht wurde)
     await withRetry(() => col.doc(id).set(doc, true));
+    if (ed.coverBlob && isIgLink(doc.link || d.link || "")) cfTouch(id, cover, true); // selbst gewähltes Titelbild bleibt
     const i = state.recipes.findIndex(r => r.id === id);
     const local = Object.assign({ id }, existing || {}, doc);
     if (i >= 0) state.recipes[i] = local; else state.recipes.unshift(local);
@@ -5115,11 +5427,11 @@ function aiErrorText(e) {
 }
 
 /* Rezept direkt speichern (ohne Editor) */
-async function saveData(d, coverBlob, coverUrl, origBlobs) {
+async function saveData(d, coverBlob, coverUrl, origBlobs, igCover) {
   if (!col) throw { code: "permission", message: "nicht angemeldet" };
   const myCol = col;
   let cover = null;
-  if (coverBlob) { try { cover = await storeCover(coverBlob, isIgLink(d.link || "")); } catch (e) { cover = null; } }
+  if (coverBlob) { try { cover = igCover ? await storeIgCover(coverBlob, igCover === "clean") : await storeCover(coverBlob, isIgLink(d.link || "")); } catch (e) { cover = null; } }
   if (col !== myCol) throw { code: "cancelled" }; // inzwischen anderes Konto
   else if (coverUrl && /^https:\/\//.test(coverUrl)) cover = { url: coverUrl.slice(0, 1500) };
   const sv = parseFloat(String(d.servings).replace(",", "."));
@@ -5137,6 +5449,7 @@ async function saveData(d, coverBlob, coverUrl, origBlobs) {
   const id = newId();
   await withRetry(() => col.doc(id).set(doc));
   if (!state.recipes.some(r => r.id === id)) state.recipes.unshift(Object.assign({ id }, doc));
+  if (igCover) cfTouch(id, cover, igCover === "clean"); // gerade von Instagram geholt: nicht gleich nochmal nachsehen
   // Fotos vom Rezept zusätzlich aufheben (im Hintergrund, das Rezept ist schon gespeichert)
   if (origBlobs && origBlobs.length) {
     const myUid = uid;
@@ -5244,7 +5557,7 @@ async function runJob(job) {
       }
     }
     job.phase = "save"; refreshJobs();
-    const savedId = await saveData(conv.data, conv.coverBlob, conv.coverUrl, conv.orig);
+    const savedId = await saveData(conv.data, conv.coverBlob, conv.coverUrl, conv.orig, conv.igCover);
     removeJob(job);
     toast(`„${conv.data.title}“ gespeichert`);
     if (savedId && !nutriComplete(cleanNutrition(conv.data.nutrition))) nutriInBackground(savedId);
@@ -5259,7 +5572,7 @@ async function runJob(job) {
   try {
     // Schon gelesen, nur das Speichern hatte gehakt: nicht nochmal lesen (kostet Guthaben)
     if (job.conv) { await done(job.conv); return; }
-    let src = job.src, pageImage = "", thumb = null, igUser = "";
+    let src = job.src, pageImage = "", thumb = null, igUser = "", igCover = "";
     if (src.mode === "link") {
       let pg;
       try { pg = await fetchPage(src.link, job.ctl.signal); }
@@ -5273,9 +5586,16 @@ async function runJob(job) {
       pageImage = m["og:image"] || "";
       // Vorschaubild(er) gleich mitholen und in der App speichern. Bei Instagram bis zu zwei, Claude nimmt eins ohne Play-Knopf.
       const isInsta = pg && pg.kind === "instagram";
-      const cand = [...new Set([pageImage, ...(isInsta && Array.isArray(m.images) ? m.images : [])].filter(u => /^https:\/\//.test(String(u || ""))))].slice(0, isInsta ? 2 : 1);
-      const got = await Promise.all(cand.map(u => fetchImage(u, job.ctl.signal).catch(e => { if (e && e.code === "cancelled") throw e; return null; })));
-      const thumbs = got.filter(Boolean);
+      const getImg = u => fetchImage(u, job.ctl.signal).catch(e => { if (e && e.code === "cancelled") throw e; return null; });
+      // Schickt der Server das Originalbild des Reels mit (sicher ohne Play-Knopf), reicht dieses eine Bild
+      const cleanUrl = isInsta && Array.isArray(m.clean) ? m.clean.map(u => String(u || "")).find(u => /^https:\/\//.test(u)) : "";
+      let thumbs = [];
+      if (cleanUrl) { const b0 = await getImg(cleanUrl); if (b0) { thumbs = [b0]; igCover = "clean"; } }
+      if (!thumbs.length) {
+        const cand = [...new Set([pageImage, ...(isInsta && Array.isArray(m.images) ? m.images : [])].filter(u => /^https:\/\//.test(String(u || ""))))].slice(0, isInsta ? 2 : 1);
+        thumbs = (await Promise.all(cand.map(getImg))).filter(Boolean);
+        if (isInsta && thumbs.length) igCover = "thumb";
+      }
       thumb = thumbs[0] || null;
       if (isInsta) {
         igUser = m.user || "";
@@ -5308,6 +5628,7 @@ async function runJob(job) {
       else if (box) { try { conv.coverBlob = await cropBox(conv.coverBlob, box); } catch (e) { conv.coverBlob = null; } }
     }
     if (!conv.coverBlob && thumb) conv.coverBlob = thumb;
+    if (insta && igCover && conv.coverBlob) conv.igCover = igCover; // Bild kommt von Instagram: „clean“ = Original ohne Play-Knopf
     if (!conv.coverBlob && pageImage && !insta) conv.coverUrl = pageImage;
     if (src.mode === "photo" && imgs.length) conv.orig = imgs; // Originalfotos mit aufheben
     job.conv = conv;
