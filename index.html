@@ -971,7 +971,14 @@ button.sf-n:active { opacity: .55; }
 #cfv .cfv-bar .tbtn { flex: none; min-width: 64px; text-align: left; }
 #cfv .cfv-t { flex: 1; min-width: 0; font-weight: 600; font-size: 16px; text-align: center; }
 #cfv .cfv-sp { flex: none; width: 64px; }
-#cfv .cfv-body { margin: 0; padding: 12px 16px calc(20px + env(safe-area-inset-bottom)); overflow: auto; -webkit-overflow-scrolling: touch; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.42 -apple-system, system-ui, sans-serif; color: var(--ink); -webkit-user-select: text; user-select: text; }
+#cfv .cfv-scroll { overflow: auto; -webkit-overflow-scrolling: touch; padding: 0 0 calc(20px + env(safe-area-inset-bottom)); }
+#cfv .cfv-pics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px; }
+#cfv .cfv-pics figure { margin: 0; }
+#cfv .cfv-pics canvas { display: block; width: 100%; height: auto; border-radius: 8px; background: var(--ph); }
+#cfv .cfv-pics figcaption { margin-top: 4px; font-size: 12px; color: var(--muted); text-align: center; }
+#cfv .cfv-more { padding-top: 16px; color: var(--muted); }
+#cfv .cfv-share { display: block; margin: 12px 16px 0; width: calc(100% - 32px); min-height: 46px; border: 0; border-radius: 12px; background: var(--fill); color: var(--ink); font: inherit; font-size: 16px; font-weight: 600; }
+#cfv .cfv-body { margin: 0; padding: 12px 16px 12px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.42 -apple-system, system-ui, sans-serif; color: var(--ink); -webkit-user-select: text; user-select: text; }
 </style>
 </head>
 <body>
@@ -1121,7 +1128,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "102";
+const APP_VERSION = "103";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2334,7 +2341,7 @@ async function coverFixOne(r, e, note) {
       }
     }
   } else if (isIg) note("Schon neu gerechnet, ein Original gibt es gerade nicht");
-  return { cover };
+  return { cover, pg };
 }
 // Neues Titelbild eintragen (wenn sich das Rezept inzwischen nicht geändert hat) und alles merken
 async function coverFixApply(r, sig, cover, e, myUid, myCol) {
@@ -2386,49 +2393,105 @@ async function cfvOpen() {
   cfvClose();
   const my = ++cfvRun, d = document.createElement("div");
   d.id = "cfv";
-  d.innerHTML = `<div class="cfv-bar"><button type="button" class="tbtn" data-action="cfv-close">Fertig</button><div class="cfv-t">Titelbild-Prüfung</div><span class="cfv-sp"></span></div><pre class="cfv-body"></pre>`;
+  d.innerHTML = `<div class="cfv-bar"><button type="button" class="tbtn" data-action="cfv-close">Fertig</button><div class="cfv-t">Titelbild-Prüfung</div><span class="cfv-sp"></span></div><div class="cfv-scroll"><pre class="cfv-body"></pre><div class="cfv-mid"></div><pre class="cfv-body cfv-more"></pre></div>`;
   document.body.appendChild(d);
-  const body = d.querySelector(".cfv-body"), lines = [], put = () => { if (my === cfvRun) body.textContent = lines.join("\n"); };
+  // oben: Stand und Probe (mit Bildern darunter) · unten: die einzelnen Rezepte
+  const top = d.querySelector(".cfv-body"), more = d.querySelector(".cfv-more"), head = [], probe = [], recs = [];
+  let state0 = "Prüfung läuft …";
+  const put = () => { if (my !== cfvRun) return; top.textContent = [state0, "", ...head, ...(probe.length ? ["", ...probe] : [])].join("\n"); more.textContent = recs.join("\n"); };
   const hm = t => new Date(t).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   const igs = state.recipes.filter(r => r.cover && r.cover.dataUrl && isIgLink(r.link || ""));
   const nC = igs.filter(r => r.cover.c).length, nU = igs.filter(r => !r.cover.c && r.cover.u >= 2).length, o = cfLoad();
-  lines.push("Version " + APP_VERSION + " · Server …");
-  lines.push("Instagram-Rezepte mit Bild: " + igs.length);
-  lines.push("Original: " + nC + " · neu gerechnet: " + nU + " · alt: " + (igs.length - nC - nU));
-  lines.push("Schon nachgesehen: " + igs.filter(r => o[cfSig(r)]).length + " · in dieser Sitzung: " + cfCount + (cfOff ? " (beendet)" : ""));
-  lines.push("Pause wegen Sperre: " + (o._pause && Date.now() < o._pause ? "bis " + hm(o._pause) + " Uhr" : "nein"));
+  head.push("Version " + APP_VERSION + " · Server …");
+  head.push("Instagram-Rezepte mit Bild: " + igs.length);
+  head.push("Original: " + nC + " · neu gerechnet: " + nU + " · alt: " + (igs.length - nC - nU));
+  head.push("Schon nachgesehen: " + igs.filter(r => o[cfSig(r)]).length + " · in dieser Sitzung: " + cfCount + (cfOff ? " (beendet)" : ""));
+  head.push("Pause wegen Sperre: " + (o._pause && Date.now() < o._pause ? "bis " + hm(o._pause) + " Uhr" : "nein"));
   put();
   const v = await workerVersion();
-  lines[0] = "Version " + APP_VERSION + " · Server " + (v || "nicht erreichbar");
+  head[0] = "Version " + APP_VERSION + " · Server " + (v || "nicht erreichbar");
   put();
-  if (!col || !uid || v < 2) { lines.push("", "Prüfung nicht möglich."); put(); return; }
+  if (!col || !uid || v < 2) { state0 = "Prüfung nicht möglich."; put(); return; }
   for (let w = 0; cfBusy && w < 120 && my === cfvRun; w++) await new Promise(res => setTimeout(res, 500)); // läuft gerade eine Runde: abwarten
   if (my !== cfvRun) return;
   cfBusy = true;
   try {
     const todo = igs.filter(r => !r.cover.c).slice(0, 4);
-    if (!todo.length) lines.push("", "Alle Titelbilder sind schon das Original.");
+    if (!todo.length) recs.push("Alle Titelbilder sind schon das Original.");
+    let stopped = false;
     for (const r0 of todo) {
-      if (my !== cfvRun) break;
+      if (my !== cfvRun || stopped) break;
       const r = state.recipes.find(x => x.id === r0.id); if (!r || !r.cover || r.cover.c) continue;
       const sig = cfSig(r), e = cfLoad()[sig] || { n: 0 }, myUid = uid, myCol = col;
       let dim = "?"; try { const x = await loadImg(await (await fetch(r.cover.dataUrl)).blob()); dim = x.img.naturalWidth + "×" + x.img.naturalHeight; URL.revokeObjectURL(x.url); } catch (e2) { /* egal */ }
-      lines.push("", String(r.title || "Rezept").slice(0, 40));
-      lines.push("Gespeichert: " + dim + " · " + (r.cover.u >= 2 ? "neu gerechnet" : "alt") + " · bisher " + (e.n || 0) + "× nachgesehen" + (e.t ? " (" + hm(e.t) + ")" : ""));
-      lines.push("…"); put();
+      if (recs.length) recs.push("");
+      recs.push(String(r.title || "Rezept").slice(0, 40));
+      recs.push("Gespeichert: " + dim + " · " + (r.cover.u >= 2 ? "neu gerechnet" : "alt") + " · bisher " + (e.n || 0) + "× nachgesehen" + (e.t ? " (" + hm(e.t) + ")" : ""));
+      recs.push("…"); put();
       let res;
-      try { res = await coverFixOne(r, e, t => { lines.splice(lines.length - 1, 0, t); put(); }); }
+      try { res = await coverFixOne(r, e, t => { recs.splice(recs.length - 1, 0, t); put(); }); }
       catch (err) { res = { err: String((err && err.message) || err).slice(0, 80) }; }
-      lines.pop();
-      if (res.err) { lines.push("→ Fehler: " + res.err); put(); continue; }
-      if (res.stop) { if (res.stop === "block") cfPause(); lines.push("→ abgebrochen: Instagram gibt die Seite gerade nicht her"); put(); break; }
-      let done = false;
-      try { done = await coverFixApply(r, sig, res.cover, e, myUid, myCol); } catch (err) { lines.push("→ Speichern ging nicht: " + String((err && err.message) || err).slice(0, 60)); put(); continue; }
-      lines.push(done ? "→ getauscht (" + (res.cover.c ? "Original" : "neu gerechnet") + ")" : "→ bleibt, wie es ist");
+      recs.pop();
+      if (res.err) recs.push("→ Fehler: " + res.err);
+      else if (res.stop) { if (res.stop === "block") cfPause(); stopped = true; recs.push("→ abgebrochen: Instagram gibt die Seite gerade nicht her"); }
+      else {
+        let done = false, bad = "";
+        try { done = await coverFixApply(r, sig, res.cover, e, myUid, myCol); } catch (err) { bad = String((err && err.message) || err).slice(0, 60); }
+        recs.push(bad ? "→ Speichern ging nicht: " + bad : done ? "→ getauscht (" + (res.cover.c ? "Original" : "neu gerechnet") + ")" : "→ bleibt, wie es ist");
+      }
       put();
+      // Probe mit dem ersten Rezept: das Vorschaubild so holen, wie es das Nachholen bekommt, und hier neu rechnen. Nichts wird gespeichert.
+      if (r0 === todo[0] && res.pg && my === cfvRun) {
+        probe.push("Probe mit dem Vorschaubild von Instagram", "(" + String(r.title || "").slice(0, 34) + ", nichts wird gespeichert)", "…"); put();
+        const say = t => { probe.splice(probe.length - 1, 0, t); put(); };
+        try {
+          const m = res.pg.meta || {}, clean = new Set((Array.isArray(m.clean) ? m.clean : []).map(String));
+          // das Vorschaubild mit dem Knopf: das erste Bild der Seite, das nicht das Original ist
+          const tu = [m["og:image"], ...(Array.isArray(m.images) ? m.images : [])].map(u => String(u || "")).find(u => /^https:\/\//.test(u) && !clean.has(u));
+          const blob = tu ? await fetchImage(tu) : null;
+          if (!blob) say("Vorschaubild: nicht bekommen");
+          else {
+            unplayLast = null;
+            const t1 = performance.now(), out = await unplayBlob(blob), ms = Math.round(performance.now() - t1), u = unplayLast;
+            if (!out || !u) say("Play-Knopf erkannt: nein (" + ms + " ms)");
+            else {
+              say("Bild " + u.w + "×" + u.h + " · Knopf erkannt: ja · Kreis " + u.r.toFixed(1).replace(".", ",") + " · dunkel " + u.f.toFixed(2).replace(".", ",") + " · Loch " + u.hole);
+              say("Gefüllt: Dreieck " + u.tri + ", Rand " + u.ring + (u.why ? " (" + u.why + ")" : "") + " · " + ms + " ms");
+            }
+            if (my === cfvRun) await cfvShow(d, blob, out);
+          }
+        } catch (err) { say("Probe ging nicht: " + String((err && (err.code || err.message)) || err).slice(0, 60)); }
+        probe.pop(); put();
+      }
     }
-    lines.push("", "Fertig."); put();
+    state0 = "Fertig."; put();
   } finally { cfBusy = false; }
+}
+// Zwei Ausschnitte der Bildmitte nebeneinander (links wie von Instagram, rechts gerechnet), dazu das Vorschaubild zum Teilen
+async function cfvShow(d, blob, out) {
+  const box = document.createElement("div"); box.className = "cfv-pics";
+  const cut = async (bl, cap) => {
+    const fig = document.createElement("figure"), c = document.createElement("canvas"), fc = document.createElement("figcaption");
+    fc.textContent = cap; fig.append(c, fc); box.appendChild(fig);
+    if (!bl) { c.width = c.height = 8; fc.textContent = cap + ": –"; return; }
+    const { img, url } = await loadImg(bl);
+    try {
+      const W = img.naturalWidth, H = img.naturalHeight, side = Math.min(W, H, Math.max(160, Math.round(Math.min(W, H) * .62)));
+      c.width = c.height = side * 2;
+      const g = c.getContext("2d"); g.imageSmoothingEnabled = false; // Pixel unverändert, nur doppelt groß
+      g.drawImage(img, Math.round((W - side) / 2), Math.round((H - side) / 2), side, side, 0, 0, side * 2, side * 2);
+    } finally { URL.revokeObjectURL(url); }
+  };
+  await cut(blob, "von Instagram"); await cut(out, "gerechnet");
+  d.querySelector(".cfv-mid").appendChild(box);
+  try {
+    const file = new File([blob], "vorschaubild.jpg", { type: "image/jpeg" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      const bt = document.createElement("button"); bt.type = "button"; bt.className = "cfv-share"; bt.textContent = "Vorschaubild teilen";
+      bt.addEventListener("click", () => { navigator.share({ files: [file] }).catch(() => {}); });
+      d.querySelector(".cfv-mid").appendChild(bt);
+    }
+  } catch (e) { /* kein Teilen auf diesem Gerät */ }
 }
 
 /* ---------- Play-Knopf aus Instagram-Bildern herausrechnen ---------- */
@@ -2442,17 +2505,19 @@ async function cfvOpen() {
 // Mittelwert aus allen Stücken, die es überdecken. Das wiederholt sich, bis Muster und Kanten ringsum zusammenpassen.
 // p: RGBA-Daten des ganzen Bilds, list: Pixel des Lochs. Gesucht wird nur im Quadrat um (cx, cy) mit halber Seite rad.
 // thin: schmales Loch (ein Streifen) – nur in voller Größe und gemittelt, das reicht dort und bleibt ruhig.
+let pfWhy = ""; // warum das Füllen mit Bildstücken zuletzt nicht ging (für die Prüfseite)
 async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
+  pfWhy = "";
   const X0 = Math.max(0, Math.floor(cx - rad)), Y0 = Math.max(0, Math.floor(cy - rad)), X1 = Math.min(w - 1, Math.ceil(cx + rad)), Y1 = Math.min(h - 1, Math.ceil(cy + rad));
   const W0 = X1 - X0 + 1, H0 = Y1 - Y0 + 1, PS = 2 * hp + 1;
-  if (!list.length || W0 < 8 * PS || H0 < 8 * PS) return false;
+  if (!list.length || W0 < 8 * PS || H0 < 8 * PS) { pfWhy = !list.length ? "kein Loch" : "Feld zu klein " + W0 + "×" + H0; return false; }
   let seed = 9001; const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; // immer dieselbe Folge: gleiches Bild, gleiches Ergebnis
   let t0 = performance.now(); const breathe = async () => { if (performance.now() - t0 > 12) { await new Promise(res => setTimeout(res, 0)); t0 = performance.now(); } };
   // Stufe 0: volles Bild
   const lv = [];
   { const N = W0 * H0, im = new Float32Array(N * 3), hole = new Uint8Array(N);
     for (let y = 0; y < H0; y++) for (let x = 0; x < W0; x++) { const j = ((y + Y0) * w + x + X0) * 4, k = (y * W0 + x) * 3; im[k] = p[j]; im[k + 1] = p[j + 1]; im[k + 2] = p[j + 2]; }
-    for (const i of list) { const y = ((i / w) | 0) - Y0, x = i % w - X0; if (x < 2 * PS || y < 2 * PS || x >= W0 - 2 * PS || y >= H0 - 2 * PS) return false; hole[y * W0 + x] = 1; }
+    for (const i of list) { const y = ((i / w) | 0) - Y0, x = i % w - X0; if (x < 2 * PS || y < 2 * PS || x >= W0 - 2 * PS || y >= H0 - 2 * PS) { pfWhy = "Loch am Rand"; return false; } hole[y * W0 + x] = 1; }
     lv.push({ W: W0, H: H0, im, hole }); }
   // kleinere Stufen: je 2×2 Pixel gemittelt (nur bekannte); Loch, sobald eins der vier im Loch liegt
   while (lv.length < (thin ? 1 : 3)) {
@@ -2476,7 +2541,7 @@ async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
     const src = [], tg = [], tix = new Int32Array(N).fill(-1), hl = [];
     for (let y = hp; y < H - hp; y++) for (let x = hp; x < W - hp; x++) { const c = cnt(x, y); if (c === 0) src.push(y * W + x); else { tix[y * W + x] = tg.length; tg.push(y * W + x); } }
     for (let k = 0; k < N; k++) if (hole[k]) hl.push(k);
-    if (src.length < 200 || !tg.length) return false;
+    if (src.length < 200 || !tg.length) { pfWhy = "zu wenig Umgebung (Stufe " + li + ": " + src.length + ")"; return false; }
     const T = tg.length, nn = new Int32Array(T), nd = new Float32Array(T);
     const dist = (t, s2, lim) => { let e = 0; for (let dy = -hp; dy <= hp; dy++) { const a = (t + dy * W - hp) * 3, b2 = (s2 + dy * W - hp) * 3; for (let i = 0; i < PS * 3; i++) { const d = im[a + i] - im[b2 + i]; e += d * d; } if (e >= lim) return e; } return e; };
     // Start: gröbste Stufe von außen nach innen glatt füllen und zufällig zuordnen; sonst die Zuordnung der gröberen Stufe übernehmen
@@ -2485,7 +2550,7 @@ async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
       while (todo.size) {
         const layer = [];
         for (const k of todo) { let n = 0, r = 0, g = 0, bl = 0; for (const q of [k - 1, k + 1, k - W, k + W]) if (!todo.has(q)) { r += im[q * 3]; g += im[q * 3 + 1]; bl += im[q * 3 + 2]; n++; } if (n) layer.push([k, r / n, g / n, bl / n]); }
-        if (!layer.length) return false;
+        if (!layer.length) { pfWhy = "Start"; return false; }
         for (const [k, r, g, bl] of layer) { im[k * 3] = r; im[k * 3 + 1] = g; im[k * 3 + 2] = bl; todo.delete(k); }
       }
       for (let i = 0; i < T; i++) nn[i] = src[(rnd() * src.length) | 0];
@@ -2673,8 +2738,10 @@ async function unplayCanvas(src) {
   }
   // 4d. Füllen: mit Bildstücken aus der Umgebung. Geht das nicht (kein Platz ringsum), von außen nach innen glatt füllen.
   let filled = false;
-  unplayLast = { tri: "", ring: "" };
-  try { filled = await patchFill(p, w, h, tl, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc))); } catch (e) { console.warn("Füllen", e); filled = false; }
+  const info = { w, h, r: ur, f: fin, hole: tl.length, tri: "", ring: "", why: "" };
+  unplayLast = info;
+  try { filled = await patchFill(p, w, h, tl, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc))); if (!filled) info.why = pfWhy; } catch (e) { console.warn("Füllen", e); filled = false; info.why = "Fehler: " + String((e && e.message) || e).slice(0, 60); }
+  info.tri = filled ? "Bildstücke" : "glatt";
   if (!filled) {
     const todo = new Set(tl);
     while (todo.size) {
@@ -2706,8 +2773,8 @@ async function unplayCanvas(src) {
     const bw = 2 * sc, ring = [];
     for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) if (Math.abs(Math.hypot(x - ux, y - uy) - ur) <= bw && !inHole[y * w + x]) ring.push(y * w + x);
     let ok2 = false;
-    try { ok2 = await patchFill(p, w, h, ring, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc)), true); } catch (e) { console.warn("Füllen", e); ok2 = false; }
-    unplayLast = { tri: filled ? "Bildstücke" : "glatt", ring: ok2 ? "Bildstücke" : "glatt" };
+    try { ok2 = await patchFill(p, w, h, ring, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc)), true); if (!ok2 && !info.why) info.why = "Rand: " + pfWhy; } catch (e) { console.warn("Füllen", e); ok2 = false; if (!info.why) info.why = "Rand, Fehler: " + String((e && e.message) || e).slice(0, 60); }
+    info.ring = ok2 ? "Bildstücke" : "glatt";
     if (!ok2) {
       const kk = Math.max(1, Math.round(1.1 * sc)), cp = p.slice();
       for (const i of ring) {
