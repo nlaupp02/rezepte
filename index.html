@@ -1128,7 +1128,7 @@ const FB_CFG = { apiKey: "AIzaSyCAl772BfKbSvfor7FTTKPNpNBJTuxoN7g", authDomain: 
 const FB_V = "12.19.0";
 const FB_URL = n => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${n}.js`;
 // Versionsnummer = Nummer von „pages build and deployment“ bei GitHub (Actions). Bei jedem Hochladen um eins erhöhen.
-const APP_VERSION = "103";
+const APP_VERSION = "104";
 const APP_DATE = "04.11.2026";
 // Fotos und Links liest Claude über den eigenen Cloudflare-Worker (hält den API-Schlüssel geheim)
 const WORKER_URL = "https://rezepte-ki.nlaupp02.workers.dev";
@@ -2206,13 +2206,14 @@ async function cropTall(blob, maxRatio) {
 }
 // Titelbild eines Instagram-Rezepts ablegen. clean: das Originalbild des Reels (ohne Play-Knopf), im Rezept vermerkt als
 // cover.c – das fasst danach niemand mehr an. Sonst das Vorschaubild: Steckt ein Play-Knopf drin, wird er herausgerechnet
-// (vermerkt als cover.u = 2: mit dem Verfahren aus V100).
+// (vermerkt als cover.u = 3: mit dem Verfahren aus V104; 2 war das aus V100, das in gemusterten Bildern ein einfarbiges Dreieck ließ).
+const UNPLAY_V = 3;
 async function storeIgCover(blob, clean) {
   let hit = false;
   if (!clean) { try { const b = await unplayBlob(blob); if (b) { blob = b; hit = true; } } catch (e) { /* Bild bleibt, wie es ist */ } }
   try { blob = await cropTall(blob, 1.25); } catch (e) { /* unbeschnitten */ }
   const cover = await storeCover(blob, false);
-  if (clean) cover.c = 1; else if (hit) cover.u = 2;
+  if (clean) cover.c = 1; else if (hit) cover.u = UNPLAY_V;
   return cover;
 }
 // Ist das neue Bild dasselbe Motiv wie das gespeicherte Titelbild? Verglichen wird klein und in Graustufen. Die Bildmitte
@@ -2289,13 +2290,14 @@ const cfSig = r => r.id + ":" + ((r.cover && r.cover.dataUrl) || "").length;
 function cfLoad() { try { const o = JSON.parse(localStorage.getItem(cfKey()) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } }
 function cfSave(o) { try { const ks = Object.keys(o).filter(k => k !== "_pause"); ks.slice(0, Math.max(0, ks.length - 600)).forEach(k => delete o[k]); localStorage.setItem(cfKey(), JSON.stringify(o)); } catch (e) { /* egal */ } }
 // Ein gerade gespeichertes Titelbild gilt als nachgesehen (done: endgültig, sonst kommt nach fünf Tagen noch ein Versuch)
-function cfTouch(id, cover, done) { if (!(cover && cover.dataUrl)) return; const o = cfLoad(); o[id + ":" + cover.dataUrl.length] = done ? { n: 1, t: Date.now(), done: 1 } : { n: 1, t: Date.now() }; cfSave(o); }
+function cfTouch(id, cover, done) { if (!(cover && cover.dataUrl)) return; const o = cfLoad(); o[id + ":" + cover.dataUrl.length] = done ? { n: 1, t: Date.now(), done: 1, a: UNPLAY_V } : { n: 1, t: Date.now(), a: UNPLAY_V }; cfSave(o); }
 function cfNext(o) {
   const now = Date.now();
   return state.recipes.find(r => {
     if (!(r.cover && r.cover.dataUrl && !r.cover.c && isIgLink(r.link || ""))) return false;
     const e = o[cfSig(r)];
-    return !e || (!e.done && e.n < 3 && now - e.t > 5 * 864e5);
+    if (!e || (e.a !== UNPLAY_V && !(r.cover.u >= UNPLAY_V))) return true; // noch nie oder nur mit dem alten Verfahren nachgesehen
+    return !e.done && e.n < 3 && now - e.t > 5 * 864e5;
   });
 }
 // Ein Rezept nachsehen. Liefert { cover } (neues Titelbild oder null) oder { stop } wenn die Seite nicht zu bekommen ist
@@ -2310,6 +2312,7 @@ async function coverFixOne(r, e, note) {
     return { stop: err && (err.code === "insta_blocked" || err.code === "upstream_error" || err.code === "rate_limited") ? "block" : "error" };
   }
   const m = (pg && pg.meta) || {}, isIg = !!(pg && pg.kind === "instagram"), https = u => /^https:\/\//.test(u);
+  if (e.a !== UNPLAY_V) { e.n = 0; delete e.done; e.a = UNPLAY_V; } // mit dem neuen Verfahren noch nicht nachgesehen: zählt neu
   e.n = (e.n || 0) + 1; e.t = Date.now();
   const get = async u => { try { return await fetchImage(u); } catch (e2) { return null; } };
   const size = async bl => { try { const x = await loadImg(bl); const t = x.img.naturalWidth + "×" + x.img.naturalHeight; URL.revokeObjectURL(x.url); return t; } catch (e2) { return "?"; } };
@@ -2326,21 +2329,23 @@ async function coverFixOne(r, e, note) {
       note("Originalbild: " + await size(blob) + " · gleiches Motiv: " + jn(cmp.same) + " (" + cmp.val.toFixed(2).replace(".", ",") + ")");
       if (cmp.same) cover = await storeIgCover(blob, true);
     }
-  } else if (isIg && !(r.cover.u >= 2)) {
+  } else if (isIg && !(r.cover.u >= UNPLAY_V)) {
     const tu = [m["og:image"], ...(Array.isArray(m.images) ? m.images : [])].map(u => String(u || "")).find(https);
     const blob = tu ? await get(tu) : null;
     if (!blob) note("Vorschaubild: " + (tu ? "nicht geladen" : "keins genannt"));
     else {
       const cmp = await coverCompare(r.cover.dataUrl, blob);
       note("Vorschaubild: " + await size(blob) + " · gleiches Motiv: " + jn(cmp.same) + " (" + cmp.val.toFixed(2).replace(".", ",") + ") · gleiches Format: " + jn(cmp.shape));
-      if (cmp.same && cmp.shape) {
+      // gleiches Format: Das gespeicherte Bild stammt aus genau diesem Vorschaubild. Ein mit V100 gerechnetes (u = 2) ist
+      // ein Zuschnitt davon, da reicht das gleiche Motiv.
+      if (cmp.same && (cmp.shape || r.cover.u === 2)) {
         unplayLast = null;
         const c2 = await storeIgCover(blob, false);
-        note("Play-Knopf erkannt: " + jn(c2.u === 2) + (c2.u === 2 && unplayLast ? " · gefüllt: Dreieck " + unplayLast.tri + ", Rand " + unplayLast.ring : ""));
-        if (c2.u === 2) cover = c2; // nur wenn wirklich ein Knopf drin war
+        note("Play-Knopf erkannt: " + jn(c2.u === UNPLAY_V) + (c2.u === UNPLAY_V && unplayLast ? " · gefüllt: Dreieck " + unplayLast.tri + ", Rand " + unplayLast.ring : ""));
+        if (c2.u === UNPLAY_V) cover = c2; // nur wenn wirklich ein Knopf drin war
       }
     }
-  } else if (isIg) note("Schon neu gerechnet, ein Original gibt es gerade nicht");
+  } else if (isIg) note("Schon mit dem neuen Verfahren gerechnet, ein Original gibt es gerade nicht");
   return { cover, pg };
 }
 // Neues Titelbild eintragen (wenn sich das Rezept inzwischen nicht geändert hat) und alles merken
@@ -2401,10 +2406,10 @@ async function cfvOpen() {
   const put = () => { if (my !== cfvRun) return; top.textContent = [state0, "", ...head, ...(probe.length ? ["", ...probe] : [])].join("\n"); more.textContent = recs.join("\n"); };
   const hm = t => new Date(t).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   const igs = state.recipes.filter(r => r.cover && r.cover.dataUrl && isIgLink(r.link || ""));
-  const nC = igs.filter(r => r.cover.c).length, nU = igs.filter(r => !r.cover.c && r.cover.u >= 2).length, o = cfLoad();
+  const nC = igs.filter(r => r.cover.c).length, nU = igs.filter(r => !r.cover.c && r.cover.u >= UNPLAY_V).length, nU2 = igs.filter(r => !r.cover.c && r.cover.u === 2).length, o = cfLoad();
   head.push("Version " + APP_VERSION + " · Server …");
   head.push("Instagram-Rezepte mit Bild: " + igs.length);
-  head.push("Original: " + nC + " · neu gerechnet: " + nU + " · alt: " + (igs.length - nC - nU));
+  head.push("Original: " + nC + " · neu gerechnet: " + nU + " · V100: " + nU2 + " · alt: " + (igs.length - nC - nU - nU2));
   head.push("Schon nachgesehen: " + igs.filter(r => o[cfSig(r)]).length + " · in dieser Sitzung: " + cfCount + (cfOff ? " (beendet)" : ""));
   head.push("Pause wegen Sperre: " + (o._pause && Date.now() < o._pause ? "bis " + hm(o._pause) + " Uhr" : "nein"));
   put();
@@ -2416,7 +2421,8 @@ async function cfvOpen() {
   if (my !== cfvRun) return;
   cfBusy = true;
   try {
-    const todo = igs.filter(r => !r.cover.c).slice(0, 4);
+    const rank = r => r.cover.u >= UNPLAY_V ? 2 : r.cover.u === 2 ? 1 : 0; // zuerst alte Bilder, dann die mit V100 gerechneten
+    const todo = igs.filter(r => !r.cover.c).sort((x, y) => rank(x) - rank(y)).slice(0, 4);
     if (!todo.length) recs.push("Alle Titelbilder sind schon das Original.");
     let stopped = false;
     for (const r0 of todo) {
@@ -2426,7 +2432,7 @@ async function cfvOpen() {
       let dim = "?"; try { const x = await loadImg(await (await fetch(r.cover.dataUrl)).blob()); dim = x.img.naturalWidth + "×" + x.img.naturalHeight; URL.revokeObjectURL(x.url); } catch (e2) { /* egal */ }
       if (recs.length) recs.push("");
       recs.push(String(r.title || "Rezept").slice(0, 40));
-      recs.push("Gespeichert: " + dim + " · " + (r.cover.u >= 2 ? "neu gerechnet" : "alt") + " · bisher " + (e.n || 0) + "× nachgesehen" + (e.t ? " (" + hm(e.t) + ")" : ""));
+      recs.push("Gespeichert: " + dim + " · " + (r.cover.u >= UNPLAY_V ? "neu gerechnet" : r.cover.u === 2 ? "mit V100 gerechnet" : "alt") + " · bisher " + (e.n || 0) + "× nachgesehen" + (e.t ? " (" + hm(e.t) + ")" : ""));
       recs.push("…"); put();
       let res;
       try { res = await coverFixOne(r, e, t => { recs.splice(recs.length - 1, 0, t); put(); }); }
@@ -2503,32 +2509,61 @@ async function cfvShow(d, blob, out) {
 // Ein Loch im Bild mit Stücken aus der Umgebung füllen. Erst grob in einem verkleinerten Bild, dann in voller Größe: Für jedes
 // Stück, das ins Loch ragt, wird das ähnlichste Stück ohne Loch aus der Nähe gesucht (PatchMatch); jedes Loch-Pixel bekommt den
 // Mittelwert aus allen Stücken, die es überdecken. Das wiederholt sich, bis Muster und Kanten ringsum zusammenpassen.
+// V104: Maßgeblich ist, was am Rand des Lochs wirklich im Bild steht. Geschätzte Pixel tief im Loch zählen beim Vergleichen
+// kaum, und es wird so weit verkleinert, bis das Loch kleiner ist als ein Stück. Sonst einigte sich das Innere auf eine
+// glatte Fläche von irgendwo (Wand, Tellerrand) und es blieb ein einfarbiges Dreieck stehen.
 // p: RGBA-Daten des ganzen Bilds, list: Pixel des Lochs. Gesucht wird nur im Quadrat um (cx, cy) mit halber Seite rad.
 // thin: schmales Loch (ein Streifen) – nur in voller Größe und gemittelt, das reicht dort und bleibt ruhig.
 let pfWhy = ""; // warum das Füllen mit Bildstücken zuletzt nicht ging (für die Prüfseite)
 async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
   pfWhy = "";
   const X0 = Math.max(0, Math.floor(cx - rad)), Y0 = Math.max(0, Math.floor(cy - rad)), X1 = Math.min(w - 1, Math.ceil(cx + rad)), Y1 = Math.min(h - 1, Math.ceil(cy + rad));
-  const W0 = X1 - X0 + 1, H0 = Y1 - Y0 + 1, PS = 2 * hp + 1;
+  const W0 = X1 - X0 + 1, H0 = Y1 - Y0 + 1, PS = 2 * hp + 1, C = 4, TEX = 7; // je Pixel: Rot, Grün, Blau und „wie unruhig ist das Bild hier“ (× TEX)
   if (!list.length || W0 < 8 * PS || H0 < 8 * PS) { pfWhy = !list.length ? "kein Loch" : "Feld zu klein " + W0 + "×" + H0; return false; }
   let seed = 9001; const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; // immer dieselbe Folge: gleiches Bild, gleiches Ergebnis
   let t0 = performance.now(); const breathe = async () => { if (performance.now() - t0 > 12) { await new Promise(res => setTimeout(res, 0)); t0 = performance.now(); } };
   // Stufe 0: volles Bild
   const lv = [];
-  { const N = W0 * H0, im = new Float32Array(N * 3), hole = new Uint8Array(N);
-    for (let y = 0; y < H0; y++) for (let x = 0; x < W0; x++) { const j = ((y + Y0) * w + x + X0) * 4, k = (y * W0 + x) * 3; im[k] = p[j]; im[k + 1] = p[j + 1]; im[k + 2] = p[j + 2]; }
+  { const N = W0 * H0, im = new Float32Array(N * C), hole = new Uint8Array(N);
+    for (let y = 0; y < H0; y++) for (let x = 0; x < W0; x++) { const j = ((y + Y0) * w + x + X0) * 4, k = (y * W0 + x) * C; im[k] = p[j]; im[k + 1] = p[j + 1]; im[k + 2] = p[j + 2]; }
     for (const i of list) { const y = ((i / w) | 0) - Y0, x = i % w - X0; if (x < 2 * PS || y < 2 * PS || x >= W0 - 2 * PS || y >= H0 - 2 * PS) { pfWhy = "Loch am Rand"; return false; } hole[y * W0 + x] = 1; }
     lv.push({ W: W0, H: H0, im, hole }); }
-  // kleinere Stufen: je 2×2 Pixel gemittelt (nur bekannte); Loch, sobald eins der vier im Loch liegt
-  while (lv.length < (thin ? 1 : 3)) {
-    const a = lv[lv.length - 1], W = a.W >> 1, H = a.H >> 1; if (W < 6 * PS || H < 6 * PS) break;
-    const im = new Float32Array(W * H * 3), hole = new Uint8Array(W * H);
+  // Wie weit reicht das Loch? (größte Ausdehnung in Pixeln der Stufe)
+  const extent = a => { let x0 = a.W, x1 = -1, y0 = a.H, y1 = -1; for (let y = 0; y < a.H; y++) for (let x = 0; x < a.W; x++) if (a.hole[y * a.W + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return Math.max(x1 - x0 + 1, y1 - y0 + 1); };
+  // kleinere Stufen: je 2×2 Pixel gemittelt (nur bekannte); Loch, sobald eins der vier im Loch liegt.
+  // So lange verkleinern, bis das Loch in ein Stück passt (dann sieht jedes Stück echten Rand), höchstens sechs Stufen.
+  while (!thin && lv.length < 6 && extent(lv[lv.length - 1]) > hp + 1) {
+    const a = lv[lv.length - 1], W = a.W >> 1, H = a.H >> 1; if (W < 3 * PS || H < 3 * PS) break;
+    const im = new Float32Array(W * H * C), hole = new Uint8Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       let n = 0, r = 0, g = 0, bl = 0, hl = 0;
-      for (let d = 0; d < 4; d++) { const q = (2 * y + (d >> 1)) * a.W + 2 * x + (d & 1); if (a.hole[q]) hl = 1; else { r += a.im[q * 3]; g += a.im[q * 3 + 1]; bl += a.im[q * 3 + 2]; n++; } }
-      const k = y * W + x; hole[k] = hl; if (n) { im[k * 3] = r / n; im[k * 3 + 1] = g / n; im[k * 3 + 2] = bl / n; }
+      for (let d = 0; d < 4; d++) { const q = (2 * y + (d >> 1)) * a.W + 2 * x + (d & 1); if (a.hole[q]) hl = 1; else { r += a.im[q * C]; g += a.im[q * C + 1]; bl += a.im[q * C + 2]; n++; } }
+      const k = y * W + x; hole[k] = hl; if (n) { im[k * C] = r / n; im[k * C + 1] = g / n; im[k * C + 2] = bl / n; }
     }
     lv.push({ W, H, im, hole });
+  }
+  // Viertes Merkmal je Stufe: wie unruhig das Bild rund um jedes Pixel ist (mittlerer Helligkeitssprung zum Nachbarn im Umkreis
+  // eines Stücks, nur aus echtem Bild). Damit passt eine glatte Fläche nicht mehr auf ein gemustertes Stück, auch wenn ihre
+  // Farbe dem Mittel entspricht – sonst füllte sich das Loch in Kräutern und Soße mit einer einfarbigen Fläche.
+  for (const a of lv) {
+    const { W, H, im, hole } = a, N = W * H, g = new Float32Array(N), gk = new Uint8Array(N);
+    const lum = k => (im[k * C] + im[k * C + 1] + im[k * C + 2]) / 3;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = y * W + x; if (hole[k]) continue;
+      let s2 = 0, n = 0;
+      if (x + 1 < W && !hole[k + 1]) { s2 += Math.abs(lum(k + 1) - lum(k)); n++; } if (x > 0 && !hole[k - 1]) { s2 += Math.abs(lum(k) - lum(k - 1)); n++; }
+      if (y + 1 < H && !hole[k + W]) { s2 += Math.abs(lum(k + W) - lum(k)); n++; } if (y > 0 && !hole[k - W]) { s2 += Math.abs(lum(k) - lum(k - W)); n++; }
+      if (n) { g[k] = s2 / n; gk[k] = 1; }
+    }
+    // Mittel über das Umfeld (Summentafeln)
+    const SG = new Float64Array((W + 1) * (H + 1)), SN = new Int32Array((W + 1) * (H + 1));
+    for (let y = 0; y < H; y++) { let rg = 0, rn = 0; for (let x = 0; x < W; x++) { rg += g[y * W + x]; rn += gk[y * W + x]; SG[(y + 1) * (W + 1) + x + 1] = SG[y * (W + 1) + x + 1] + rg; SN[(y + 1) * (W + 1) + x + 1] = SN[y * (W + 1) + x + 1] + rn; } }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = y * W + x; if (hole[k]) continue;
+      const xa = Math.max(0, x - hp), xb = Math.min(W, x + hp + 1), ya = Math.max(0, y - hp), yb = Math.min(H, y + hp + 1);
+      const n = SN[yb * (W + 1) + xb] - SN[ya * (W + 1) + xb] - SN[yb * (W + 1) + xa] + SN[ya * (W + 1) + xa];
+      im[k * C + 3] = n ? TEX * (SG[yb * (W + 1) + xb] - SG[ya * (W + 1) + xb] - SG[yb * (W + 1) + xa] + SG[ya * (W + 1) + xa]) / n : 0;
+    }
   }
   let prev = null; // Zuordnung der gröberen Stufe
   for (let li = lv.length - 1; li >= 0; li--) {
@@ -2541,17 +2576,31 @@ async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
     const src = [], tg = [], tix = new Int32Array(N).fill(-1), hl = [];
     for (let y = hp; y < H - hp; y++) for (let x = hp; x < W - hp; x++) { const c = cnt(x, y); if (c === 0) src.push(y * W + x); else { tix[y * W + x] = tg.length; tg.push(y * W + x); } }
     for (let k = 0; k < N; k++) if (hole[k]) hl.push(k);
-    if (src.length < 200 || !tg.length) { pfWhy = "zu wenig Umgebung (Stufe " + li + ": " + src.length + ")"; return false; }
-    const T = tg.length, nn = new Int32Array(T), nd = new Float32Array(T);
-    const dist = (t, s2, lim) => { let e = 0; for (let dy = -hp; dy <= hp; dy++) { const a = (t + dy * W - hp) * 3, b2 = (s2 + dy * W - hp) * 3; for (let i = 0; i < PS * 3; i++) { const d = im[a + i] - im[b2 + i]; e += d * d; } if (e >= lim) return e; } return e; };
+    if (src.length < 40 || !tg.length) {
+      if (!prev && li > 0) continue; // gröbste Stufe hat zu wenig Umgebung: mit der nächstfeineren anfangen
+      pfWhy = "zu wenig Umgebung (Stufe " + li + ": " + src.length + ")"; return false;
+    }
+    // Vertrauen je Pixel: echtes Bild 1, im Loch je Schicht nach innen weniger (und die Schichten für den glatten Start)
+    const cw = new Float32Array(N).fill(1), layers = [];
+    { const todo = new Set(hl);
+      while (todo.size) {
+        const layer = []; for (const k of todo) if (!todo.has(k - 1) || !todo.has(k + 1) || !todo.has(k - W) || !todo.has(k + W)) layer.push(k);
+        if (!layer.length) { pfWhy = "Start"; return false; }
+        const c = Math.max(.02, Math.pow(1.6, -(layers.length + 1)));
+        for (const k of layer) { todo.delete(k); cw[k] = c; }
+        layers.push(layer);
+      } }
+    const T = tg.length, nn = new Int32Array(T), nd = new Float32Array(T), tw = new Float32Array(T);
+    for (let i = 0; i < T; i++) { const t = tg[i]; let sum = 0; for (let dy = -hp; dy <= hp; dy++) for (let dx = -hp; dx <= hp; dx++) sum += cw[t + dy * W + dx]; tw[i] = sum; }
+    // Abstand zweier Stücke: Unterschied in Farbe und Unruhe je Pixel, gewichtet mit dem Vertrauen in das Pixel des Zielstücks
+    const dist = (t, s2, lim) => { let e = 0; for (let dy = -hp; dy <= hp; dy++) { const a = t + dy * W - hp, b2 = s2 + dy * W - hp; for (let i = 0; i < PS; i++) { const u = (a + i) * C, v = (b2 + i) * C, d0 = im[u] - im[v], d1 = im[u + 1] - im[v + 1], d2 = im[u + 2] - im[v + 2], d3 = im[u + 3] - im[v + 3]; e += cw[a + i] * (d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3); } if (e >= lim) return e; } return e; };
     // Start: gröbste Stufe von außen nach innen glatt füllen und zufällig zuordnen; sonst die Zuordnung der gröberen Stufe übernehmen
     if (!prev) {
-      const todo = new Set(hl);
-      while (todo.size) {
-        const layer = [];
-        for (const k of todo) { let n = 0, r = 0, g = 0, bl = 0; for (const q of [k - 1, k + 1, k - W, k + W]) if (!todo.has(q)) { r += im[q * 3]; g += im[q * 3 + 1]; bl += im[q * 3 + 2]; n++; } if (n) layer.push([k, r / n, g / n, bl / n]); }
-        if (!layer.length) { pfWhy = "Start"; return false; }
-        for (const [k, r, g, bl] of layer) { im[k * 3] = r; im[k * 3 + 1] = g; im[k * 3 + 2] = bl; todo.delete(k); }
+      const done = new Uint8Array(N); for (let k = 0; k < N; k++) done[k] = hole[k] ? 0 : 1;
+      for (const layer of layers) {
+        const vals = [];
+        for (const k of layer) { let n = 0; const v = [0, 0, 0, 0]; for (const q of [k - 1, k + 1, k - W, k + W]) if (done[q]) { for (let c = 0; c < C; c++) v[c] += im[q * C + c]; n++; } vals.push(n ? v.map(x => x / n) : null); }
+        layer.forEach((k, i) => { const v = vals[i]; if (v) for (let c = 0; c < C; c++) im[k * C + c] = v[c]; done[k] = 1; });
       }
       for (let i = 0; i < T; i++) nn[i] = src[(rnd() * src.length) | 0];
     } else {
@@ -2562,24 +2611,20 @@ async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
         if (!ok) nn[i] = src[(rnd() * src.length) | 0];
       }
     }
-    const vote = sharp => { // jedes Loch-Pixel: Mittel aus allen Stücken, die es überdecken; gut passende Stücke zählen mehr
-      if (sharp) { // zum Schluss: je Pixel nur das am besten passende Stück (sonst wird die Stelle weich und fällt als Fleck auf)
-        const bd = new Float32Array(N).fill(Infinity), bo = new Int32Array(N).fill(-1);
-        for (let i = 0; i < T; i++) { const t = tg[i], s2 = nn[i];
-          for (let dy = -hp; dy <= hp; dy++) for (let dx = -hp; dx <= hp; dx++) { const q = t + dy * W + dx; if (!hole[q]) continue; const e = nd[i] * (1 + .15 * (dx * dx + dy * dy)); if (e < bd[q]) { bd[q] = e; bo[q] = s2 + dy * W + dx; } } }
-        for (const q of hl) if (bo[q] >= 0) { const o = bo[q] * 3; im[q * 3] = im[o]; im[q * 3 + 1] = im[o + 1]; im[q * 3 + 2] = im[o + 2]; }
-        return;
-      }
-      const srt = Float32Array.from(nd).sort(), sig = Math.max(1, srt[(T * .75) | 0]);
-      const acc = new Float32Array(N * 4);
+    const nrm = new Float32Array(T); // Abstand je Einheit Vertrauen: vergleichbar zwischen Stücken am Rand und tief im Loch
+    const vote = sharp => { // jedes Loch-Pixel: Mittel aus allen Stücken, die es überdecken; gut passende, am Rand verankerte Stücke zählen mehr
+      for (let i = 0; i < T; i++) nrm[i] = nd[i] / tw[i];
+      // zum Schluss (sharp) zählen fast nur noch die am besten passenden Stücke: bleibt scharf, ohne zu rauschen
+      const srt = Float32Array.from(nrm).sort(), sig = Math.max(1, srt[(T * (sharp ? .1 : .75)) | 0]) * (sharp ? .5 : 1);
+      const acc = new Float32Array(N * (C + 1));
       for (let i = 0; i < T; i++) {
-        const t = tg[i], s2 = nn[i], wt = Math.exp(-nd[i] / (2 * sig)) + 1e-6;
-        for (let dy = -hp; dy <= hp; dy++) for (let dx = -hp; dx <= hp; dx++) { const q = t + dy * W + dx; if (!hole[q]) continue; const o = (s2 + dy * W + dx) * 3; acc[q * 4] += im[o] * wt; acc[q * 4 + 1] += im[o + 1] * wt; acc[q * 4 + 2] += im[o + 2] * wt; acc[q * 4 + 3] += wt; }
+        const t = tg[i], s2 = nn[i], wt = (Math.exp(-nrm[i] / (2 * sig)) + 1e-6) * tw[i];
+        for (let dy = -hp; dy <= hp; dy++) for (let dx = -hp; dx <= hp; dx++) { const q = t + dy * W + dx; if (!hole[q]) continue; const o = (s2 + dy * W + dx) * C, z = q * (C + 1); for (let c = 0; c < C; c++) acc[z + c] += im[o + c] * wt; acc[z + C] += wt; }
       }
-      for (const q of hl) { const wsum = acc[q * 4 + 3]; if (wsum > 0) { im[q * 3] = acc[q * 4] / wsum; im[q * 3 + 1] = acc[q * 4 + 1] / wsum; im[q * 3 + 2] = acc[q * 4 + 2] / wsum; } }
+      for (const q of hl) { const z = q * (C + 1), wsum = acc[z + C]; if (wsum > 0) for (let c = 0; c < C; c++) im[q * C + c] = acc[z + c] / wsum; }
     };
-    if (prev) { for (let i = 0; i < T; i++) nd[i] = 1; vote(false); } // feineres Bild zuerst aus der übernommenen Zuordnung aufbauen
-    const iters = thin ? 3 : li === lv.length - 1 ? 8 : li === 0 ? 3 : 5, RMAX = Math.max(W, H);
+    if (prev) { for (let i = 0; i < T; i++) nd[i] = tw[i]; vote(false); } // feineres Bild zuerst aus der übernommenen Zuordnung aufbauen
+    const iters = thin ? 3 : !prev ? 8 : li === 0 ? 3 : 5, RMAX = Math.max(W, H);
     for (let it = 0; it < iters; it++) {
       for (let i = 0; i < T; i++) nd[i] = dist(tg[i], nn[i], Infinity);
       for (let sweep = 0; sweep < (thin ? 2 : 4); sweep++) {
@@ -2588,7 +2633,7 @@ async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
           const i = fwd ? ii : T - 1 - ii, t = tg[i], sgn = fwd ? 1 : -1;
           // vom linken/oberen (bzw. rechten/unteren) Nachbarn übernehmen: dessen Quelle, um eins verschoben
           for (const st of [1, W]) {
-            const j = tix[t - sgn * st]; if (j < 0) continue;
+            const j = tix[t - sgn * st]; if (!(j >= 0)) continue;
             const c = nn[j] + sgn * st, cy2 = (c / W) | 0, cx2 = c - cy2 * W; if (!srcOk(cx2, cy2)) continue;
             const e = dist(t, c, nd[i]); if (e < nd[i]) { nd[i] = e; nn[i] = c; }
           }
@@ -2605,8 +2650,9 @@ async function patchFill(p, w, h, list, cx, cy, rad, hp, thin) {
     }
     prev = { W, H, tix, nn };
   }
+  if (!prev) { pfWhy = "keine Stufe"; return false; }
   const a0 = lv[0];
-  for (const i of list) { const y = ((i / w) | 0) - Y0, x = i % w - X0, k = (y * W0 + x) * 3; p[i * 4] = a0.im[k]; p[i * 4 + 1] = a0.im[k + 1]; p[i * 4 + 2] = a0.im[k + 2]; }
+  for (const i of list) { const y = ((i / w) | 0) - Y0, x = i % w - X0, k = (y * W0 + x) * C; p[i * 4] = a0.im[k]; p[i * 4 + 1] = a0.im[k + 1]; p[i * 4 + 2] = a0.im[k + 2]; }
   return true;
 }
 let unplayLast = null; // wie beim letzten Herausrechnen gefüllt wurde (für die Prüfseite)
@@ -2740,7 +2786,7 @@ async function unplayCanvas(src) {
   let filled = false;
   const info = { w, h, r: ur, f: fin, hole: tl.length, tri: "", ring: "", why: "" };
   unplayLast = info;
-  try { filled = await patchFill(p, w, h, tl, ux, uy, 1.75 * ur, Math.max(3, Math.round(3 * sc))); if (!filled) info.why = pfWhy; } catch (e) { console.warn("Füllen", e); filled = false; info.why = "Fehler: " + String((e && e.message) || e).slice(0, 60); }
+  try { filled = await patchFill(p, w, h, tl, ux, uy, 2.6 * ur, Math.max(3, Math.round(3 * sc))); if (!filled) info.why = pfWhy; } catch (e) { console.warn("Füllen", e); filled = false; info.why = "Fehler: " + String((e && e.message) || e).slice(0, 60); }
   info.tri = filled ? "Bildstücke" : "glatt";
   if (!filled) {
     const todo = new Set(tl);
@@ -2821,7 +2867,7 @@ function queuePlayFix() {
       if (fixed) {
         const now = state.recipes.find(x => x.id === r.id);
         if (!now || sigC(now) !== sig) return; // inzwischen ein anderes Titelbild
-        const cover = await storeCover(fixed); cover.u = 2;
+        const cover = await storeCover(fixed); cover.u = UNPLAY_V;
         await withRetry(() => col.doc(r.id).update({ cover }));
         patchLocal(r.id, { cover });
         playMark(r.id + ":" + cover.dataUrl.length); // das neue Bild nicht nochmal prüfen
